@@ -20,15 +20,15 @@ export function LiveTicker() {
   const row = [...items, ...items];
 
   return (
-    <div className="relative overflow-hidden border-y-2 border-robin/25 bg-ink-900/60 py-3">
+    <div className="relative overflow-hidden border-y-2 border-tendie/25 bg-ink-900/60 py-3">
       <div className="flex w-max animate-ticker gap-8">
         {row.map((m, i) => (
           <span
             key={i}
-            className="num flex items-center gap-2 whitespace-nowrap font-mono text-sm text-zinc-400"
+            className="num flex items-center gap-2 whitespace-nowrap font-mono text-sm text-mist-300"
           >
-            <span className="text-robin">✦</span>
-            <span className="font-bold text-zinc-200">{m.symbol}</span>
+            <span className="text-tendie">✦</span>
+            <span className="font-bold text-mist-50">{m.symbol}</span>
             <span className="font-bold text-white">${m.price.toFixed(2)}</span>
             <span className={m.changePct >= 0 ? "text-long" : "text-short"}>
               {m.changePct >= 0 ? "+" : ""}
