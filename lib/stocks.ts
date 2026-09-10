@@ -17,6 +17,10 @@ export type PayoutStock = {
 // xStocks payout lineup. Mints are intentionally blank: an xStock mint is a
 // funds-bearing address, so it gets pasted from the official source rather
 // than carried around in a repo. The UI degrades to "TBA" while blank.
+//
+// These are Token-2022 mints with 8 decimals, not classic SPL - the keeper
+// asks the chain which program owns each mint rather than assuming, because
+// the associated-token address differs between the two.
 export const PAYOUT_STOCKS: PayoutStock[] = [
   { symbol: "TSLA", name: "Tesla", token: "TSLAx", mint: "", seedPrice: 399.5 },
   { symbol: "NVDA", name: "NVIDIA", token: "NVDAx", mint: "", seedPrice: 196.8 },

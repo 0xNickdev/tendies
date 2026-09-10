@@ -5,7 +5,7 @@ import { VersionedTransaction, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount, getMint } from "@solana/spl-token";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { connection, treasury } from "./solana.js";
+import { connection, treasury, tokenProgramFor } from "./solana.js";
 
 const JUPITER = "https://quote-api.jup.ag/v6";
 
@@ -14,7 +14,8 @@ let cachedDecimals = null;
 export async function feeDecimals() {
   if (cachedDecimals != null) return cachedDecimals;
   try {
-    const { decimals } = await getMint(connection, new PublicKey(config.feeMint));
+    const mint = new PublicKey(config.feeMint);
+    const { decimals } = await getMint(connection, mint, undefined, await tokenProgramFor(mint));
     cachedDecimals = decimals;
   } catch {
     cachedDecimals = 6; // USDC
@@ -26,11 +27,12 @@ export async function feeDecimals() {
 export async function feeBalance() {
   if (!treasury) return 0n;
   try {
+    const mint = new PublicKey(config.feeMint);
+    const programId = await tokenProgramFor(mint);
     const ata = await getAssociatedTokenAddress(
-      new PublicKey(config.feeMint),
-      treasury.publicKey,
+      mint, treasury.publicKey, false, programId,
     );
-    const account = await getAccount(connection, ata);
+    const account = await getAccount(connection, ata, undefined, programId);
     return account.amount;
   } catch {
     return 0n; // no fee account yet

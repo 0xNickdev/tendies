@@ -70,6 +70,27 @@ export async function solBalance() {
   return lamports / LAMPORTS_PER_SOL;
 }
 
+// xStocks are Token-2022 mints, not classic SPL. The associated-token address
+// is derived from the program id, so using the wrong one computes a different
+// account and the transfer lands nowhere. Ask the chain which program owns the
+// mint instead of assuming.
+const programCache = new Map();
+
+export async function tokenProgramFor(mint) {
+  const key = mint.toBase58 ? mint.toBase58() : String(mint);
+  if (programCache.has(key)) return programCache.get(key);
+  const info = await connection.getAccountInfo(new PublicKey(key));
+  const owner = info?.owner ?? TOKEN_PROGRAM_ID;
+  const program = owner.equals(TOKEN_2022_PROGRAM_ID)
+    ? TOKEN_2022_PROGRAM_ID
+    : TOKEN_PROGRAM_ID;
+  programCache.set(key, program);
+  log.info(
+    `  ${key.slice(0, 6)}… is ${program.equals(TOKEN_2022_PROGRAM_ID) ? "Token-2022" : "SPL Token"}`,
+  );
+  return program;
+}
+
 export function ownerOffsetNote() {
   // kept as documentation for the filter above
   return OWNER_OFFSET;

@@ -18,7 +18,7 @@ import {
 } from "@solana/spl-token";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { connection, treasury } from "./solana.js";
+import { connection, treasury, tokenProgramFor } from "./solana.js";
 import { choiceOf, eligible, recordDelivery, settle } from "./store.js";
 
 // Which stock an owner is paid in — their signed choice, or the first
@@ -60,8 +60,11 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
   }
 
   const mint = new PublicKey(group.mint);
-  const { decimals } = await getMint(connection, mint);
-  const source = await getAssociatedTokenAddress(mint, treasury.publicKey);
+  const programId = await tokenProgramFor(mint);
+  const { decimals } = await getMint(connection, mint, undefined, programId);
+  const source = await getAssociatedTokenAddress(
+    mint, treasury.publicKey, false, programId,
+  );
 
   // integer maths only — no float rounding on money
   const cuts = group.owners.map(({ owner, accrued }) => ({
@@ -80,13 +83,16 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
     const tx = new Transaction();
     for (const cut of batch) {
       const owner = new PublicKey(cut.owner);
-      const destination = await getAssociatedTokenAddress(mint, owner);
+      const destination = await getAssociatedTokenAddress(
+        mint, owner, false, programId,
+      );
       tx.add(
         createAssociatedTokenAccountIdempotentInstruction(
           treasury.publicKey,
           destination,
           owner,
           mint,
+          programId,
         ),
         createTransferCheckedInstruction(
           source,
@@ -95,6 +101,8 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
           treasury.publicKey,
           cut.amount,
           decimals,
+          undefined,
+          programId,
         ),
       );
     }
