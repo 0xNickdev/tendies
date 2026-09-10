@@ -47,6 +47,7 @@ The hero's **Enter Terminal** button (and the header CTA) route to `/terminal`.
 
 ```
 app/
+  api/rpc/route.ts      # backend — Solana RPC proxy, keeps the paid key server-side
   api/prices/route.ts   # backend — live quotes (Yahoo q1 → q2 → CNBC → seed)
   api/candles/route.ts  # backend — real OHLC history (Yahoo q1 → q2), 4H folded from 1h
   page.tsx              # landing composition

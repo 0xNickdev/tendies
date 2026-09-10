@@ -21,12 +21,12 @@ export const TREASURY_WALLET = "";
 export const KEEPER_URL = process.env.NEXT_PUBLIC_KEEPER_URL ?? "";
 
 // ─── Solana mainnet-beta ─────────────────────────────────────────────────
-// The public RPC is rate-limited — set NEXT_PUBLIC_SOLANA_RPC to a Helius /
-// QuickNode / Triton endpoint before launch.
+// Balance reads go through /api/rpc, which forwards to SOLANA_RPC on the
+// server. The endpoint URL carries a paid API key, so it must NOT be exposed
+// as NEXT_PUBLIC_* — that would inline it into the browser bundle.
 export const SOLANA = {
   cluster: "mainnet-beta",
-  rpcUrl:
-    process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com",
+  rpcUrl: "/api/rpc",
   explorer: "https://solscan.io",
   nativeCurrency: { name: "Solana", symbol: "SOL", decimals: 9 },
 } as const;
