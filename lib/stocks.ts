@@ -14,21 +14,32 @@ export type PayoutStock = {
   seedPrice: number; // fallback when the price API is unreachable
 };
 
-// xStocks payout lineup. Mints are intentionally blank: an xStock mint is a
-// funds-bearing address, so it gets pasted from the official source rather
-// than carried around in a repo. The UI degrades to "TBA" while blank.
+// xStocks payout lineup. Each mint was verified on-chain before being written
+// here: name, owning program and decimals all read back from the cluster.
 //
 // These are Token-2022 mints with 8 decimals, not classic SPL - the keeper
 // asks the chain which program owns each mint rather than assuming, because
 // the associated-token address differs between the two.
 export const PAYOUT_STOCKS: PayoutStock[] = [
-  { symbol: "TSLA", name: "Tesla", token: "TSLAx", mint: "", seedPrice: 399.5 },
-  { symbol: "NVDA", name: "NVIDIA", token: "NVDAx", mint: "", seedPrice: 196.8 },
+  {
+    symbol: "TSLA",
+    name: "Tesla",
+    token: "TSLAx",
+    mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+    seedPrice: 399.5,
+  },
+  {
+    symbol: "NVDA",
+    name: "NVIDIA",
+    token: "NVDAx",
+    mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+    seedPrice: 196.8,
+  },
   {
     symbol: "SPCX",
     name: "SpaceX",
     token: "SPCXx",
-    mint: "",
+    mint: "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
     seedPrice: 145.0, // now public on Nasdaq (IPO Jun 2026)
   },
 ];
