@@ -165,6 +165,12 @@ export function CandleChart({
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
+      // A trackpad pinch arrives as a wheel event with ctrlKey set - that is
+      // the browser saying "the user is zooming the page". Hijacking it means
+      // fighting the browser's own gesture handling, which kills the renderer
+      // outright. Let pinch do what the user asked: zoom the page.
+      if (e.ctrlKey || e.metaKey) return;
+
       const { count: c, start: st, total } = viewRef.current;
       if (total <= VISIBLE_MIN) return;
       // already fully zoomed out — let the page have the gesture instead of
