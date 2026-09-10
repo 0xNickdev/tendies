@@ -93,9 +93,7 @@ function genCandles(tf: TF, symbol: string, basePrice: number): Candle[] {
 const UP = "#3CE3AB";
 const DOWN = "#F23674";
 
-const VISIBLE_DEFAULT = 72; // candles on screen before the user zooms
-const VISIBLE_MIN = 16;
-const VISIBLE_MAX = 240;
+const VISIBLE_DEFAULT = 72; // candles in the window the reader drags along
 
 function labelFor(t: number, tf: TF): string {
   const d = new Date(t * 1000);
@@ -151,71 +149,10 @@ export function CandleChart({
   const sliced = all.slice(start, start + count);
   const candles = sliced.length ? sliced : all;
 
-  // ── zoom on wheel, pan on drag ──────────────────────────────────────────
-  // The listener is registered once and reads live values from refs. Attaching
-  // it per render meant re-binding on every wheel tick, and a trackpad fires
-  // around a hundred a second — that plus a full SVG rebuild each time was
-  // enough to stall the renderer.
-  const viewRef = useRef({ count, start, total: all.length });
-  viewRef.current = { count, start, total: all.length };
-  const pending = useRef<number | null>(null);
-
-  useEffect(() => {
-    const el = svgRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      // A trackpad pinch arrives as a wheel event with ctrlKey set - that is
-      // the browser saying "the user is zooming the page". Hijacking it means
-      // fighting the browser's own gesture handling, which kills the renderer
-      // outright. Let pinch do what the user asked: zoom the page.
-      if (e.ctrlKey || e.metaKey) return;
-
-      const { count: c, start: st, total } = viewRef.current;
-      if (total <= VISIBLE_MIN) return;
-      // already fully zoomed out — let the page have the gesture instead of
-      // trapping the scroll
-      if (e.deltaY > 0 && c >= total) return;
-      e.preventDefault();
-
-      const rect = el.getBoundingClientRect();
-      if (!rect.width) return;
-      const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const step = e.deltaY > 0 ? 1.18 : 1 / 1.18;
-      const nextCount = Math.round(
-        Math.min(VISIBLE_MAX, Math.min(total, Math.max(VISIBLE_MIN, c * step))),
-      );
-      const anchor = st + frac * c; // keep the candle under the cursor put
-      const cap = Math.max(0, total - nextCount);
-      const nextStart = Math.min(
-        Math.max(0, Math.round(anchor - frac * nextCount)),
-        cap,
-      );
-      if (!Number.isFinite(nextCount) || !Number.isFinite(nextStart)) return;
-
-      // Coalesce a burst of wheel deltas into one state update per frame.
-      // A hidden tab never runs animation frames, so the update would sit in
-      // the queue until the tab came back — apply it straight away there.
-      viewRef.current = { count: nextCount, start: nextStart, total };
-      if (typeof document !== "undefined" && document.hidden) {
-        setView({ count: nextCount, start: nextStart });
-        return;
-      }
-      if (pending.current == null) {
-        pending.current = requestAnimationFrame(() => {
-          pending.current = null;
-          const v = viewRef.current;
-          setView({ count: v.count, start: v.start });
-        });
-      }
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      if (pending.current != null) cancelAnimationFrame(pending.current);
-    };
-  }, []);
+  // ── pan on drag ─────────────────────────────────────────────────────────
+  // No wheel zoom: on a trackpad a pinch arrives as a ctrl-wheel event, and
+  // intercepting it fought the browser's own gesture handling hard enough to
+  // kill the renderer. The window is a fixed width that the reader drags along.
 
   const drag = useRef<{ x: number; start: number } | null>(null);
 
@@ -341,7 +278,7 @@ export function CandleChart({
         className="w-full touch-pan-y select-none"
         style={{ cursor: drag.current ? "grabbing" : "crosshair" }}
         role="img"
-        aria-label={`${symbol} price chart - ${live ? "real OHLC" : "simulated preview"}, scroll to zoom, drag to pan`}
+        aria-label={`${symbol} price chart - ${live ? "real OHLC" : "simulated preview"}, drag to pan`}
         onPointerMove={onMove}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -474,8 +411,7 @@ export function CandleChart({
       <p className="mt-2 font-mono text-[11px] text-mist-500">
         {live ? (
           <>
-            Nasdaq OHLC · {all.length} bars, delayed ~15 min · scroll to zoom,
-            drag to pan · perps settle against oracle mark{" "}
+            Nasdaq OHLC · {all.length} bars, delayed ~15 min · drag to pan · perps settle against oracle mark{" "}
             <span className="text-mist-300">{fmtUSD(basePrice)}</span>
           </>
         ) : (
