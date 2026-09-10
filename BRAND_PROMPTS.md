@@ -181,32 +181,82 @@ the candles. Eleven candles, irregular heights, the tallest at the far right.
 
 ## 5. Шапка X / Twitter
 
-Flow выдаёт 16:9, а шапке нужно 3:1 — поэтому **генерируем сюжет, а раскладку
-режем кодом** (см. §8). Модель рисует тендеры на плоском фоне, скрипт ставит их
-в холст 1500×500 и проверяет, что левый угол под аватар и нижняя полоса пустые.
+Flow выдаёт 16:9, шапке нужно 3:1 — поэтому **модель рисует сюжет, раскладку
+режет код** (см. §8). И **текст на баннере рисует код, а не модель**: у нас уже
+есть вордмарк с фирменной типографикой, а модель нарисует буквы как получится.
+
+Основной сюжет — продуктовая шутка в одной картинке: график, у которого свечи
+это тендеры.
 
 ```
-A shoal of chicken tenders drifting upward through empty space. Six tenders,
-clearly separated from one another, each one higher and further to the right
-than the last, so the eye follows them from the lower middle of the frame up
-to the top right corner. A thin trail of breading crumbs follows behind each
-one. The whole left half of the frame is empty — nothing there at all.
+A candlestick chart climbing from the lower left to the upper right, except
+every candle body is a chunky chicken tender standing upright — rounded ends,
+slightly bowed sides — with a thin wick above and below it. Eight candles,
+irregular heights, each roughly following the one before it upward. The last
+one on the right is enormous and breaking out of the top of the frame at an
+angle, like it has been launched, with a spray of breading crumbs trailing
+behind it as exhaust. A few crumbs drift between the other candles.
 
-Wide 16:9 canvas. The tenders occupy about a third of the picture and the rest
-is open dark space. Calm, sparse and poster-like, with room to breathe — not a
-busy pattern, not a pile.
+Wide 16:9 canvas. The chart occupies the right half of the picture; the whole
+left half is empty dark space with nothing in it. The composition should feel
+kinetic and a little absurd — the moment of a blow-off top — while still
+reading instantly at thumbnail size.
 
 Flat vector illustration, bold closed silhouettes, two flat tones per object,
-editorial poster style. Fill each tender with the brand gradient. The
-background is solid near-black #071013 and completely plain — no grid, no
-texture, no pattern, no vignette, no glow. Crumbs in light #ABC4CE, a couple in
-mint #3CE3AB.
+editorial poster style with confident geometry. Fill each tender-candle with
+the brand gradient; wicks in light #ABC4CE. The background is solid near-black
+#071013 and completely plain — no grid, no texture, no pattern, no vignette,
+no glow, no motion blur lines.
 
 [вставь блок палитры из §0]
 ```
 
-Сетку не просим сознательно: модель рисует её в разы ярче, чем нужно. Если
-захочешь фоновую сетку — скажи, добавлю кодом ровно той яркости, что на сайте.
+**Другие сюжеты** — тот же промт, меняешь только первый абзац:
+
+*Опрокинутая корзина* — самый «твиттерный», хаос и движение:
+
+```
+A fryer basket tipped over in the upper right corner of the frame, with a
+dozen chicken tenders spilling out of it and tumbling down and to the left
+across the picture, каждый at a different angle, some overlapping. A wide
+scatter of breading crumbs flies with them. The tenders thin out toward the
+middle of the frame and the left half is completely empty.
+```
+
+*Дождь из тендеров* — буквально иллюстрирует «тебе платят»:
+
+```
+Chicken tenders falling from the top of the frame like heavy rain, twelve of
+them at different sizes and angles, densest at the right edge and thinning out
+toward the middle. Breading crumbs fall with them. At the bottom right, a
+single open cardboard carton catches a few. The left half of the frame is
+completely empty.
+```
+
+*Один тендер-ракета* — минималистичный:
+
+```
+A single chicken tender flying diagonally upward across the right half of the
+frame like a rocket, tilted about thirty degrees, with a long tapering trail
+of breading crumbs behind it that thins out toward the lower left. Nothing
+else in the picture.
+```
+
+## 5.1. Текст на баннере
+
+На X твоё имя и @хендл и так стоят прямо под баннером, поэтому дублировать
+название бессмысленно — **баннер должен говорить то, чего имя сказать не
+может**. Значит на нём крючок, а не название:
+
+- крупно: **Hold the bag. Get the tendies.**
+- мелко: **TOKENIZED STOCKS, PAID OUT EVERY 30 MIN · SOLANA**
+- вордмарк маленьким, сверху — он нужен на случай, когда баннер репостят
+  скриншотом и контекста профиля рядом нет
+
+Ставится кодом: `banners/x-header-tendies-text.png` собран так — вордмарк
+берётся из `public/wordmark.webp` (фирменная типографика), текст ложится в
+верхне-левую часть, потому что **аватар на X перекрывает низ слева**, а не
+центр.
 
 ## 6. OG-картинка для ссылок
 
