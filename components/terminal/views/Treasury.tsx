@@ -5,18 +5,26 @@ import { useStore } from "@/lib/store";
 import { TREASURY } from "@/lib/mock";
 import { PAYOUT_STOCKS, DISTRIBUTION_MINUTES, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
+import { useKeeperStatus } from "@/lib/useKeeperStatus";
 import { fmtUSD, fmtNum, fmtUSDCompact } from "@/lib/format";
 import { CandleChart } from "@/components/CandleChart";
 import { Stat, ViewHeader, LiveFeedChip } from "../ui";
 import { useToast } from "../Toast";
 
 // live countdown to the next 30-minute distribution epoch
-function useNextPayout() {
+// Counts down to the keeper's actual next epoch. Without the keeper there is
+// no honest number to show, so it stays blank rather than ticking a wall clock
+// that has nothing to do with when payouts happen.
+function useNextPayout(secondsUntilNext?: number) {
   const [left, setLeft] = useState("--:--");
   useEffect(() => {
+    if (secondsUntilNext == null) {
+      setLeft("--:--");
+      return;
+    }
+    const target = Date.now() + secondsUntilNext * 1000;
     const tick = () => {
-      const ms = DISTRIBUTION_MINUTES * 60_000;
-      const d = Math.max(0, Math.ceil(Date.now() / ms) * ms - Date.now());
+      const d = Math.max(0, target - Date.now());
       const m = Math.floor(d / 60_000);
       const sec = Math.floor((d % 60_000) / 1000);
       setLeft(`${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`);
@@ -24,7 +32,7 @@ function useNextPayout() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [secondsUntilNext]);
   return left;
 }
 
@@ -32,7 +40,6 @@ export function Treasury() {
   const {
     wallet,
     connect,
-    claimUsdc,
     shareBps,
     payoutChoice,
     accruedUsd,
@@ -40,7 +47,6 @@ export function Treasury() {
     setPayoutChoice,
   } = useStore();
   const { push } = useToast();
-  const [pending, setPending] = useState(false);
   const [saving, setSaving] = useState(false);
   // the keeper is the source of truth; local state is only the optimistic view
   const [local, setLocal] = useState<StockSym>("TSLA");
@@ -64,21 +70,11 @@ export function Treasury() {
     );
   };
   const quotes = useQuotes();
-  const nextPayout = useNextPayout();
+  const keeper = useKeeperStatus();
+  const nextPayout = useNextPayout(keeper?.epoch.secondsUntilNext);
 
   const payoutStock = PAYOUT_STOCKS.find((st) => st.symbol === payout)!;
   const payoutPrice = quotePrice(quotes, payout);
-  const payoutAmount = claimUsdc / payoutPrice;
-
-  const claim = () => {
-    if (!wallet.connected) return connect();
-    setPending(true);
-    push("Confirm claim in wallet…", "pending");
-    setTimeout(() => {
-      push(`Claimed ${fmtNum(payoutAmount, 4)} ${payoutStock.token} to wallet`, "success");
-      setPending(false);
-    }, 1100);
-  };
 
   return (
     <div>
@@ -89,14 +85,23 @@ export function Treasury() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Total Treasury" value={TREASURY.totalUsdc > 0 ? fmtUSDCompact(TREASURY.totalUsdc) : "TBA"} sub="Pays out in tokenized stocks" />
+        <Stat
+          label="In the treasury"
+          value={keeper ? fmtUSD(keeper.treasury.pendingFee) : "TBA"}
+          sub={keeper ? `${keeper.treasury.holders} holders accruing` : "Pays out in tokenized stocks"}
+        />
         <Stat
           label="Your Share"
           value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "—"}
-          sub={fmtUSD(claimUsdc)}
+          sub={`${fmtUSD(accruedUsd)} accrued`}
           accent="tendie"
         />
-        <Stat label="Realized APR" value={TREASURY.apr > 0 ? `${TREASURY.apr}%` : "TBA"} sub="From trade taxes" accent="long" />
+        <Stat
+          label="Paid out so far"
+          value={keeper ? fmtUSD(keeper.ledger.paidOut) : "TBA"}
+          sub={keeper ? `${keeper.ledger.epochsRun} distributions` : "From trade fees"}
+          accent="long"
+        />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -136,11 +141,11 @@ export function Treasury() {
         <div className="panel flex flex-col p-6">
           <span className="label">Accrued for you</span>
           <div className="num mt-2 text-4xl font-semibold text-tendie">
-            {fmtUSD(accruedUsd || claimUsdc)}
+            {fmtUSD(accruedUsd)}
           </div>
           <p className="mt-2 text-sm text-mist-400">
-            Withdraw as a tokenized stock of your choice, or keep it as perps
-            margin.
+            Accruing in {payoutStock.token}. Sent to your wallet automatically —
+            there is nothing to withdraw.
           </p>
 
           <div className="mt-5">
@@ -163,7 +168,7 @@ export function Treasury() {
                       {st.token}
                     </div>
                     <div className="num mt-1 text-[11px] text-mist-400">
-                      ≈ {fmtNum(claimUsdc / price, 3)}
+                      ≈ {fmtNum(accruedUsd / price, 3)}
                     </div>
                   </button>
                 );
@@ -197,22 +202,24 @@ export function Treasury() {
             </div>
           </div>
 
-          <button
-            onClick={claim}
-            disabled={pending || (wallet.connected && claimUsdc <= 0)}
-            className="btn-tendie mt-5 w-full py-4"
-          >
-            {!wallet.connected
-              ? "Connect Wallet"
-              : claimUsdc <= 0
-                ? "Nothing to claim yet"
-                : pending
-                  ? "Claiming…"
-                  : `Claim ${payoutStock.token}`}
-          </button>
-          <p className="mt-3 text-center text-xs text-mist-400">
-            Claiming reduces your perps margin headroom.
-          </p>
+          {!wallet.connected ? (
+            <button onClick={connect} className="btn-tendie mt-5 w-full py-4">
+              Connect Wallet
+            </button>
+          ) : (
+            <div className="mt-5 rounded-xl border border-tendie/25 bg-tendie/5 p-4 text-center">
+              <div className="font-mono text-xs font-bold uppercase tracking-wider text-tendie">
+                Nothing to claim — payouts are pushed
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-mist-400">
+                {accruedUsd >= minPayoutUsd && minPayoutUsd > 0
+                  ? `Your balance is over the $${minPayoutUsd} floor — it goes out as ${payoutStock.token} on the next distribution.`
+                  : minPayoutUsd > 0
+                    ? `Rewards accrue every ${DISTRIBUTION_MINUTES} minutes and are sent automatically once your balance passes $${minPayoutUsd}. Below that they keep accruing, so network fees never cost more than the payout.`
+                    : "Rewards are sent to your wallet automatically — there is no claim step."}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

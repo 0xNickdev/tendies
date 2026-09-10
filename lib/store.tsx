@@ -131,7 +131,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [tendieBalance, setTendie] = useState(0);
   const [claimUsdc, setClaim] = useState(0);
   const [walletUsdc, setWalletUsdc] = useState(0);
-  const [shareBps] = useState(0);
+  const [shareBps, setShareBps] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedPosition[]>([]);
   const [payoutChoice, setChoice] = useState<StockSym | null>(null);
@@ -149,6 +149,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setChoice(symbolForToken(account.choice));
       setAccrued(account.accrued);
       setMinPayout(account.minPayoutUsd);
+      setShareBps(account.shareBps ?? 0);
     }
   }, []);
 
@@ -192,6 +193,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setTendie(0);
     setChoice(null);
     setAccrued(0);
+    setShareBps(0);
   }, []);
 
   // Silently restore a previously approved connection, then follow account

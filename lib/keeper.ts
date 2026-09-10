@@ -12,7 +12,31 @@ export type Account = {
   choice: string | null; // xStock ticker, e.g. "NVDAx"
   accrued: number; // in fee-token units (USDC)
   minPayoutUsd: number;
+  balance: number; // TENDIE held at the last epoch snapshot
+  shareBps: number; // share of circulating supply, basis points
+  snapshotAt: string | null;
 };
+
+// Treasury numbers the site shows. Everything here is measured by the keeper —
+// nothing is projected or annualised, because there is no honest basis for it
+// until the token has traded for a while.
+export type KeeperStatus = {
+  dryRun: boolean;
+  treasury: { pendingFee: number; holders: number; payoutStocks: string[] };
+  ledger: { owed: number; paidOut: number; owedAccounts: number; epochsRun: number; minPayoutUsd: number };
+  epoch: { intervalMinutes: number; secondsUntilNext: number; lastEpochAt: string | null };
+};
+
+export async function fetchStatus(): Promise<KeeperStatus | null> {
+  if (!KEEPER_URL) return null;
+  try {
+    const res = await fetch(`${KEEPER_URL}/status`);
+    const json = await res.json();
+    return json?.ok ? (json as KeeperStatus) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Must match choiceMessage() in keeper/src/choice.js, byte for byte.
 export function choiceMessage(token: string, ts: number) {

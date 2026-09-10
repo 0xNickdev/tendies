@@ -6,14 +6,16 @@ import { TREASURY } from "@/lib/mock";
 import { PAYOUT_STOCKS, type StockSym } from "@/lib/stocks";
 import { BUY_TENDIE_URL } from "@/lib/config";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
+import { useKeeperStatus } from "@/lib/useKeeperStatus";
 import { fmtUSD, fmtNum, fmtPct, fmtUSDCompact } from "@/lib/format";
 import { CandleChart } from "@/components/CandleChart";
 import { Stat, ViewHeader, LiveFeedChip } from "../ui";
 import type { View } from "../TerminalShell";
 
 export function Dashboard({ go }: { go: (v: View) => void }) {
-  const { wallet, tendieBalance, claimUsdc, shareBps, positions } = useStore();
+  const { wallet, tendieBalance, accruedUsd, shareBps, positions } = useStore();
   const quotes = useQuotes();
+  const keeper = useKeeperStatus();
 
   const [market, setMarket] = useState<StockSym>("TSLA");
   const marketStock = PAYOUT_STOCKS.find((s) => s.symbol === market)!;
@@ -48,9 +50,9 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
           accent="tendie"
         />
         <Stat
-          label="Treasury Claim"
-          value={fmtUSD(claimUsdc)}
-          sub="Paid in stocks · every 30 min"
+          label="Accrued for you"
+          value={fmtUSD(accruedUsd)}
+          sub="Sent in stocks · no claim needed"
           accent="long"
         />
         <Stat
@@ -137,22 +139,22 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
               <Arrow />
             </button>
             <button onClick={() => go("treasury")} className="btn-ghost w-full justify-between">
-              <span>Claim Treasury</span>
+              <span>Payout settings</span>
               <Arrow />
             </button>
           </div>
 
           <div className="mt-6 rounded-xl border border-tendie/10 bg-ink-900/60 p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-mist-300">Treasury size</span>
+              <span className="text-mist-300">In the treasury</span>
               <span className="num font-semibold text-white">
-                {TREASURY.totalUsdc > 0 ? fmtUSDCompact(TREASURY.totalUsdc) : "TBA"}
+                {keeper ? fmtUSDCompact(keeper.treasury.pendingFee) : "TBA"}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-mist-300">Treasury APR</span>
+              <span className="text-mist-300">Paid out so far</span>
               <span className="num font-semibold text-long">
-                {TREASURY.apr > 0 ? `${TREASURY.apr}%` : "TBA"}
+                {keeper ? fmtUSDCompact(keeper.ledger.paidOut) : "TBA"}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
@@ -166,7 +168,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
               />
             </div>
             <div className="mt-2 text-xs text-mist-400">
-              Treasury metrics go live with the token launch.
+              Treasury metrics come from the keeper — live once the token launches.
             </div>
           </div>
         </div>

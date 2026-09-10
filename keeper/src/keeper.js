@@ -22,6 +22,20 @@ import {
   totalAccrued,
 } from "./store.js";
 
+// Последний снимок холдеров, чтобы /account не гонял getProgramAccounts на
+// каждый запрос: доля обновляется раз в эпоху, чаще она и не меняется осмысленно.
+const snapshot = { at: null, holders: new Map(), supplyHeld: 0 };
+
+export function holderInfo(owner) {
+  const held = snapshot.holders.get(owner) ?? 0;
+  return {
+    balance: held,
+    share: snapshot.supplyHeld > 0 ? held / snapshot.supplyHeld : 0,
+    holders: snapshot.holders.size,
+    snapshotAt: snapshot.at,
+  };
+}
+
 export const state = {
   bootedAt: new Date().toISOString(),
   cluster: config.rpcUrl,
@@ -57,6 +71,9 @@ export async function tickEpoch() {
 
     const holders = await snapshotHolders();
     state.holders = holders.length;
+    snapshot.at = new Date().toISOString();
+    snapshot.holders = new Map(holders.map((h) => [h.owner, h.balance]));
+    snapshot.supplyHeld = holders.reduce((sum, h) => sum + h.balance, 0);
     if (!holders.length) {
       log.info("no holders yet — nothing to accrue");
       state.lastEpochAt = new Date().toISOString();

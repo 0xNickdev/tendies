@@ -6,7 +6,7 @@ import { config } from "./config.js";
 import { log } from "./log.js";
 import { snapshotHolders, solBalance } from "./solana.js";
 import { feeBalance, feeDecimals } from "./swap.js";
-import { state, ledgerSummary } from "./keeper.js";
+import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice } from "./choice.js";
 import { accruedOf, choiceOf } from "./store.js";
 
@@ -118,12 +118,17 @@ export function startServer() {
       const owner = url.searchParams.get("owner") ?? "";
       if (!owner) return json(res, 400, { ok: false, error: "owner required" });
       const decimals = await feeDecimals().catch(() => 6);
+      const info = holderInfo(owner);
       return json(res, 200, {
         ok: true,
         owner,
         choice: choiceOf(owner),
         accrued: Number(accruedOf(owner)) / 10 ** decimals,
         minPayoutUsd: config.minPayoutUsd,
+        // доля из последнего снимка эпохи, не из живого запроса
+        balance: info.balance,
+        shareBps: Math.round(info.share * 10_000),
+        snapshotAt: info.snapshotAt,
       });
     }
 
