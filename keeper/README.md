@@ -68,7 +68,7 @@ keeper/
 | `EPOCH_MINUTES` | — | `30` | accrual cadence |
 | `CHECK_INTERVAL_MS` | — | `60000` | how often the loop checks whether an epoch is due |
 | `TRANSFERS_PER_TX` | — | `8` | transfers batched per transaction |
-| `MIN_SOL_WARN` | — | `0.05` | warn when treasury SOL runs low (fees + ATA rent) |
+| `MIN_SOL_WARN` | — | `0.25` | warn when treasury SOL runs low (fees + account rent) |
 | `PORT` | — | `3333` | Railway sets this automatically |
 
 **Until `TENDIE_MINT`, `TREASURY_SECRET_KEY` and `PAYOUT_MINTS` are all set the

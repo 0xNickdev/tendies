@@ -54,7 +54,10 @@ export const config = {
   // transfers per transaction; Solana caps what fits in 1232 bytes
   transfersPerTx: Number(process.env.TRANSFERS_PER_TX || 8),
   port: Number(process.env.PORT || 3333),
-  minSolWarn: Number(process.env.MIN_SOL_WARN || 0.05),
+  // Warn well before the treasury runs dry: opening a token account for a
+  // holder who doesn't have one costs ~0.002 SOL of rent, so a wave of new
+  // recipients drains a small balance fast.
+  minSolWarn: Number(process.env.MIN_SOL_WARN || 0.25),
 };
 
 // A keeper with no mint or no signer can compute but must not claim to pay.

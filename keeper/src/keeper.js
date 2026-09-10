@@ -120,6 +120,21 @@ export async function tickEpoch() {
       return;
     }
 
+    // Check before spending, not after: a treasury that runs out mid-epoch
+    // pays some holders and not others, and the rest wait for the next round.
+    if (!config.dryRun) {
+      const solBefore = await solBalance();
+      const recipients = groups.reduce((n, g) => n + g.owners.length, 0);
+      const worstCase = recipients * 0.00204 + (recipients / config.transfersPerTx) * 0.00002;
+      if (solBefore < worstCase) {
+        log.warn(
+          `treasury has ${solBefore.toFixed(3)} SOL but this epoch could need up to ` +
+            `${worstCase.toFixed(3)} for ${recipients} recipients - top it up, ` +
+            `whoever isn't reached stays owed and gets paid next epoch`,
+        );
+      }
+    }
+
     for (const group of groups) {
       log.info(
         `${group.symbol}: ${group.owners.length} holders due, ${group.total} raw fee`,
