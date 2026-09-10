@@ -159,7 +159,7 @@ droplets, no scenery. No text, no letters, no watermark.
 
 Три прогона:
 
-1. `Слой: draw only the far background plane — three tenders, small in the frame, at 45 percent opacity with reduced contrast, and nothing else.`
+1. `Слой: draw only the far background plane — three tenders, small in the frame, noticeably paler and lower in contrast than the others, as if seen through haze, and nothing else.`
 2. `Слой: draw only the midground plane — three tenders at full size and full contrast, the hero shapes of the composition, and nothing else.`
 3. `Слой: draw only the foreground plane — one oversized tender fragment cropped by the right edge of the frame, plus a scatter of large breading crumbs, and nothing else.`
 
@@ -179,50 +179,49 @@ the candles. Eleven candles, irregular heights, the tallest at the far right.
 
 ---
 
-## 5. Шапка X / Twitter — 1500×500
+## 5. Шапка X / Twitter
+
+Flow выдаёт 16:9, а шапке нужно 3:1 — поэтому **генерируем сюжет, а раскладку
+режем кодом** (см. §8). Модель рисует тендеры на плоском фоне, скрипт ставит их
+в холст 1500×500 и проверяет, что левый угол под аватар и нижняя полоса пустые.
 
 ```
-Create a wide banner for a social profile header. A horizontal stream of
-chicken tenders flies from left to right across the frame, their arcs
-overlapping so the group traces one continuous line rising from the lower left
-to the upper right. Breading crumbs trail behind each strip like exhaust,
-thinning toward the left edge.
+A shoal of chicken tenders drifting upward through empty space. Six tenders,
+clearly separated from one another, each one higher and further to the right
+than the last, so the eye follows them from the lower middle of the frame up
+to the top right corner. A thin trail of breading crumbs follows behind each
+one. The whole left half of the frame is empty — nothing there at all.
 
-The canvas is 1500 by 500 pixels. Two regions must stay completely empty
-because interface elements sit on top of them: the leftmost 280 pixels, where a
-circular avatar overlaps, and the bottom 130 pixels. No tender, no crumb and no
-line may enter either region. Put the dense cluster of tenders between 55 and
-95 percent of the frame width, centred in the upper two thirds, and leave at
-least 40 percent of the canvas as empty space — the banner should read calm and
-wide, not busy.
+Wide 16:9 canvas. The tenders occupy about a third of the picture and the rest
+is open dark space. Calm, sparse and poster-like, with room to breathe — not a
+busy pattern, not a pile.
 
-Flat vector, bold closed silhouettes, two flat tones per object, editorial
-poster energy. Fill the tenders with the brand gradient and set them on a solid
-#071013 field. Crumbs in light #ABC4CE. Lay a faint square grid of steel blue
-#78A9BF lines across the whole background at 4 percent opacity with a 40-pixel
-pitch. Everything flat — the gradient is the only tonal variation. No text, no
-letters, no watermark.
+Flat vector illustration, bold closed silhouettes, two flat tones per object,
+editorial poster style. Fill each tender with the brand gradient. The
+background is solid near-black #071013 and completely plain — no grid, no
+texture, no pattern, no vignette, no glow. Crumbs in light #ABC4CE, a couple in
+mint #3CE3AB.
 
 [вставь блок палитры из §0]
 ```
 
----
+Сетку не просим сознательно: модель рисует её в разы ярче, чем нужно. Если
+захочешь фоновую сетку — скажи, добавлю кодом ровно той яркости, что на сайте.
 
-## 6. OG-картинка для ссылок — 1200×630
+## 6. OG-картинка для ссылок
 
 ```
-Create a social preview card, 1200 by 630 pixels, split exactly in half. The
-left half is empty near-black #071013 carrying only a faint steel blue grid at
-4 percent opacity with a 40-pixel pitch — a headline will be typeset there
-later, so nothing may intrude into it. The right half holds a tight cluster of
-three chunky chicken tenders arcing upward like a rising chart, the largest
-crossing 70 percent of that half's height, arranged along a diagonal that rises
-to the right, with breading crumbs suspended between and above them.
+A wide landscape card split down the middle. The left half is completely
+empty near-black space — a headline goes there later, so nothing may intrude.
+The right half holds three chunky chicken tenders arranged along a diagonal
+that rises to the right, the largest of them about two thirds as tall as the
+card, with breading crumbs suspended between and above them.
 
 Flat vector, bold silhouettes, two flat tones per object, premium fintech
 poster — minimal, confident, uncluttered. Tenders filled with the brand
 gradient, shaded undersides in deep slate #102127, crumbs in light #ABC4CE with
-two or three in mint #3CE3AB. No text, no letters, no watermark.
+two or three in mint #3CE3AB. Background solid #071013, completely plain — no
+grid, no texture. No text, no letters, no watermark.
 
 [вставь блок палитры из §0]
 ```
@@ -244,7 +243,23 @@ Nano Banana сильна в диалоге: не перегенеривай с �
 
 ---
 
-## 8. Экспорт и куда класть
+## 8. Раскладку делает код, а не модель
+
+Рабочий порядок для всего, где важен точный размер:
+
+1. Модель рисует **сюжет** на плоском фоне `#071013`, в 16:9 — без сеток,
+   рамок и безопасных зон.
+2. Скрипт снимает фон, обрезает по сюжету, ставит в холст нужного размера и
+   **проверяет зоны по факту**, считая непустые пиксели.
+
+Тонкие линии (сетка, если она всё же появилась) снимаются морфологическим
+открытием — `MinFilter` затирает всё уже ядра, `MaxFilter` возвращает объём
+крупным формам. Крошки при ядре 7 выживают, линии в 3 px — нет.
+
+Так сделан `banners/x-header-tendies.png`: сюжет из 16:9-генерации, холст
+1500×500, левые 280 px и нижние 130 px проверены и пусты.
+
+## 9. Экспорт и куда класть
 
 | Ассет | Файл | Статус |
 | --- | --- | --- |
@@ -252,7 +267,7 @@ Nano Banana сильна в диалоге: не перегенеривай с �
 | Вордмарк-локап | `public/wordmark.webp` | ✅ в шапке, футере, доках, терминале |
 | Хиро | `public/hero-tenders.webp` | ✅ в хиро, разложен на два плана параллакса |
 | Аватар монеты | — | ⬜ загрузить в форму монеты на stonkfun |
-| Шапка X | — | ⬜ внешнее, в профиль |
+| Шапка X | `banners/x-header-tendies.png` | ✅ 1500×500, зоны проверены |
 | OG-карточка | `public/og.png` | ⬜ скажи — пропишу в метаданные `app/layout.tsx` |
 
 Все три готовых ассета прогнаны через альфа-кей (заливка фона от границы, так
