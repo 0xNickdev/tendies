@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Wordmark, LogoMark } from "@/components/Logo";
 import { useStore } from "@/lib/store";
+import { useKeeperStatus } from "@/lib/useKeeperStatus";
 import { NETWORK } from "@/lib/mock";
 import { shortAddr } from "@/lib/format";
+import { useToast } from "./Toast";
 import {
   IconDashboard,
   IconTrade,
@@ -34,6 +36,24 @@ const NAV: { view: View; label: string; soon?: boolean; Icon: (p: IconProps) => 
 export function TerminalShell() {
   const [view, setView] = useState<View>("dashboard");
   const { wallet, walletMissing, connect, disconnect } = useStore();
+  const keeper = useKeeperStatus();
+  const { push } = useToast();
+
+  // ORDER UP: the epoch counter moving is a real event on a real clock, so it
+  // gets announced. Nothing is announced before the keeper has served anything.
+  const servedRef = useRef<number | null>(null);
+  useEffect(() => {
+    const run = keeper?.ledger.epochsRun;
+    if (run == null) return;
+    if (servedRef.current != null && run > servedRef.current) {
+      const stocks = keeper?.treasury.payoutStocks ?? [];
+      push(
+        `Order up — the kitchen just served ${stocks.join(" · ") || "rewards"}`,
+        "success",
+      );
+    }
+    servedRef.current = run;
+  }, [keeper?.ledger.epochsRun, keeper?.treasury.payoutStocks, push]);
 
   return (
     <div className="min-h-[100svh] lg:flex">

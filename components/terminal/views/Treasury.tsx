@@ -228,6 +228,19 @@ export function Treasury() {
                   {fmtUSD(totalPaid)} received in total.
                 </p>
               )}
+
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                  streak > 0
+                    ? `${streak} epochs in the kitchen. paid in real tokenized stock, every 30 minutes.\n\nI'm cooking.`
+                    : "holding $TENDIE. paid in real tokenized stock every 30 minutes.\n\nI'm cooking.",
+                )}&url=${encodeURIComponent(`https://gettendies.vercel.app/card/${wallet.address}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost mt-3 w-full !py-2.5 text-xs"
+              >
+                Share my kitchen card
+              </a>
             </div>
           )}
 
