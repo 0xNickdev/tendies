@@ -8,7 +8,7 @@ import { snapshotHolders, solBalance } from "./solana.js";
 import { feeBalance, feeDecimals } from "./swap.js";
 import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice } from "./choice.js";
-import { accruedOf, choiceOf } from "./store.js";
+import { accruedOf, choiceOf, profileOf } from "./store.js";
 
 function json(res, code, body) {
   res.writeHead(code, {
@@ -119,6 +119,7 @@ export function startServer() {
       if (!owner) return json(res, 400, { ok: false, error: "owner required" });
       const decimals = await feeDecimals().catch(() => 6);
       const info = holderInfo(owner);
+      const prof = profileOf(owner);
       return json(res, 200, {
         ok: true,
         owner,
@@ -129,6 +130,17 @@ export function startServer() {
         balance: info.balance,
         shareBps: Math.round(info.share * 10_000),
         snapshotAt: info.snapshotAt,
+        // measured, never assigned
+        totalPaid: Number(BigInt(prof.totalPaid)) / 10 ** decimals,
+        streak: prof.streak,
+        epochsHeld: prof.firstEpoch ? prof.lastEpoch - prof.firstEpoch + 1 : 0,
+        payouts: prof.payouts.map((x) => ({
+          epoch: x.epoch,
+          at: x.at,
+          symbol: x.symbol,
+          value: Number(BigInt(x.paidRaw)) / 10 ** decimals,
+          signature: x.signature,
+        })),
       });
     }
 

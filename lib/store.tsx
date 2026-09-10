@@ -15,7 +15,7 @@ import {
   type Position,
 } from "./mock";
 import { TENDIE_MINT, SOLANA } from "./config";
-import { fetchAccount, submitChoice, symbolForToken } from "./keeper";
+import { fetchAccount, submitChoice, symbolForToken, type Payout } from "./keeper";
 import type { StockSym } from "./stocks";
 
 // Real Solana wallet connection — Phantom, Solflare and any provider that
@@ -67,6 +67,9 @@ type Store = {
   payoutChoice: StockSym | null;
   accruedUsd: number;
   minPayoutUsd: number;
+  totalPaid: number;
+  streak: number;
+  payouts: Payout[];
   // actions
   connect: () => void;
   disconnect: () => void;
@@ -137,6 +140,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [payoutChoice, setChoice] = useState<StockSym | null>(null);
   const [accruedUsd, setAccrued] = useState(0);
   const [minPayoutUsd, setMinPayout] = useState(0);
+  const [totalPaid, setTotalPaid] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
 
   const adopt = useCallback(async (address: string) => {
     setWallet({ connected: true, address });
@@ -150,6 +156,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setAccrued(account.accrued);
       setMinPayout(account.minPayoutUsd);
       setShareBps(account.shareBps ?? 0);
+      setTotalPaid(account.totalPaid ?? 0);
+      setStreak(account.streak ?? 0);
+      setPayouts(account.payouts ?? []);
     }
   }, []);
 
@@ -194,6 +203,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setChoice(null);
     setAccrued(0);
     setShareBps(0);
+    setTotalPaid(0);
+    setStreak(0);
+    setPayouts([]);
   }, []);
 
   // Silently restore a previously approved connection, then follow account
@@ -323,6 +335,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       payoutChoice,
       accruedUsd,
       minPayoutUsd,
+      totalPaid,
+      streak,
+      payouts,
       connect,
       disconnect,
       setPayoutChoice,
@@ -343,6 +358,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       payoutChoice,
       accruedUsd,
       minPayoutUsd,
+      totalPaid,
+      streak,
+      payouts,
       connect,
       disconnect,
       setPayoutChoice,

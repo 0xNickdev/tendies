@@ -15,7 +15,23 @@ export type Account = {
   balance: number; // TENDIE held at the last epoch snapshot
   shareBps: number; // share of circulating supply, basis points
   snapshotAt: string | null;
+  // measured by the keeper, never assigned
+  totalPaid: number;
+  streak: number;
+  epochsHeld: number;
+  payouts: Payout[];
 };
+
+export type Payout = {
+  epoch: number;
+  at: string;
+  symbol: string; // xStock ticker
+  value: number; // in fee-token units (USDC)
+  signature: string;
+};
+
+export const solscanTx = (signature: string) =>
+  `https://solscan.io/tx/${signature}`;
 
 // Treasury numbers the site shows. Everything here is measured by the keeper —
 // nothing is projected or annualised, because there is no honest basis for it

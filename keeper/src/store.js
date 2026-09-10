@@ -17,6 +17,11 @@ const empty = () => ({
   version: 1,
   // owner -> { accrued: string (raw fee-token units), updatedAt }
   ledger: {},
+  // owner -> { totalPaid, streak, lastEpoch, firstEpoch, payouts: [...] }
+  // Everything here is measured, never assigned: totalPaid is the sum of what
+  // actually left the treasury, streak counts consecutive epochs the wallet
+  // was in the holder snapshot. History is capped so the file stays bounded.
+  profiles: {},
   // owner -> { symbol, ts }
   choices: {},
   // newest first, capped
@@ -87,6 +92,48 @@ export function settle(owners) {
     delete state.ledger[owner];
   }
   saveState();
+}
+
+// ── holder profiles ───────────────────────────────────────────────────────
+
+const HISTORY_CAP = 25; // per owner, newest first
+
+function profile(owner) {
+  if (!state.profiles[owner]) {
+    state.profiles[owner] = {
+      totalPaid: "0",
+      streak: 0,
+      lastEpoch: 0,
+      firstEpoch: 0,
+      payouts: [],
+    };
+  }
+  return state.profiles[owner];
+}
+
+export function profileOf(owner) {
+  const p = state.profiles[owner];
+  if (!p) return { totalPaid: "0", streak: 0, lastEpoch: 0, firstEpoch: 0, payouts: [] };
+  return p;
+}
+
+// Mark everyone present in this epoch's snapshot. A wallet that misses an
+// epoch starts its streak over — that is what makes the number mean something.
+export function markPresent(owners, epochId) {
+  for (const owner of owners) {
+    const p = profile(owner);
+    p.streak = p.lastEpoch === epochId - 1 ? p.streak + 1 : 1;
+    p.lastEpoch = epochId;
+    if (!p.firstEpoch) p.firstEpoch = epochId;
+  }
+}
+
+// Recorded only once a transfer has confirmed on chain.
+export function recordDelivery(owner, entry) {
+  const p = profile(owner);
+  p.totalPaid = (BigInt(p.totalPaid) + BigInt(entry.paidRaw ?? "0")).toString();
+  p.payouts.unshift(entry);
+  p.payouts = p.payouts.slice(0, HISTORY_CAP);
 }
 
 export function eligible(minRaw) {

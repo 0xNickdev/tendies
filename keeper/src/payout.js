@@ -19,7 +19,7 @@ import {
 import { config } from "./config.js";
 import { log } from "./log.js";
 import { connection, treasury } from "./solana.js";
-import { choiceOf, eligible, settle } from "./store.js";
+import { choiceOf, eligible, recordDelivery, settle } from "./store.js";
 
 // Which stock an owner is paid in — their signed choice, or the first
 // configured payout stock if they never picked one.
@@ -102,6 +102,16 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
     const signature = await sendAndConfirmTransaction(connection, tx, [treasury]);
 
     // settle immediately: confirmed money leaves the ledger before we move on
+    for (const cut of batch) {
+      recordDelivery(cut.owner, {
+        epoch: epoch.id,
+        at: new Date().toISOString(),
+        symbol: group.symbol,
+        amount: cut.amount.toString(),
+        paidRaw: cut.accrued.toString(),
+        signature,
+      });
+    }
     settle(batch.map((c) => c.owner));
     record(epoch, {
       symbol: group.symbol,

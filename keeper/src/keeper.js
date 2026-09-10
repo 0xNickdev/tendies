@@ -15,6 +15,7 @@ import { feeBalance, feeDecimals, swapFeeInto } from "./swap.js";
 import {
   addAccrual,
   finishEpoch,
+  markPresent,
   getState,
   recordPayout,
   saveState,
@@ -82,6 +83,10 @@ export async function tickEpoch() {
 
     epoch = startEpoch();
     const decimals = await feeDecimals();
+
+    // streaks are measured from presence in the snapshot, not from payouts —
+    // a small holder still shows up every epoch while their balance accrues
+    markPresent(holders.map((h) => h.owner), epoch.id);
 
     // ── 1. accrue ────────────────────────────────────────────────────────
     // Everything in the treasury beyond what is already owed is new fee.

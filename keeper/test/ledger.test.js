@@ -14,8 +14,10 @@ import bs58 from "bs58";
 
 fs.rmSync("./data-test", { recursive: true, force: true });
 
-const { loadState, addAccrual, accruedOf, totalAccrued, settle, saveState } =
-  await import("../src/store.js");
+const {
+  loadState, addAccrual, accruedOf, totalAccrued, settle, saveState,
+  markPresent, recordDelivery, profileOf,
+} = await import("../src/store.js");
 const { duePayouts, payoutFor } = await import("../src/payout.js");
 const { applyChoice, choiceMessage } = await import("../src/choice.js");
 
@@ -124,6 +126,34 @@ console.log("\n5. Расчёт после подтверждения (защит
   loadState(); // restart from disk
   check("выплаченному обнулили долг", accruedOf("AAA"), 0n);
   check("невыплаченный долг уцелел", accruedOf("BBB"), 20n * USDC);
+}
+
+console.log("\n6. Стрик считается по присутствию в эпохах");
+{
+  fs.rmSync("./data-test", { recursive: true, force: true });
+  loadState();
+  markPresent(["AAA", "BBB"], 1);
+  markPresent(["AAA", "BBB"], 2);
+  markPresent(["AAA"], 3);          // BBB продал и выпал
+  markPresent(["AAA", "BBB"], 4);   // BBB вернулся — стрик с нуля
+  saveState();
+  check("непрерывный холдер: стрик 4", profileOf("AAA").streak, 4);
+  check("выпадавший: стрик сброшен в 1", profileOf("BBB").streak, 1);
+  check("эпох в системе у AAA", profileOf("AAA").lastEpoch - profileOf("AAA").firstEpoch + 1, 4);
+}
+
+console.log("\n7. Выплаченное копится, история ограничена");
+{
+  fs.rmSync("./data-test", { recursive: true, force: true });
+  loadState();
+  for (let i = 1; i <= 30; i++) {
+    recordDelivery("AAA", { epoch: i, at: new Date().toISOString(), symbol: "TSLAx",
+      amount: "1", paidRaw: (2n * USDC).toString(), signature: "sig" + i });
+  }
+  saveState();
+  check("итого выплачено $60", profileOf("AAA").totalPaid, (60n * USDC).toString());
+  check("история обрезана до 25", profileOf("AAA").payouts.length, 25);
+  check("новейшая запись первая", profileOf("AAA").payouts[0].epoch, 30);
 }
 
 fs.rmSync("./data-test", { recursive: true, force: true });

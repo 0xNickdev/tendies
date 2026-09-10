@@ -6,6 +6,7 @@ import { TREASURY } from "@/lib/mock";
 import { PAYOUT_STOCKS, DISTRIBUTION_MINUTES, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
+import { solscanTx } from "@/lib/keeper";
 import { fmtUSD, fmtNum, fmtUSDCompact } from "@/lib/format";
 import { CandleChart } from "@/components/CandleChart";
 import { Stat, ViewHeader, LiveFeedChip } from "../ui";
@@ -45,6 +46,9 @@ export function Treasury() {
     accruedUsd,
     minPayoutUsd,
     setPayoutChoice,
+    totalPaid,
+    streak,
+    payouts,
   } = useStore();
   const { push } = useToast();
   const [saving, setSaving] = useState(false);
@@ -182,6 +186,50 @@ export function Treasury() {
                   : "1:1-backed xStocks on Solana - held in your own wallet."}
             </p>
           </div>
+
+          {wallet.connected && (
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                <span className="label">Your payouts</span>
+                {streak > 0 && (
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-tendie">
+                    {streak} epoch streak
+                  </span>
+                )}
+              </div>
+              {payouts.length ? (
+                <ul className="mt-2 divide-y divide-tendie/10 rounded-xl border border-tendie/10 bg-ink-900/40">
+                  {payouts.slice(0, 6).map((p) => (
+                    <li key={p.signature + p.epoch} className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
+                      <span className="font-mono text-mist-400">
+                        {new Date(p.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="font-mono font-bold text-mist-50">{p.symbol}</span>
+                      <span className="num text-mist-200">{fmtUSD(p.value)}</span>
+                      <a
+                        href={solscanTx(p.signature)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] uppercase tracking-wider text-tendie hover:underline"
+                      >
+                        tx
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 rounded-xl border border-tendie/10 bg-ink-900/40 px-3 py-3 text-xs text-mist-400">
+                  Nothing sent yet. Payouts appear here with a link to the
+                  transaction, so you can check every one on Solscan.
+                </p>
+              )}
+              {totalPaid > 0 && (
+                <p className="mt-2 text-xs text-mist-400">
+                  {fmtUSD(totalPaid)} received in total.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="mt-5 space-y-2.5 rounded-xl border border-tendie/10 bg-ink-900/40 p-4 text-sm">
             <div className="flex justify-between">
