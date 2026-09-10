@@ -158,3 +158,180 @@ python3 banners/post.py <картинка> "Заголовок" "подстро�
   скрипт вырежет её вместе с сюжетом.
 - Тёплые оттенки — брак. Еда тянет генератор в оранжевый, палитра это
   запрещает явно, но проверяй глазами.
+
+---
+
+# Тексты постов
+
+Восемь постов под восемь визуалов выше, плюс тред и посты на вовлечение.
+
+**Тон:** сухо и уверенно, строчными, без «мы рады объявить», без частокола
+эмодзи. В крипто-твиттере продаёт конкретика, а не восторг.
+
+**Чего в текстах нет и быть не должно:** обещаний доходности, слова
+«гарантированный», прогнозов APR. Механику описываем, результат — нет.
+
+> ⚠️ Чистый тизер работает только если аудитория уже есть. У нового аккаунта
+> с нуля подписчиков загадка не читается — её некому разгадывать. Поэтому
+> посты 1–2 ставь коротким блоком за пару дней до запуска, а основную работу
+> делают 3, 4 и 5: их репостят, потому что там сказано что-то полезное.
+
+---
+
+### 1 · Тизер → визуал «пустая корзина»
+
+```
+something's frying.
+
+soon. on solana.
+```
+
+### 2 · Первое проявление → визуал «один тендер»
+
+```
+$TENDIE
+
+hold the bag. get the tendies.
+```
+
+### 3 · Механика → визуал «тендеры падают в коробку»
+
+Главный пост прогрева. Тредом, потому что тут есть что объяснить.
+
+```
+1/ you hold a token. every 30 minutes the treasury pays you in real
+tokenized stock.
+
+not points. not a farm token. not an IOU.
+
+TSLAx, NVDAx or SPCXx — you pick.
+```
+```
+2/ where it comes from: every trade pays a 4% fee into a shared treasury.
+
+no emissions, no inflation, nothing minted to pay you.
+
+quiet week = small payouts. that's the honest version.
+```
+```
+3/ what lands in your wallet is an xStock — a 1:1 collateralised equity
+token on solana.
+
+it's yours, in your own wallet. we can't touch it after it's sent.
+```
+```
+4/ there's no claim button.
+
+rewards accrue to your balance every 30 minutes and get sent automatically
+once they're worth sending — below that they keep stacking, so network fees
+never cost more than the payout.
+```
+```
+5/ launching on @stonkfun.
+
+$TENDIE — hold the bag, get the tendies.
+
+gettendies.vercel.app
+```
+
+### 4 · Ритм → визуал «часы»
+
+```
+every 30 minutes the treasury splits whatever the fee collected across every
+holder.
+
+no staking. no locking. no claiming.
+
+you just hold it.
+```
+
+### 5 · Акции → визуал «три тендера в ряд»
+
+```
+you choose what you get paid in:
+
+TSLAx · NVDAx · SPCXx
+
+1:1 backed xStocks on solana. sent to your wallet, not held in ours.
+```
+
+### 6 · Мем → визуал «гора тендеров»
+
+```
+diversified portfolio:
+
+— tendies
+— tendies
+— tendies (nvidia flavoured)
+```
+
+### 7 · Отсчёт → визуал «один тендер по центру»
+
+Три поста подряд, по одному в день. Текст в самой картинке, в твите — одна строка.
+
+```
+3.
+```
+```
+2.
+```
+```
+1. tomorrow.
+```
+
+### 8 · Запуск → визуал «взрыв»
+
+```
+live.
+
+$TENDIE is on stonkfun.
+
+hold it → the treasury pays you in real tokenized stocks every 30 minutes.
+
+[ссылка на монету]
+```
+
+---
+
+## Посты на вовлечение
+
+Ставь между основными — они дешёвые и собирают ответы.
+
+**Опрос** (у X есть встроенный, картинка не нужна):
+
+```
+you're getting paid every 30 minutes in real tokenized stock.
+
+which ticker?
+
+· TSLAx
+· NVDAx
+· SPCXx
+```
+
+**Вопрос:**
+
+```
+serious question: if a token paid you in actual TSLA instead of more of
+itself, would you hold it longer?
+```
+
+**Скриншот терминала** — снимок Treasury с живым таймером до следующей выплаты:
+
+```
+the countdown is real. so are the candles.
+```
+
+---
+
+## Дисциплина
+
+- **Закреплённый пост** — тред из §3. Он объясняет продукт целиком и работает
+  на любого, кто зашёл в профиль впервые.
+- **В шапку профиля:** `hold the bag. get the tendies. · tokenized stock
+  rewards every 30 min · solana`
+- **Дисклеймер держи ответом под закреплённым тредом,** а не в каждом посте:
+  xStocks официально недоступны в США, Великобритании, Канаде и Австралии, и
+  ничего из этого не является инвестиционным советом.
+- **Не обещай доходность.** Ни в постах, ни в ответах. Механика — можно,
+  цифры будущей прибыли — нет: это то, за что потом разбирают.
