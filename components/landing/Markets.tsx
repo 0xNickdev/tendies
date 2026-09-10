@@ -12,7 +12,7 @@ import { Reveal } from "@/components/Reveal";
 const SORTS = [
   { id: "movers", label: "Top movers" },
   { id: "price", label: "Price" },
-  { id: "az", label: "A–Z" },
+  { id: "az", label: "A-Z" },
 ] as const;
 type SortId = (typeof SORTS)[number]["id"];
 

@@ -1,6 +1,6 @@
 /* Brand assets, generated in Flow and keyed to transparent PNGs:
-   - logo-mark.png — the gradient chip with the tender
-   - wordmark.png  — the horizontal lockup (mark + TENDIES.)
+   - logo-mark.png - the gradient chip with the tender
+   - wordmark.png  - the horizontal lockup (mark + TENDIES.)
    Both are alpha-cut, so they sit on any surface without a seam. */
 
 export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {

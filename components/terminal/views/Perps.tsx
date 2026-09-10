@@ -47,7 +47,7 @@ export function Perps() {
   const liqPct = ((liq - entry) / entry) * 100;
 
   const requestOpen = () => {
-    if (!FEATURES.perpsLive) return; // preview only — trading unlocks in Phase 02
+    if (!FEATURES.perpsLive) return; // preview only - trading unlocks in Phase 02
     if (!wallet.connected) return connect();
     if (numMargin <= 0 || overBalance) return;
     if (!ack) {
@@ -94,7 +94,7 @@ export function Perps() {
         <div className="panel mb-6 flex flex-col items-start justify-between gap-3 border-tendie/30 bg-tendie/5 p-5 sm:flex-row sm:items-center">
           <div>
             <div className="font-bold text-tendie">
-              Perps are next on the roadmap — Phase 02
+              Perps are next on the roadmap - Phase 02
             </div>
             <div className="mt-1 text-sm text-mist-300">
               The ticket below is a live preview: play with direction, leverage
@@ -107,7 +107,7 @@ export function Perps() {
         </div>
       )}
 
-      {/* market selector — pick what you trade */}
+      {/* market selector - pick what you trade */}
       <div className="mb-5 flex flex-wrap gap-2">
         {PAYOUT_STOCKS.map((st) => {
           const price = quotePrice(quotes, st.symbol);
@@ -247,7 +247,7 @@ export function Perps() {
             }`}
           >
             {!FEATURES.perpsLive
-              ? "Coming Soon — Phase 02"
+              ? "Coming Soon - Phase 02"
               : !wallet.connected
                 ? "Connect Wallet"
                 : pending
@@ -276,7 +276,7 @@ export function Perps() {
               body={
                 FEATURES.perpsLive
                   ? "Set your direction, margin, and leverage on the left to open your first position on the next mark."
-                  : "Perps are in preview — positions unlock when trading goes live in Phase 02. Meanwhile, rehearse your setup on the left."
+                  : "Perps are in preview - positions unlock when trading goes live in Phase 02. Meanwhile, rehearse your setup on the left."
               }
             />
           ) : (
@@ -370,7 +370,7 @@ function RiskModal({
             "Leverage amplifies both gains and losses.",
             "Your position can be fully liquidated, losing 100% of margin.",
             "Oracle marks print on a schedule and can gap sharply.",
-            "This is synthetic exposure — not direct share ownership.",
+            "This is synthetic exposure - not direct share ownership.",
           ].map((t) => (
             <li key={t} className="flex gap-2.5">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />

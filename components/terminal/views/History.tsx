@@ -24,7 +24,7 @@ export function History({ go }: { go: (v: View) => void }) {
         <EmptyState
           icon={<IconHistory className="h-6 w-6" />}
           title="No settled positions yet"
-          body="Perps are in preview — once trading goes live in Phase 02 and a position settles, it'll appear here."
+          body="Perps are in preview - once trading goes live in Phase 02 and a position settles, it'll appear here."
           action={
             <button onClick={() => go("perps")} className="btn-tendie">
               Preview perps

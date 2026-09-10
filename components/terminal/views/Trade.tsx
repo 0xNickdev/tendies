@@ -78,7 +78,7 @@ export function Trade() {
               In-app trading unlocks with the TENDIE launch
             </div>
             <div className="mt-1 text-sm text-mist-300">
-              Until then, TENDIE trades on its stonkfun launchpad page — the
+              Until then, TENDIE trades on its stonkfun launchpad page - the
               button below takes you there.
             </div>
           </div>
@@ -185,7 +185,7 @@ export function Trade() {
           }`}
         >
           {!FEATURES.tradeLive
-            ? "Coming Soon — Token Launch"
+            ? "Coming Soon - Token Launch"
             : !wallet.connected
               ? "Connect Wallet"
               : pending

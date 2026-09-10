@@ -5,8 +5,8 @@
 // Feature flags — what's live vs. on the roadmap (see landing Roadmap section)
 export const FEATURES = {
   tradeLive: false, // unlocks with the TENDIE token launch (see lib/config.ts)
-  perpsLive: false, // Phase 02 — terminal shows a preview, trading is "Soon"
-  autoTradingLive: false, // Phase 03 — strategy vaults / auto-trading
+  perpsLive: false, // Phase 02 - terminal shows a preview, trading is "Soon"
+  autoTradingLive: false, // Phase 03 - strategy vaults / auto-trading
 };
 
 // Token economics (design constants). Live figures (treasury size, APR, spot

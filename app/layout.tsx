@@ -23,9 +23,9 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tendies — Hold the bag. Get the tendies.",
+  title: "Tendies - Hold the bag. Get the tendies.",
   description:
-    "Hold TENDIE and earn rewards in real tokenized stocks — TSLA, NVDA or SPCX — paid out every 30 minutes. No brokerage account, 24/7, self-custody. Launched on stonkfun, settled on Solana.",
+    "Hold TENDIE and earn rewards in real tokenized stocks - TSLA, NVDA or SPCX - paid out every 30 minutes. No brokerage account, 24/7, self-custody. Launched on stonkfun, settled on Solana.",
   keywords: [
     "Tendies",
     "TENDIE",
@@ -39,14 +39,14 @@ export const metadata: Metadata = {
     "treasury",
   ],
   openGraph: {
-    title: "Tendies — Hold the bag. Get the tendies.",
+    title: "Tendies - Hold the bag. Get the tendies.",
     description:
       "Earn real tokenized stocks (TSLA · NVDA · SPCX) every 30 minutes just by holding TENDIE. On Solana.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tendies — Hold the bag. Get the tendies.",
+    title: "Tendies - Hold the bag. Get the tendies.",
     description:
       "Earn real tokenized stocks (TSLA · NVDA · SPCX) every 30 minutes just by holding TENDIE. On Solana.",
   },

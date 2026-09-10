@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Wordmark } from "@/components/Logo";
 
 export const metadata: Metadata = {
-  title: "Tendies Docs — How it works",
+  title: "Tendies Docs - How it works",
   description:
     "Full documentation for Tendies: the TENDIE token on Solana, the 4% treasury fee, 30-minute xStock rewards (TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
@@ -106,7 +106,7 @@ export default function DocsPage() {
             Tendies <span className="text-tendie">Docs</span>
           </h1>
           <p className="mt-4 max-w-2xl text-pretty leading-relaxed text-mist-300">
-            Everything about how Tendies works — the token, the treasury, the
+            Everything about how Tendies works - the token, the treasury, the
             30-minute stock rewards, the perps layer, and the on-chain
             contracts that run it. Launched on stonkfun, settled on Solana.
           </p>
@@ -118,12 +118,12 @@ export default function DocsPage() {
                 Solana that turns trading activity into{" "}
                 <b className="text-tendie">real tokenized stocks</b>. Hold the{" "}
                 <b className="text-white">TENDIE</b> token and the treasury pays
-                you tokenized Tesla, NVIDIA or SpaceX — your pick — every{" "}
+                you tokenized Tesla, NVIDIA or SpaceX - your pick - every{" "}
                 <b className="text-white">30 minutes</b>, straight to your
                 wallet.
               </p>
               <p>
-                No brokerage account, no borders, no market hours — 24/7,
+                No brokerage account, no borders, no market hours - 24/7,
                 self-custodied. Rewards are funded purely by a small trade tax,
                 so there are no emissions and no inflation.
               </p>
@@ -146,7 +146,7 @@ export default function DocsPage() {
               <ol className="ml-1 space-y-3">
                 {[
                   ["Trade tax → treasury", "Every buy and sell of TENDIE pays a 4% tax into a shared treasury contract."],
-                  ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks — not farm tokens — once they clear a small floor, so network fees never cost more than the payout itself."],
+                  ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks - not farm tokens - once they clear a small floor, so network fees never cost more than the payout itself."],
                   ["Claim → your wallet", "You pick your payout stock and claim; the treasury swaps into that stock at claim time and sends it to you. Or let it accrue and use it as perps margin (Phase 02)."],
                 ].map(([t, b], i) => (
                   <li key={t} className="panel flex gap-4 p-5">
@@ -164,7 +164,7 @@ export default function DocsPage() {
                 <b className="text-tendie">Under the hood:</b> rewards are
                 accounted internally in USDC (a stablecoin) so your claimable
                 value is stable and the swap into a stock is a single hop. USDC
-                is just the unit of account — you receive stocks, not USDC
+                is just the unit of account - you receive stocks, not USDC
                 (a USDC fallback only kicks in if a stock&apos;s pool is ever
                 unavailable).
               </p>
@@ -176,13 +176,13 @@ export default function DocsPage() {
                 <Row k="Total supply" v="100,000,000 (fixed, no mint)" />
                 <Row k="Buy tax" v="4% → treasury" />
                 <Row k="Sell tax" v="4% → treasury" />
-                <Row k="Max tax (hard cap)" v="5% — owner can never exceed" />
+                <Row k="Max tax (hard cap)" v="5% - owner can never exceed" />
                 <Row k="Wallet ↔ wallet" v="0% (tax-free transfers)" />
-                <Row k="Emissions" v="None — rewards come only from volume" />
+                <Row k="Emissions" v="None - rewards come only from volume" />
               </div>
               <p className="text-sm text-mist-300">
                 The tax rate is adjustable by the owner but capped at 5% in the
-                contract itself, so it can never be raised beyond that — a
+                contract itself, so it can never be raised beyond that - a
                 built-in protection for holders.
               </p>
             </Section>
@@ -209,7 +209,7 @@ export default function DocsPage() {
                 The floor exists because Solana charges the treasury rent to
                 open a token account for a holder who doesn&apos;t have one yet.
                 Sending someone half a cent would cost the treasury far more
-                than the payout is worth — so small balances keep accumulating
+                than the payout is worth - so small balances keep accumulating
                 until they are worth delivering. Nothing is lost while they
                 wait: the ledger is durable, and an unpaid balance is still
                 yours.
@@ -217,16 +217,16 @@ export default function DocsPage() {
               <p>
                 Payouts settle batch by batch. If the keeper dies mid-epoch,
                 everything already confirmed is recorded and everything else is
-                still owed — nobody is paid twice and nobody is skipped.
+                still owed - nobody is paid twice and nobody is skipped.
               </p>
             </Section>
 
-            <Section id="stocks" n="05" title="The stocks — and why these three">
+            <Section id="stocks" n="05" title="The stocks - and why these three">
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
-                  ["TSLAx", "Tesla", "The most-traded retail stock on Earth — cult following, huge volatility."],
-                  ["NVDAx", "NVIDIA", "The AI trade itself — the most-watched company on the planet."],
-                  ["SPCXx", "SpaceX", "The biggest IPO in history (June 2026) — Elon\u2019s rocket company, freshly public and one of the most hyped tickers on the market."],
+                  ["TSLAx", "Tesla", "The most-traded retail stock on Earth - cult following, huge volatility."],
+                  ["NVDAx", "NVIDIA", "The AI trade itself - the most-watched company on the planet."],
+                  ["SPCXx", "SpaceX", "The biggest IPO in history (June 2026) - Elon\u2019s rocket company, freshly public and one of the most hyped tickers on the market."],
                 ].map(([tok, name, why]) => (
                   <div key={tok} className="panel p-5">
                     <div className="font-mono text-lg font-black text-tendie">{tok}</div>
@@ -236,7 +236,7 @@ export default function DocsPage() {
                 ))}
               </div>
               <p className="text-sm text-mist-300">
-                All three are xStocks — Backed Finance&apos;s 1:1-collateralised
+                All three are xStocks - Backed Finance&apos;s 1:1-collateralised
                 equity tokens on Solana, tracking their Nasdaq-listed shares.
               </p>
             </Section>
@@ -244,12 +244,12 @@ export default function DocsPage() {
             <Section id="perps" n="06" title="Perps (Phase 02)">
               <p>
                 A perpetual-futures layer on the reward stocks. You post your
-                accrued treasury claim as margin, go long or short with 1–10×
+                accrued treasury claim as margin, go long or short with 1-10×
                 leverage, and settle against the next published oracle mark. A
                 mandatory risk disclosure gates every position.
               </p>
               <p className="text-sm text-mist-300">
-                Perps are currently a live preview in the terminal — you can
+                Perps are currently a live preview in the terminal - you can
                 explore the order ticket and charts. Opening real positions
                 unlocks with Phase 02.
               </p>
@@ -265,7 +265,7 @@ export default function DocsPage() {
                 <Row k="Reward stable" v="USDC (internal accounting only)" />
               </div>
               <p className="text-sm text-mist-300">
-                Connect any Solana wallet — Phantom, Solflare or anything that
+                Connect any Solana wallet - Phantom, Solflare or anything that
                 injects the same provider. Nothing to add or switch: the
                 terminal reads your balance straight off mainnet-beta.
               </p>
@@ -275,15 +275,15 @@ export default function DocsPage() {
               <p>Two moving parts run the whole thing:</p>
               <ul className="space-y-2 text-sm">
                 <li className="panel p-4">
-                  <b className="text-white">TENDIE</b> — the token. Fixed supply,
+                  <b className="text-white">TENDIE</b> - the token. Fixed supply,
                   4% DEX tax (5% hard cap), no mint function after deploy.
                 </li>
                 <li className="panel p-4">
-                  <b className="text-white">Distributor keeper</b> — the
+                  <b className="text-white">Distributor keeper</b> - the
                   treasury service. Every 30 minutes it snapshots holders from
                   the mint, credits the new fee to its ledger, then swaps and
                   sends to everyone whose balance cleared the floor. Your payout
-                  stock is set by signing a message in your wallet — free, and
+                  stock is set by signing a message in your wallet - free, and
                   it can&apos;t be set by anyone but you.
                 </li>
               </ul>
@@ -303,10 +303,10 @@ export default function DocsPage() {
             <Section id="faq" n="09" title="FAQ">
               {[
                 ["Do I own real shares?", "No. Rewards are tokenized stocks (1:1-backed) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
-                ["Where do rewards come from?", "Purely from the 4% trade fee the launchpad routes to the treasury. No emissions, no inflation — if there's no trading, there are simply no rewards that epoch."],
+                ["Where do rewards come from?", "Purely from the 4% trade fee the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (TSLAx). You can change your payout stock any time in the Treasury tab."],
-                ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours — mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
-                ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch — the mint address will appear here and on the dashboard."],
+                ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
+                ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch - the mint address will appear here and on the dashboard."],
               ].map(([q, a]) => (
                 <details key={q} className="panel group px-5 py-1 [&_summary]:list-none">
                   <summary className="flex cursor-pointer items-center justify-between py-4 font-bold text-mist-50">

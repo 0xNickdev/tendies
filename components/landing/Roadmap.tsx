@@ -89,7 +89,7 @@ const PHASES: Phase[] = [
     title: "Token & Treasury",
     points: [
       "TENDIE token with a 4% tithe to the treasury",
-      "Rewards in real tokenized stocks — TSLAx, NVDAx or SPCXx, your pick",
+      "Rewards in real tokenized stocks - TSLAx, NVDAx or SPCXx, your pick",
       "Distribution every 30 minutes + live Nasdaq price feed",
     ],
     icon: <BasketFull />,
@@ -102,7 +102,7 @@ const PHASES: Phase[] = [
     title: "Stock Perps",
     points: [
       "Long / short TSLA, NVDA & SPCX oracle marks",
-      "1–10× leverage, treasury claim as margin",
+      "1-10× leverage, treasury claim as margin",
       "Mandatory risk gating before every trade",
     ],
     icon: <Fryer />,
@@ -147,7 +147,7 @@ export function Roadmap() {
           </p>
         </div>
 
-        {/* conveyor strip — a tender travels the line, fryer to basket */}
+        {/* conveyor strip - a tender travels the line, fryer to basket */}
         <div className="relative mt-16 hidden items-center gap-2 lg:flex">
           <KitchenMark />
           <div className="relative h-16 flex-1">

@@ -26,7 +26,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
     <div>
       <ViewHeader
         title="Dashboard"
-        subtitle="Your Tendies account at a glance — live reward markets."
+        subtitle="Your Tendies account at a glance - live reward markets."
         right={<LiveFeedChip />}
       />
 
@@ -71,7 +71,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
         <Stat
           label="Open Positions"
           value={positions.length}
-          sub={positions.length ? "Tap Perps to manage" : "Perps in preview — soon"}
+          sub={positions.length ? "Tap Perps to manage" : "Perps in preview - soon"}
         />
       </div>
 
@@ -107,7 +107,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
           <CandleChart symbol={market} basePrice={marketPrice} height={300} />
 
           <p className="mt-3 text-xs text-mist-400">
-            {marketStock.name} — one of the tokenized stocks the treasury pays
+            {marketStock.name} - one of the tokenized stocks the treasury pays
             out. Perps trading on this market arrives with Phase 02.
           </p>
         </div>
@@ -168,7 +168,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
               />
             </div>
             <div className="mt-2 text-xs text-mist-400">
-              Treasury metrics come from the keeper — live once the token launches.
+              Treasury metrics come from the keeper - live once the token launches.
             </div>
           </div>
         </div>

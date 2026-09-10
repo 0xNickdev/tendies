@@ -33,14 +33,14 @@ export function About() {
           </h2>
           <p className="mt-6 text-pretty leading-relaxed text-mist-300">
             Stocks used to be gated behind brokers, borders, and market hours.
-            xStocks put real equities on Solana — Tendies turns them into a
+            xStocks put real equities on Solana - Tendies turns them into a
             reward. Hold TENDIE and the treasury pays you tokenized Tesla, NVIDIA
             or SpaceX every 30 minutes, straight to your wallet.
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-mist-300">
             The token itself grants no equity. A 4% trade tax feeds the treasury,
-            which distributes real tokenized stocks pro-rata to holders — no
-            emissions, no inflation — and unlocks a speculative perps layer on top.
+            which distributes real tokenized stocks pro-rata to holders - no
+            emissions, no inflation - and unlocks a speculative perps layer on top.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {["No brokerage account", "24/7 markets", "Self-custody", "Solana native"].map(
@@ -89,7 +89,7 @@ export function Mission() {
     },
     {
       title: "A self-sustaining treasury",
-      body: "Every buy and sell pays a small tax into a shared treasury. Every 30 minutes it distributes real tokenized stocks — TSLA, NVDA or SpaceX, your pick — pro-rata to holders.",
+      body: "Every buy and sell pays a small tax into a shared treasury. Every 30 minutes it distributes real tokenized stocks - TSLA, NVDA or SpaceX, your pick - pro-rata to holders.",
     },
     {
       title: "Conviction, expressed",
@@ -114,7 +114,7 @@ export function Mission() {
           </h2>
           <p className="mt-6 text-pretty leading-relaxed text-mist-300">
             We believe the crowd that made retail trading a household story
-            should be able to own its upside on its own rails — self-custodied,
+            should be able to own its upside on its own rails - self-custodied,
             borderless, always-on. Tendies is the rails for that conviction.
           </p>
         </Reveal>
@@ -279,7 +279,7 @@ export function FAQ() {
   const faqs = [
     {
       q: "Do I own real shares?",
-      a: "The rewards are real xStocks (TSLAx, NVDAx, SPCXx) — 1:1-collateralised equity tokens on Solana, held in your own wallet. TENDIE itself is a utility token and confers no equity or shareholder rights. Not affiliated with the underlying companies.",
+      a: "The rewards are real xStocks (TSLAx, NVDAx, SPCXx) - 1:1-collateralised equity tokens on Solana, held in your own wallet. TENDIE itself is a utility token and confers no equity or shareholder rights. Not affiliated with the underlying companies.",
     },
     {
       q: "Where does the price data come from?",
@@ -287,7 +287,7 @@ export function FAQ() {
     },
     {
       q: "How do I receive real stocks?",
-      a: "Rewards are paid in xStocks — Backed Finance's 1:1-collateralised equity tokens on Solana. In the Treasury tab you pick the payout asset (TSLAx, NVDAx or SPCXx); every 30 minutes the treasury distributes it pro-rata, straight to your wallet.",
+      a: "Rewards are paid in xStocks - Backed Finance's 1:1-collateralised equity tokens on Solana. In the Treasury tab you pick the payout asset (TSLAx, NVDAx or SPCXx); every 30 minutes the treasury distributes it pro-rata, straight to your wallet.",
     },
     {
       q: "How does the treasury make money?",
@@ -299,7 +299,7 @@ export function FAQ() {
     },
     {
       q: "What chain is this on?",
-      a: "Solana. TENDIE launches on the stonkfun launchpad — connect Phantom or Solflare and you're in. No network to add, no bridge.",
+      a: "Solana. TENDIE launches on the stonkfun launchpad - connect Phantom or Solflare and you're in. No network to add, no bridge.",
     },
   ];
   return (

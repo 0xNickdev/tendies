@@ -80,7 +80,7 @@ export function Treasury() {
     <div>
       <ViewHeader
         title="Treasury"
-        subtitle={`Your share of the treasury — paid out in tokenized stocks every ${DISTRIBUTION_MINUTES} minutes.`}
+        subtitle={`Your share of the treasury - paid out in tokenized stocks every ${DISTRIBUTION_MINUTES} minutes.`}
         right={<LiveFeedChip label="Payouts every 30 min" />}
       />
 
@@ -92,7 +92,7 @@ export function Treasury() {
         />
         <Stat
           label="Your Share"
-          value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "—"}
+          value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "-"}
           sub={`${fmtUSD(accruedUsd)} accrued`}
           accent="tendie"
         />
@@ -134,7 +134,7 @@ export function Treasury() {
           </div>
           <CandleChart symbol={payout} basePrice={payoutPrice} height={300} />
           <p className="mt-3 text-xs text-mist-400">
-            {payoutStock.name} — the stock you&apos;ve chosen to receive.
+            {payoutStock.name} - the stock you&apos;ve chosen to receive.
           </p>
         </div>
 
@@ -144,7 +144,7 @@ export function Treasury() {
             {fmtUSD(accruedUsd)}
           </div>
           <p className="mt-2 text-sm text-mist-400">
-            Accruing in {payoutStock.token}. Sent to your wallet automatically —
+            Accruing in {payoutStock.token}. Sent to your wallet automatically -
             there is nothing to withdraw.
           </p>
 
@@ -176,10 +176,10 @@ export function Treasury() {
             </div>
             <p className="mt-2 text-xs text-mist-500">
               {saving
-                ? "Saving your choice — approve the signature in your wallet…"
+                ? "Saving your choice - approve the signature in your wallet…"
                 : minPayoutUsd > 0
-                  ? `1:1-backed xStocks on Solana, held in your own wallet. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} — small amounts keep accruing instead of being eaten by network fees.`
-                  : "1:1-backed xStocks on Solana — held in your own wallet."}
+                  ? `1:1-backed xStocks on Solana, held in your own wallet. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} - small amounts keep accruing instead of being eaten by network fees.`
+                  : "1:1-backed xStocks on Solana - held in your own wallet."}
             </p>
           </div>
 
@@ -209,14 +209,14 @@ export function Treasury() {
           ) : (
             <div className="mt-5 rounded-xl border border-tendie/25 bg-tendie/5 p-4 text-center">
               <div className="font-mono text-xs font-bold uppercase tracking-wider text-tendie">
-                Nothing to claim — payouts are pushed
+                Nothing to claim - payouts are pushed
               </div>
               <p className="mt-2 text-xs leading-relaxed text-mist-400">
                 {accruedUsd >= minPayoutUsd && minPayoutUsd > 0
-                  ? `Your balance is over the $${minPayoutUsd} floor — it goes out as ${payoutStock.token} on the next distribution.`
+                  ? `Your balance is over the $${minPayoutUsd} floor - it goes out as ${payoutStock.token} on the next distribution.`
                   : minPayoutUsd > 0
                     ? `Rewards accrue every ${DISTRIBUTION_MINUTES} minutes and are sent automatically once your balance passes $${minPayoutUsd}. Below that they keep accruing, so network fees never cost more than the payout.`
-                    : "Rewards are sent to your wallet automatically — there is no claim step."}
+                    : "Rewards are sent to your wallet automatically - there is no claim step."}
               </p>
             </div>
           )}

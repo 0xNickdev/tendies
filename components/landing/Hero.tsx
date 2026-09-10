@@ -25,7 +25,7 @@ export function Hero() {
     <section className="relative flex min-h-[100svh] items-center overflow-hidden pt-24">
       {/* parallax backdrop */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        {/* cursor-tracked spotlight — the page feels lit from where you look */}
+        {/* cursor-tracked spotlight - the page feels lit from where you look */}
         {!reduced && (
           <div
             className="absolute inset-0 transition-opacity duration-500"
@@ -77,9 +77,9 @@ export function Hero() {
             className="animate-fade-up mt-7 max-w-xl text-pretty text-base leading-relaxed text-mist-200 sm:text-lg"
             style={{ animationDelay: "120ms" }}
           >
-            Tokenized stock exposure — 24/7, on-chain, no brokerage account.
-            Hold $TENDIE and the treasury pays you real xStocks — Tesla, NVIDIA
-            or even SpaceX — every 30 minutes. Then put the stack to work on
+            Tokenized stock exposure - 24/7, on-chain, no brokerage account.
+            Hold $TENDIE and the treasury pays you real xStocks - Tesla, NVIDIA
+            or even SpaceX - every 30 minutes. Then put the stack to work on
             perps.
           </p>
 

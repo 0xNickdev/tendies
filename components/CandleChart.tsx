@@ -335,7 +335,7 @@ export function CandleChart({
         className="w-full touch-pan-y select-none"
         style={{ cursor: drag.current ? "grabbing" : "crosshair" }}
         role="img"
-        aria-label={`${symbol} price chart — ${live ? "real OHLC" : "simulated preview"}, scroll to zoom, drag to pan`}
+        aria-label={`${symbol} price chart - ${live ? "real OHLC" : "simulated preview"}, scroll to zoom, drag to pan`}
         onPointerMove={onMove}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -474,7 +474,7 @@ export function CandleChart({
           </>
         ) : (
           <>
-            Feed unavailable — simulated preview candles · settles against
+            Feed unavailable - simulated preview candles · settles against
             oracle mark <span className="text-mist-300">{fmtUSD(basePrice)}</span>
           </>
         )}

@@ -10,7 +10,7 @@ export type PayoutStock = {
   symbol: StockSym;
   name: string;
   token: string; // xStock ticker on Solana
-  mint: string; // SPL mint — ⟵ PASTE FROM xstocks.com / Solscan before launch
+  mint: string; // SPL mint - ⟵ PASTE FROM xstocks.com / Solscan before launch
   seedPrice: number; // fallback when the price API is unreachable
 };
 
