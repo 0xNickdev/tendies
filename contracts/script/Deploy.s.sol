@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {ROBX} from "../src/ROBX.sol";
+import {TENDIE} from "../src/TENDIE.sol";
 import {RewardDistributor} from "../src/RewardDistributor.sol";
 
-/// @notice Deploys ROBX + RewardDistributor to Robinhood Chain and wires them.
+/// @notice Deploys TENDIE + RewardDistributor to Robinhood Chain and wires them.
 ///
 /// Does NOT create the DEX pair or add liquidity — do that manually on Uniswap
 /// after this runs, then call setMarketPair / setRewardExempt (printed below).
@@ -30,25 +30,25 @@ contract Deploy is Script {
         vm.startBroadcast();
 
         // 1. Token — deployer receives 100M, is tax/reward exempt.
-        ROBX robx = new ROBX();
-        console2.log("ROBX             :", address(robx));
+        TENDIE tendie = new TENDIE();
+        console2.log("TENDIE             :", address(tendie));
 
-        // 2. Distributor. Trading pair is ROBX/WETH (buyers pay with ETH, no
+        // 2. Distributor. Trading pair is TENDIE/WETH (buyers pay with ETH, no
         //    USDG needed), but rewards are accounted in USDG for stable value
-        //    and 1-hop stock swaps. Tax therefore routes ROBX -> WETH -> USDG.
+        //    and 1-hop stock swaps. Tax therefore routes TENDIE -> WETH -> USDG.
         address[] memory path = new address[](3);
-        path[0] = address(robx);
+        path[0] = address(tendie);
         path[1] = WETH;
         path[2] = USDG;
-        RewardDistributor dist = new RewardDistributor(address(robx), USDG, ROUTER, path);
+        RewardDistributor dist = new RewardDistributor(address(tendie), USDG, ROUTER, path);
         console2.log("RewardDistributor:", address(dist));
 
         // 3. Wire them (auto-exempts the distributor).
-        robx.setDistributor(address(dist));
+        tendie.setDistributor(address(dist));
 
         // 4. Reward-exempt the router so mid-swap holdings never accrue shares
         //    (AUDIT L-3). The DEX pair is exempted later via setMarketPair.
-        robx.setRewardExempt(ROUTER, true);
+        tendie.setRewardExempt(ROUTER, true);
 
         // 5. Allow the stock payout options. Uses the canonical tokens; each
         //    only pays out once a USDG pair exists on the router — until then
@@ -64,11 +64,11 @@ contract Deploy is Script {
 
         console2.log("");
         console2.log("=== NEXT STEPS (manual) ===");
-        console2.log("1. Create ROBX/WETH pair on Uniswap + add liquidity");
-        console2.log("2. robx.setMarketPair(<pairAddress>, true)   // enables 4%% tax");
+        console2.log("1. Create TENDIE/WETH pair on Uniswap + add liquidity");
+        console2.log("2. tendie.setMarketPair(<pairAddress>, true)   // enables 4%% tax");
         console2.log("3. Set distributor keeper: dist.setKeeper(<keeperEOA or 0>)");
         console2.log("4. Transfer ownership of BOTH to the multisig/timelock");
-        console2.log("5. Paste ROBX + buy link into frontend lib/config.ts");
+        console2.log("5. Paste TENDIE + buy link into frontend lib/config.ts");
         console2.log("");
         console2.log("USDG :", USDG);
         console2.log("ROUTER:", ROUTER);

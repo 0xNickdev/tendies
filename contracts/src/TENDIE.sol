@@ -8,12 +8,12 @@ interface IRewardDistributor {
     function setShare(address account, uint256 balance) external;
 }
 
-/// @title ROBX — RobinX token
+/// @title TENDIE — Tendies token
 /// @notice ERC-20 with a tax on DEX buys/sells (the "tithe"). Tax is sent to
 ///         the RewardDistributor, which converts it and pays holders in
 ///         tokenized stocks every 30 minutes. Wallet-to-wallet transfers are
 ///         tax-free. Supply is fixed — no mint function exists after deploy.
-contract ROBX is ERC20, Ownable {
+contract TENDIE is ERC20, Ownable {
     uint256 public constant TOTAL_SUPPLY = 100_000_000e18;
     uint256 public constant MAX_TAX_BPS = 500; // hard cap: tax can never exceed 5%
 
@@ -31,7 +31,7 @@ contract ROBX is ERC20, Ownable {
     event TaxExemptSet(address account, bool exempt);
     event RewardExemptSet(address account, bool exempt);
 
-    constructor() ERC20("RobinX", "ROBX") Ownable(msg.sender) {
+    constructor() ERC20("Tendies", "TENDIE") Ownable(msg.sender) {
         isTaxExempt[msg.sender] = true;
         isRewardExempt[msg.sender] = true;
         isRewardExempt[address(this)] = true;
@@ -57,7 +57,7 @@ contract ROBX is ERC20, Ownable {
 
     /// @notice Tax can be lowered or raised, but never above the 5% hard cap.
     function setTaxBps(uint256 bps) external onlyOwner {
-        require(bps <= MAX_TAX_BPS, "ROBX: tax above cap");
+        require(bps <= MAX_TAX_BPS, "TENDIE: tax above cap");
         taxBps = bps;
         emit TaxBpsSet(bps);
     }

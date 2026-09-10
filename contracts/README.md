@@ -1,11 +1,21 @@
-# RobinX contracts — Phase 01 (Token & Treasury)
+> ## ⚠️ ARCHIVED — EVM era
+>
+> These Solidity contracts were written for the Robinhood Chain (Arbitrum
+> Orbit) deployment. **Tendies now launches on Solana via the stonkfun
+> launchpad**, where the mint belongs to the launchpad and distribution is
+> handled by `keeper/` — no custom program. Nothing here is deployed.
+>
+> Kept for reference: the tax/treasury/pro-rata accounting model (and its
+> tests) is what the Solana keeper reimplements off-chain.
+
+# Tendies contracts — Phase 01 (Token & Treasury)
 
 Two contracts implement the whole phase:
 
 | Contract | What it does |
 | --- | --- |
-| `src/ROBX.sol` | ERC-20, fixed 100M supply. Takes a 4% tax on DEX buys/sells (hard-capped at 5%, wallet↔wallet transfers free) and streams it to the distributor. Reports every holder's balance to the distributor via hooks. |
-| `src/RewardDistributor.sol` | The treasury. Once per 30-minute epoch converts accumulated ROBX tax → USDC and credits all holders pro-rata in O(1) (accumulator pattern — no loops over holders). Each holder picks a payout asset (tHOOD / tTSLA / tTTWO or USDC); stock payouts are swapped at claim time. Chainlink-Automation compatible (`checkUpkeep` / `performUpkeep`). |
+| `src/TENDIE.sol` | ERC-20, fixed 100M supply. Takes a 4% tax on DEX buys/sells (hard-capped at 5%, wallet↔wallet transfers free) and streams it to the distributor. Reports every holder's balance to the distributor via hooks. |
+| `src/RewardDistributor.sol` | The treasury. Once per 30-minute epoch converts accumulated TENDIE tax → USDC and credits all holders pro-rata in O(1) (accumulator pattern — no loops over holders). Each holder picks a payout asset (tHOOD / tTSLA / tTTWO or USDC); stock payouts are swapped at claim time. Chainlink-Automation compatible (`checkUpkeep` / `performUpkeep`). |
 
 ## Compile
 
@@ -13,7 +23,7 @@ Verified with solc **0.8.28** + OpenZeppelin **v5** (already in `devDependencies
 
 ```bash
 npx solcjs --optimize --bin --abi \
-  contracts/src/ROBX.sol contracts/src/RewardDistributor.sol \
+  contracts/src/TENDIE.sol contracts/src/RewardDistributor.sol \
   --base-path . --include-path node_modules -o build/
 ```
 
@@ -21,7 +31,7 @@ npx solcjs --optimize --bin --abi \
 
 ## Tests
 
-Full Foundry suite in `test/RobinX.t.sol` — **25 tests, all passing**
+Full Foundry suite in `test/Tendies.t.sol` — **25 tests, all passing**
 (tax on buys/sells only, share sync on every transfer path, epoch math,
 pro-rata splits, claim-in-stock swaps, keeper gating, rescue protections,
 an end-to-end two-holder journey):
@@ -56,13 +66,13 @@ Checked live against the public RPC (all contracts confirmed deployed):
 
 ## Deploy & wire (in this order)
 
-1. **Deploy `ROBX`** — deployer receives 100M and is tax/reward-exempt.
-2. **Deploy `RewardDistributor(robx, usdc, router, path)`**
+1. **Deploy `TENDIE`** — deployer receives 100M and is tax/reward-exempt.
+2. **Deploy `RewardDistributor(tendie, usdc, router, path)`**
    - `usdc` — the stable on Robinhood Chain
    - `router` — UniswapV2-style router of the DEX you launch on
-   - `path` — `[ROBX, USDC]` (or `[ROBX, WETH, USDC]` if that's the liquid route)
-3. **`robx.setDistributor(distributor)`** — also auto-exempts it.
-4. Create the DEX pair, add liquidity, then **`robx.setMarketPair(pair, true)`** and **`robx.setRewardExempt(router, true)`** — pairs/routers must never accrue holder rewards.
+   - `path` — `[TENDIE, USDC]` (or `[TENDIE, WETH, USDC]` if that's the liquid route)
+3. **`tendie.setDistributor(distributor)`** — also auto-exempts it.
+4. Create the DEX pair, add liquidity, then **`tendie.setMarketPair(pair, true)`** and **`tendie.setRewardExempt(router, true)`** — pairs/routers must never accrue holder rewards.
 5. **`distributor.setAllowedRewardToken(TSLA, true)`** (+ NVDA, SPCX — addresses above) — each
    needs a liquid USDC pair on the same router. Can be added later as
    liquidity appears; until then holders receive USDC.
@@ -70,8 +80,8 @@ Checked live against the public RPC (all contracts confirmed deployed):
    task) and call `distributor.setKeeper(registryForwarder)`. With no keeper
    set, `distribute()` is callable by anyone — also fine.
 7. Transfer ownership of both contracts to a **multisig/timelock**.
-8. Frontend: paste the ROBX address into `lib/config.ts`
-   (`ROBX_TOKEN_ADDRESS`) and the swap link (`BUY_ROBX_URL`).
+8. Frontend: paste the TENDIE address into `lib/config.ts`
+   (`TENDIE_TOKEN_ADDRESS`) and the swap link (`BUY_TENDIE_URL`).
 
 ## Frontend mapping
 

@@ -34,10 +34,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="animate-fade-up pointer-events-auto flex items-center gap-3 rounded-xl border border-robin/15 bg-ink-800/95 px-4 py-3 text-sm shadow-glow-sm backdrop-blur-xl"
+            className="animate-fade-up pointer-events-auto flex items-center gap-3 rounded-xl border border-tendie/15 bg-ink-800/95 px-4 py-3 text-sm shadow-glow-sm backdrop-blur-xl"
           >
             <Dot variant={t.variant} />
-            <span className="text-zinc-100">{t.msg}</span>
+            <span className="text-mist-50">{t.msg}</span>
           </div>
         ))}
       </div>

@@ -1,2 +1,10 @@
 node_modules/
+
+# env / secrets — the treasury key lives here, never commit it
 .env
+.env.*
+
+# keeper runtime state — the accrual ledger, choices and epoch journal
+data/
+data-e2e/
+data-test/

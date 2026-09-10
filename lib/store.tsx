@@ -14,45 +14,65 @@ import {
   type Direction,
   type Position,
 } from "./mock";
-import { ROBX_TOKEN_ADDRESS, ROBINHOOD_CHAIN } from "./config";
+import { TENDIE_MINT, SOLANA } from "./config";
+import { fetchAccount, submitChoice, symbolForToken } from "./keeper";
+import type { StockSym } from "./stocks";
 
-// Real EIP-1193 wallet connection — works with MetaMask, Rabby, and any
-// injected EVM wallet. Balances are read from the chain; until the ROBX
-// contract address is set in lib/config.ts the token balance is 0.
+// Real Solana wallet connection — Phantom, Solflare and any provider that
+// injects the same interface. The TENDIE balance is read straight from the
+// cluster; until TENDIE_MINT is set in lib/config.ts it stays 0.
 
-type Eip1193 = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+type SolanaProvider = {
+  isPhantom?: boolean;
+  isSolflare?: boolean;
+  publicKey?: { toString(): string } | null;
+  connect(opts?: { onlyIfTrusted?: boolean }): Promise<{
+    publicKey: { toString(): string };
+  }>;
+  disconnect(): Promise<void>;
+  signMessage?(message: Uint8Array, encoding?: string): Promise<{ signature: Uint8Array }>;
   on?(event: string, cb: (payload: unknown) => void): void;
+  off?(event: string, cb: (payload: unknown) => void): void;
   removeListener?(event: string, cb: (payload: unknown) => void): void;
 };
 
 declare global {
   interface Window {
-    ethereum?: Eip1193;
+    solana?: SolanaProvider;
+    solflare?: SolanaProvider;
+    phantom?: { solana?: SolanaProvider };
   }
+}
+
+function getProvider(): SolanaProvider | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.phantom?.solana ?? window.solana ?? window.solflare;
 }
 
 type WalletState = {
   connected: boolean;
   address: string;
-  chainId: number; // 0 until known
 };
 
 type Store = {
   wallet: WalletState;
-  wrongNetwork: boolean; // connected but not on Robinhood Chain
-  robxBalance: number;
+  walletMissing: boolean; // no Solana wallet injected in this browser
+  tendieBalance: number;
   claimUsdc: number;
   walletUsdc: number;
   shareBps: number;
   positions: Position[];
   history: ClosedPosition[];
+  // payout account, served by the keeper
+  payoutChoice: StockSym | null;
+  accruedUsd: number;
+  minPayoutUsd: number;
   // actions
   connect: () => void;
-  switchNetwork: () => Promise<void>;
   disconnect: () => void;
+  setPayoutChoice: (symbol: StockSym) => Promise<{ ok: boolean; error?: string }>;
   buyToken: (usdc: number) => void;
-  sellToken: (robx: number) => void;
+  sellToken: (tendie: number) => void;
   openPosition: (p: {
     direction: Direction;
     leverage: number;
@@ -67,53 +87,38 @@ const StoreCtx = createContext<Store | null>(null);
 let idCounter = 9000;
 const nextId = () => `pos_${idCounter++}`;
 
-// ERC-20 balanceOf(address) via raw eth_call — no SDK dependency.
-async function fetchRobxBalance(
-  eth: Eip1193,
-  address: string,
-): Promise<number> {
-  if (!ROBX_TOKEN_ADDRESS) return 0; // token not deployed yet
+// SPL balance via a plain getTokenAccountsByOwner RPC call — no SDK needed.
+// An owner can hold the same mint across several token accounts, so sum them.
+async function fetchTendieBalance(owner: string): Promise<number> {
+  if (!TENDIE_MINT) return 0; // token not launched yet
   try {
-    const data =
-      "0x70a08231" +
-      address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-    const res = (await eth.request({
-      method: "eth_call",
-      params: [{ to: ROBX_TOKEN_ADDRESS, data }, "latest"],
-    })) as string;
-    if (!res || res === "0x") return 0;
-    return Number(BigInt(res)) / 1e18;
+    const res = await fetch(SOLANA.rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccountsByOwner",
+        params: [
+          owner,
+          { mint: TENDIE_MINT },
+          { encoding: "jsonParsed", commitment: "confirmed" },
+        ],
+      }),
+    });
+    const json = await res.json();
+    const accounts = json?.result?.value;
+    if (!Array.isArray(accounts)) return 0;
+    return accounts.reduce((sum: number, acc: unknown) => {
+      const amount = (acc as {
+        account?: {
+          data?: { parsed?: { info?: { tokenAmount?: { uiAmount?: number } } } };
+        };
+      })?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+      return sum + (typeof amount === "number" ? amount : 0);
+    }, 0);
   } catch {
     return 0;
-  }
-}
-
-// Ask the wallet to switch to Robinhood Chain, adding it first if unknown.
-async function ensureNetwork(eth: Eip1193): Promise<void> {
-  try {
-    await eth.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: ROBINHOOD_CHAIN.chainIdHex }],
-    });
-  } catch (err) {
-    // 4902 = chain not added to the wallet yet → add it, which also switches
-    const code = (err as { code?: number })?.code;
-    if (code === 4902 || code === -32603) {
-      await eth.request({
-        method: "wallet_addEthereumChain",
-        params: [
-          {
-            chainId: ROBINHOOD_CHAIN.chainIdHex,
-            chainName: ROBINHOOD_CHAIN.chainName,
-            rpcUrls: ROBINHOOD_CHAIN.rpcUrls,
-            blockExplorerUrls: ROBINHOOD_CHAIN.blockExplorerUrls,
-            nativeCurrency: ROBINHOOD_CHAIN.nativeCurrency,
-          },
-        ],
-      });
-    } else {
-      throw err;
-    }
   }
 }
 
@@ -121,102 +126,106 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>({
     connected: false,
     address: "",
-    chainId: 0,
   });
-  const [robxBalance, setRobx] = useState(0);
+  const [walletMissing, setWalletMissing] = useState(false);
+  const [tendieBalance, setTendie] = useState(0);
   const [claimUsdc, setClaim] = useState(0);
   const [walletUsdc, setWalletUsdc] = useState(0);
   const [shareBps] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedPosition[]>([]);
+  const [payoutChoice, setChoice] = useState<StockSym | null>(null);
+  const [accruedUsd, setAccrued] = useState(0);
+  const [minPayoutUsd, setMinPayout] = useState(0);
 
-  const readChainId = useCallback(async (eth: Eip1193): Promise<number> => {
-    try {
-      const hex = (await eth.request({ method: "eth_chainId" })) as string;
-      return parseInt(hex, 16);
-    } catch {
-      return 0;
+  const adopt = useCallback(async (address: string) => {
+    setWallet({ connected: true, address });
+    setWalletMissing(false);
+    setTendie(await fetchTendieBalance(address));
+
+    // what the keeper has accrued for this wallet, and its payout pick
+    const account = await fetchAccount(address);
+    if (account) {
+      setChoice(symbolForToken(account.choice));
+      setAccrued(account.accrued);
+      setMinPayout(account.minPayoutUsd);
     }
   }, []);
 
-  const connect = useCallback(async () => {
-    const eth = window.ethereum;
-    if (!eth) {
-      window.alert(
-        "No EVM wallet detected. Install MetaMask or Rabby, then try again.",
+  // Ask the wallet to sign the choice, then hand it to the keeper. Signing is
+  // free — it is not a transaction.
+  const setPayoutChoice = useCallback(
+    async (symbol: StockSym) => {
+      const provider = getProvider();
+      if (!provider?.signMessage || !wallet.address) {
+        return { ok: false, error: "Connect a wallet that can sign messages" };
+      }
+      const result = await submitChoice(
+        wallet.address,
+        symbol,
+        provider.signMessage.bind(provider),
       );
+      if (result.ok) setChoice(symbol);
+      return result;
+    },
+    [wallet.address],
+  );
+
+  const connect = useCallback(async () => {
+    const provider = getProvider();
+    if (!provider) {
+      setWalletMissing(true);
       return;
     }
     try {
-      const accounts = (await eth.request({
-        method: "eth_requestAccounts",
-      })) as string[];
-      const address = accounts?.[0];
-      if (!address) return;
-
-      // put the wallet on Robinhood Chain before reading anything
-      let chainId = await readChainId(eth);
-      if (chainId !== ROBINHOOD_CHAIN.chainId) {
-        try {
-          await ensureNetwork(eth);
-          chainId = await readChainId(eth);
-        } catch {
-          /* user declined the switch — connect anyway, show Wrong network */
-        }
-      }
-
-      setWallet({ connected: true, address, chainId });
-      setRobx(await fetchRobxBalance(eth, address));
+      const { publicKey } = await provider.connect();
+      const address = publicKey?.toString();
+      if (address) await adopt(address);
     } catch {
       /* user rejected the request */
     }
-  }, [readChainId]);
-
-  const switchNetwork = useCallback(async () => {
-    const eth = window.ethereum;
-    if (!eth) return;
-    try {
-      await ensureNetwork(eth);
-      const chainId = await readChainId(eth);
-      setWallet((w) => ({ ...w, chainId }));
-    } catch {
-      /* user declined */
-    }
-  }, [readChainId]);
+  }, [adopt]);
 
   const disconnect = useCallback(() => {
-    setWallet({ connected: false, address: "", chainId: 0 });
-    setRobx(0);
+    void getProvider()?.disconnect().catch(() => {});
+    setWallet({ connected: false, address: "" });
+    setTendie(0);
+    setChoice(null);
+    setAccrued(0);
   }, []);
 
-  // follow account & network switches in MetaMask / Rabby
+  // Silently restore a previously approved connection, then follow account
+  // switches inside Phantom / Solflare.
   useEffect(() => {
-    const eth = window.ethereum;
-    if (!eth?.on) return;
-    const onAccounts = async (payload: unknown) => {
-      const address = (payload as string[])?.[0];
-      if (!address) {
-        disconnect();
-        return;
-      }
-      const chainId = await readChainId(eth);
-      setWallet((w) => ({ ...w, connected: true, address, chainId }));
-      setRobx(await fetchRobxBalance(eth, address));
-    };
-    const onChain = (payload: unknown) => {
-      const chainId = parseInt(payload as string, 16);
-      setWallet((w) => ({ ...w, chainId }));
-    };
-    eth.on("accountsChanged", onAccounts);
-    eth.on("chainChanged", onChain);
-    return () => {
-      eth.removeListener?.("accountsChanged", onAccounts);
-      eth.removeListener?.("chainChanged", onChain);
-    };
-  }, [disconnect, readChainId]);
+    const provider = getProvider();
+    if (!provider) return;
 
-  const wrongNetwork =
-    wallet.connected && wallet.chainId !== ROBINHOOD_CHAIN.chainId;
+    provider
+      .connect({ onlyIfTrusted: true })
+      .then(({ publicKey }) => {
+        const address = publicKey?.toString();
+        if (address) void adopt(address);
+      })
+      .catch(() => {
+        /* not trusted yet — the user has to click Connect */
+      });
+
+    const onAccountChanged = (payload: unknown) => {
+      const key = payload as { toString(): string } | null;
+      const address = key?.toString();
+      if (address) {
+        void adopt(address);
+      } else {
+        setWallet({ connected: false, address: "" });
+        setTendie(0);
+      }
+    };
+    provider.on?.("accountChanged", onAccountChanged);
+    return () => {
+      provider.off?.("accountChanged", onAccountChanged);
+      provider.removeListener?.("accountChanged", onAccountChanged);
+    };
+  }, [adopt]);
 
   // Trade is gated behind FEATURES.tradeLive — these stay inert until launch.
   const buyToken = useCallback((usdc: number) => {
@@ -224,15 +233,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const taxed = usdc * (1 - TREASURY.taxRateBps / 10_000);
     const tokens = taxed / TREASURY.tokenPriceUsd;
     setWalletUsdc((b) => Math.max(0, b - usdc));
-    setRobx((b) => b + tokens);
+    setTendie((b) => b + tokens);
     setClaim((c) => c + usdc * (TREASURY.taxRateBps / 10_000) * 0.4);
   }, []);
 
-  const sellToken = useCallback((robx: number) => {
-    if (robx <= 0 || TREASURY.tokenPriceUsd <= 0) return;
-    const gross = robx * TREASURY.tokenPriceUsd;
+  const sellToken = useCallback((tendie: number) => {
+    if (tendie <= 0 || TREASURY.tokenPriceUsd <= 0) return;
+    const gross = tendie * TREASURY.tokenPriceUsd;
     const taxed = gross * (1 - TREASURY.taxRateBps / 10_000);
-    setRobx((b) => Math.max(0, b - robx));
+    setTendie((b) => Math.max(0, b - tendie));
     setWalletUsdc((b) => b + taxed);
   }, []);
 
@@ -302,16 +311,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Store>(
     () => ({
       wallet,
-      wrongNetwork,
-      robxBalance,
+      walletMissing,
+      tendieBalance,
       claimUsdc,
       walletUsdc,
       shareBps,
       positions,
       history,
+      payoutChoice,
+      accruedUsd,
+      minPayoutUsd,
       connect,
-      switchNetwork,
       disconnect,
+      setPayoutChoice,
       buyToken,
       sellToken,
       openPosition,
@@ -319,16 +331,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       wallet,
-      wrongNetwork,
-      robxBalance,
+      walletMissing,
+      tendieBalance,
       claimUsdc,
       walletUsdc,
       shareBps,
       positions,
       history,
+      payoutChoice,
+      accruedUsd,
+      minPayoutUsd,
       connect,
-      switchNetwork,
       disconnect,
+      setPayoutChoice,
       buyToken,
       sellToken,
       openPosition,

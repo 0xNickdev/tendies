@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-interface IROBXToken {
+interface ITENDIEToken {
     function isRewardExempt(address account) external view returns (bool);
 }
 
@@ -33,20 +33,20 @@ interface IUniswapV2Router {
     ) external returns (uint256[] memory amounts);
 }
 
-/// @title RewardDistributor — RobinX treasury & stock rewards
-/// @notice Receives the ROBX trade tax, converts it to USDC once per epoch
+/// @title RewardDistributor — Tendies treasury & stock rewards
+/// @notice Receives the TENDIE trade tax, converts it to USDC once per epoch
 ///         (every 30 minutes, keeper-triggered), and accrues it to holders
 ///         pro-rata with O(1) accounting. Holders claim in the tokenized
 ///         stock of their choice (tTSLA / tNVDA / tSPCX — swapped at claim
 ///         time) or in USDC.
-/// @dev    Share ledger is driven by the ROBX token via setShare() hooks.
+/// @dev    Share ledger is driven by the TENDIE token via setShare() hooks.
 ///         Classic accumulator pattern: no loops over holders, ever.
 contract RewardDistributor is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 private constant ACC_PRECISION = 1e36;
 
-    IERC20 public immutable robx;
+    IERC20 public immutable tendie;
     IERC20 public immutable usdc;
     IUniswapV2Router public router;
 
@@ -55,7 +55,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     uint256 public lastDistribution;
     uint256 public epochCount;
 
-    // ── share ledger (mirrors ROBX balances of non-exempt holders) ──
+    // ── share ledger (mirrors TENDIE balances of non-exempt holders) ──
     uint256 public totalShares;
     mapping(address => uint256) public shares;
 
@@ -77,7 +77,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     address[] public allowedRewardTokens;
 
     // ── swap config ──
-    address[] public taxSwapPath; // ROBX → … → USDC
+    address[] public taxSwapPath; // TENDIE → … → USDC
     uint256 public slippageBps = 300; // 3% max slippage on swaps
     uint256 public minTaxSwapAmount = 1e18; // don't waste gas on dust
 
@@ -96,29 +96,29 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     error NothingToClaim();
 
     constructor(
-        address robx_,
+        address tendie_,
         address usdc_,
         address router_,
         address[] memory taxSwapPath_
     ) Ownable(msg.sender) {
-        require(robx_ != address(0) && usdc_ != address(0) && router_ != address(0), "zero addr");
+        require(tendie_ != address(0) && usdc_ != address(0) && router_ != address(0), "zero addr");
         require(
             taxSwapPath_.length >= 2 &&
-                taxSwapPath_[0] == robx_ &&
+                taxSwapPath_[0] == tendie_ &&
                 taxSwapPath_[taxSwapPath_.length - 1] == usdc_,
             "bad path"
         );
-        robx = IERC20(robx_);
+        tendie = IERC20(tendie_);
         usdc = IERC20(usdc_);
         router = IUniswapV2Router(router_);
         taxSwapPath = taxSwapPath_;
         lastDistribution = block.timestamp;
     }
 
-    // ─── share ledger (called by the ROBX token on every transfer) ───────
+    // ─── share ledger (called by the TENDIE token on every transfer) ───────
 
     function setShare(address account, uint256 balance) external {
-        if (msg.sender != address(robx)) revert NotToken();
+        if (msg.sender != address(tendie)) revert NotToken();
         _writeShare(account, balance);
     }
 
@@ -127,8 +127,8 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     ///         the 63/64 rule (an attacker could otherwise sell tokens while
     ///         keeping stale shares). Anyone may call for any account.
     function syncShare(address account) external {
-        bool exempt = IROBXToken(address(robx)).isRewardExempt(account);
-        uint256 balance = exempt ? 0 : robx.balanceOf(account);
+        bool exempt = ITENDIEToken(address(tendie)).isRewardExempt(account);
+        uint256 balance = exempt ? 0 : tendie.balanceOf(account);
         _writeShare(account, balance);
     }
 
@@ -156,11 +156,11 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     function canDistribute() public view returns (bool) {
         return
             block.timestamp >= lastDistribution + epochInterval &&
-            robx.balanceOf(address(this)) >= minTaxSwapAmount &&
+            tendie.balanceOf(address(this)) >= minTaxSwapAmount &&
             totalShares > 0;
     }
 
-    /// @notice Converts accumulated ROBX tax into USDC and credits all
+    /// @notice Converts accumulated TENDIE tax into USDC and credits all
     ///         holders in O(1). Called by the keeper every 30 minutes;
     ///         anyone may call if no keeper is set.
     function distribute() external nonReentrant {
@@ -178,7 +178,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
         if (block.timestamp < lastDistribution + epochInterval) revert EpochNotReady();
         lastDistribution = block.timestamp;
 
-        uint256 taxBalance = robx.balanceOf(address(this));
+        uint256 taxBalance = tendie.balanceOf(address(this));
         if (taxBalance < minTaxSwapAmount || totalShares == 0) return; // dust or no holders — wait
 
         uint256 usdcBefore = usdc.balanceOf(address(this));
@@ -281,7 +281,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     /// @notice Add a tokenized stock as a payout option (tHOOD, tTSLA, tTTWO…).
     ///         Requires a liquid USDC pair on the router's DEX.
     function setAllowedRewardToken(address token, bool allowed) external onlyOwner {
-        require(token != address(0) && token != address(robx), "bad token");
+        require(token != address(0) && token != address(tendie), "bad token");
         if (allowed && !_everListed[token]) {
             _everListed[token] = true;
             allowedRewardTokens.push(token);
@@ -315,7 +315,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     function setTaxSwapPath(address[] calldata path) external onlyOwner {
         require(
             path.length >= 2 &&
-                path[0] == address(robx) &&
+                path[0] == address(tendie) &&
                 path[path.length - 1] == address(usdc),
             "bad path"
         );
@@ -327,10 +327,10 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
         router = IUniswapV2Router(r);
     }
 
-    /// @notice Rescue tokens sent here by mistake. ROBX and USDC — the
+    /// @notice Rescue tokens sent here by mistake. TENDIE and USDC — the
     ///         holders' money — can never be rescued.
     function rescue(address token, uint256 amount, address to) external onlyOwner {
-        require(token != address(robx) && token != address(usdc), "protected");
+        require(token != address(tendie) && token != address(usdc), "protected");
         IERC20(token).safeTransfer(to, amount);
     }
 }

@@ -1,22 +1,28 @@
-# RobinX
+# Tendies
 
-Synthetic **tokenized-stock exposure** (TSLA · NVDA · SPCX) on **Robinhood
-Chain** — a mobile-first DeFi app. Hold the ROBX token, get treasury rewards
-paid in **real tokenized stocks** of your choice every **30 minutes**, and
+Tokenized-stock exposure (TSLA · NVDA · SPCX) on **Solana** — a mobile-first
+DeFi app. $TENDIE launches on the **stonkfun** launchpad; hold it and the
+treasury pays you **real xStocks** of your choice every **30 minutes**, then
 speculate on the next oracle mark with on-chain perps.
 
 > Synthetic exposure only. No equity, no shareholder rights. Not affiliated
-> with Robinhood Markets, Inc.
+> with Tesla, NVIDIA, SpaceX, Backed Finance or stonkfun.
 
 **KOL / marketing one-pager: [PITCH.md](PITCH.md)**
 
 ## Stack
 
 - **Next.js 15** (App Router) + **React 19** + **TypeScript**
-- **Tailwind CSS** — neon-lime (`#D9FF4D`) accent on warm near-black, matching
-  the hooded-archer logo (`public/logo.jpg`)
-- Static hero backdrop — hooded-archer art (`public/hero-archer.png`)
-- Lightweight in-SVG charts (no chart dependency) — area + candlestick
+- **Tailwind CSS** — palette lifted from stonkfun: steel-blue (`#69AAC1`)
+  accent on cold teal-black (`#071013`), cool blue-grey type (`mist` scale),
+  brand gradient `#ABC4CE → #78A9BF → #5C8394` at 215° (`bg-brand`)
+- Brand art generated in Flow (Nano Banana), alpha-keyed to WebP in `public/`:
+  `logo-mark`, `wordmark`, `hero-tenders` — prompts in [BRAND_PROMPTS.md](BRAND_PROMPTS.md)
+- Hero backdrop — `components/landing/HeroArt.tsx` splits the one hero plate
+  into two parallax planes (soft/behind, sharp/front); the inline SVG stays as
+  the fallback if `HERO_LAYERS` is emptied
+- In-SVG candlestick chart, no chart dependency — real Nasdaq OHLC from
+  `/api/candles`, wheel to zoom, drag to pan, seeded preview as the fallback
 - **Real Nasdaq quotes** served by the built-in backend (`/api/prices`);
   wallet balances and treasury flows are still simulated
 
@@ -32,7 +38,7 @@ npm run build    # production build
 
 | Route        | What it is                                                            |
 | ------------ | --------------------------------------------------------------------- |
-| `/`          | Landing — UnicornStudio hero, About, Mission, Mechanics, Stats, FAQ   |
+| `/`          | Landing — Hero, Markets listing, About, Mission, Mechanics, Roadmap, Stats, FAQ |
 | `/terminal`  | The app — Dashboard / Trade / Treasury / Perps / History              |
 
 The hero's **Enter Terminal** button (and the header CTA) route to `/terminal`.
@@ -41,23 +47,22 @@ The hero's **Enter Terminal** button (and the header CTA) route to `/terminal`.
 
 ```
 app/
-  api/prices/route.ts   # backend — live quotes (Yahoo → Stooq → seed fallback)
+  api/prices/route.ts   # backend — live quotes (Yahoo q1 → q2 → CNBC → seed)
+  api/candles/route.ts  # backend — real OHLC history (Yahoo q1 → q2), 4H folded from 1h
   page.tsx              # landing composition
-  icon.png              # favicon generated from the logo image
+  icon.png              # favicon — the tender mark
   terminal/             # terminal route (StoreProvider + ToastProvider)
 components/
-  landing/              # Header, Hero, Sections
+  landing/              # Header, Hero, HeroArt, Markets, Sections, Roadmap
   terminal/             # TerminalShell, Toast, views/*  (Dashboard, Trade, …)
   AreaChart.tsx, Logo.tsx
 lib/
-  stocks.ts             # payout stocks, ticker basket, 30-min distribution
+  stocks.ts             # payout stocks, market listing, 30-min distribution
   useQuotes.ts          # client hook polling /api/prices
+  useCandles.ts         # client hook polling /api/candles
   mock.ts               # HOOD price marks, treasury, positions
   store.tsx             # client-side state (wallet, balances, perps actions)
   format.ts             # currency / number / % formatting
-public/
-  logo.jpg              # hooded-archer brand image (header mark + favicon)
-  hero-archer.png       # hero backdrop art
 ```
 
 ## Launch pack
@@ -72,7 +77,7 @@ Frontend and backend ship together — the Next.js app *is* the full stack:
   payout pricing all poll `/api/prices` every 60s via `lib/useQuotes.ts`.
 - **Deploy**: `npm run build && npm start` on any Node host, or push to
   Vercel (zero config). Rewards logic (30-min stock distributions) is mocked
-  client-side until the chain contracts land.
+  client-side until the keeper is wired to the live mint.
 
 ## Notes
 

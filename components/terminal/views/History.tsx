@@ -26,7 +26,7 @@ export function History({ go }: { go: (v: View) => void }) {
           title="No settled positions yet"
           body="Perps are in preview — once trading goes live in Phase 02 and a position settles, it'll appear here."
           action={
-            <button onClick={() => go("perps")} className="btn-robin">
+            <button onClick={() => go("perps")} className="btn-tendie">
               Preview perps
             </button>
           }
@@ -40,14 +40,14 @@ export function History({ go }: { go: (v: View) => void }) {
               accent={realized >= 0 ? "long" : "short"}
             />
             <Stat label="Settled Trades" value={history.length} />
-            <Stat label="Win Rate" value={`${winRate.toFixed(0)}%`} accent="robin" />
+            <Stat label="Win Rate" value={`${winRate.toFixed(0)}%`} accent="tendie" />
           </div>
 
           <div className="panel mt-6 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
-                  <tr className="border-b border-robin/10 bg-ink-900/60 text-left text-zinc-500">
+                  <tr className="border-b border-tendie/10 bg-ink-900/60 text-left text-mist-400">
                     <th className="px-5 py-3 font-medium">Position</th>
                     <th className="px-5 py-3 font-medium">Entry → Exit</th>
                     <th className="px-5 py-3 font-medium">Margin</th>
@@ -55,12 +55,12 @@ export function History({ go }: { go: (v: View) => void }) {
                     <th className="px-5 py-3 text-right font-medium">PnL</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-robin/5">
+                <tbody className="divide-y divide-tendie/5">
                   {history.map((p) => {
                     const dirUp = p.direction === "long";
                     const pct = (p.pnlUsd / p.marginUsdc) * 100;
                     return (
-                      <tr key={p.id} className="hover:bg-robin/5">
+                      <tr key={p.id} className="hover:bg-tendie/5">
                         <td className="px-5 py-4">
                           <span
                             className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
@@ -69,13 +69,13 @@ export function History({ go }: { go: (v: View) => void }) {
                           >
                             {dirUp ? "LONG" : "SHORT"} {p.leverage}×
                           </span>
-                          <div className="mt-1 text-xs text-zinc-600">#{p.id}</div>
+                          <div className="mt-1 text-xs text-mist-500">#{p.id}</div>
                         </td>
-                        <td className="num px-5 py-4 text-zinc-300">
+                        <td className="num px-5 py-4 text-mist-200">
                           ${p.entryPrice}B → ${p.exitPrice}B
                         </td>
-                        <td className="num px-5 py-4 text-zinc-300">{fmtUSD(p.marginUsdc)}</td>
-                        <td className="px-5 py-4 text-zinc-400">{fmtDate(p.settledAt)}</td>
+                        <td className="num px-5 py-4 text-mist-200">{fmtUSD(p.marginUsdc)}</td>
+                        <td className="px-5 py-4 text-mist-300">{fmtDate(p.settledAt)}</td>
                         <td className={`num px-5 py-4 text-right font-semibold ${p.pnlUsd >= 0 ? "text-long" : "text-short"}`}>
                           {p.pnlUsd >= 0 ? "+" : ""}
                           {fmtUSD(p.pnlUsd)}
