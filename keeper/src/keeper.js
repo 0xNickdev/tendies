@@ -1,121 +1,138 @@
-// The keeper: triggers distribute() every epoch and heals share desyncs.
+// The keeper's epoch loop.
+//
+// Every epoch does two separate things:
+//   1. ACCRUE — credit the fee that arrived since last time to holders, by
+//      share. Everyone accrues every epoch, however small their stake.
+//   2. PAY — swap and send only to holders whose accrued balance clears the
+//      dollar floor. The rest keeps accruing, so the treasury never burns
+//      account rent to deliver a few cents.
 
-import { ethers } from "ethers";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { distributor, chain, provider, wallet, gasBalanceEth } from "./chain.js";
+import { snapshotHolders, solBalance, treasury } from "./solana.js";
+import { duePayouts, payGroup } from "./payout.js";
+import { feeBalance, feeDecimals, swapFeeInto } from "./swap.js";
+import {
+  addAccrual,
+  finishEpoch,
+  getState,
+  recordPayout,
+  saveState,
+  startEpoch,
+  totalAccrued,
+} from "./store.js";
 
-// live status, exposed via the HTTP /status endpoint
 export const state = {
   bootedAt: new Date().toISOString(),
-  keeper: wallet.address,
-  distributor: config.distributor,
-  chainId: null,
+  cluster: config.rpcUrl,
+  mint: config.mint || null,
+  treasury: treasury?.publicKey.toBase58() ?? null,
+  dryRun: config.dryRun,
   lastCheck: null,
-  lastDistributionTx: null,
+  lastEpochAt: null,
   lastError: null,
-  distributionsSent: 0,
-  syncsSent: 0,
+  holders: 0,
 };
 
-let distributing = false;
+let running = false;
 
-async function withRetry(fn, label, tries = 3) {
-  for (let i = 0; i < tries; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      const msg = e.shortMessage || e.message;
-      if (i === tries - 1) throw e;
-      log.warn(`${label} failed (try ${i + 1}/${tries}): ${msg} — retrying`);
-      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
-    }
-  }
+function epochDue() {
+  if (!state.lastEpochAt) return true;
+  return Date.now() - new Date(state.lastEpochAt).getTime() >= config.epochMinutes * 60_000;
 }
 
-export async function tickDistribute() {
-  if (distributing) return;
-  distributing = true;
+export async function tickEpoch() {
+  if (running) return;
+  running = true;
   state.lastCheck = new Date().toISOString();
+  let epoch = null;
+
   try {
-    const ready = await distributor.canDistribute();
-    if (!ready) {
-      const [last, interval] = await Promise.all([
-        distributor.lastDistribution(),
-        distributor.epochInterval(),
-      ]);
-      const left = Math.max(
-        0,
-        Number(last) + Number(interval) - Math.floor(Date.now() / 1000),
-      );
-      log.info(`not ready · next epoch in ~${Math.ceil(left / 60)}m`);
+    if (!epochDue()) {
+      const left =
+        config.epochMinutes * 60_000 - (Date.now() - new Date(state.lastEpochAt).getTime());
+      log.info(`not due · next epoch in ~${Math.ceil(left / 60_000)}m`);
       return;
     }
 
-    log.info("epoch ready → distribute()");
-    const tx = await withRetry(() => distributor.distribute(), "distribute");
-    log.info(`  sent ${tx.hash}`);
-    const rcpt = await tx.wait();
-    const epoch = await distributor.epochCount();
-    state.lastDistributionTx = tx.hash;
-    state.distributionsSent += 1;
-    state.lastError = null;
-    log.info(`  confirmed in block ${rcpt.blockNumber} · epoch #${epoch}`);
+    const holders = await snapshotHolders();
+    state.holders = holders.length;
+    if (!holders.length) {
+      log.info("no holders yet — nothing to accrue");
+      state.lastEpochAt = new Date().toISOString();
+      return;
+    }
 
-    const gas = await gasBalanceEth();
-    if (gas < config.minGasWarn) {
-      log.warn(`keeper gas low: ${gas} ETH — top it up`);
+    epoch = startEpoch();
+    const decimals = await feeDecimals();
+
+    // ── 1. accrue ────────────────────────────────────────────────────────
+    // Everything in the treasury beyond what is already owed is new fee.
+    const balance = await feeBalance();
+    const owed = totalAccrued();
+    const newFee = balance > owed ? balance - owed : 0n;
+
+    if (newFee > 0n) {
+      let handed = 0n;
+      for (const h of holders) {
+        // share is a float 0..1; scale through BigInt to keep the cents honest
+        const cut = (newFee * BigInt(Math.round(h.share * 1e9))) / 1_000_000_000n;
+        addAccrual(h.owner, cut);
+        handed += cut;
+      }
+      saveState();
+      log.info(
+        `accrued ${newFee} raw across ${holders.length} holders (${newFee - handed} left as dust)`,
+      );
+    } else {
+      log.info("no new fee since last epoch — nothing to accrue");
+    }
+
+    // ── 2. pay whoever cleared the floor ─────────────────────────────────
+    const groups = duePayouts(decimals);
+    if (!groups.length) {
+      log.info(`nobody over the $${config.minPayoutUsd} floor yet — all balances carried`);
+      finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
+      state.lastEpochAt = new Date().toISOString();
+      state.lastError = null;
+      return;
+    }
+
+    for (const group of groups) {
+      log.info(
+        `${group.symbol}: ${group.owners.length} holders due, ${group.total} raw fee`,
+      );
+      const swap = await swapFeeInto(group.mint, group.total);
+      const stockRaw = swap ? BigInt(swap.outAmount) : group.total; // dry-run keeps units
+      await payGroup(group, stockRaw, epoch, recordPayout);
+    }
+
+    finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
+    state.lastEpochAt = new Date().toISOString();
+    state.lastError = null;
+    log.info(`epoch #${epoch.id} done · ${groups.length} payout groups`);
+
+    const sol = await solBalance();
+    if (treasury && sol < config.minSolWarn) {
+      log.warn(`treasury SOL low: ${sol} — tops up fees and account rent`);
     }
   } catch (e) {
-    state.lastError = e.shortMessage || e.message;
-    log.error("distribute error:", state.lastError);
+    state.lastError = e.message;
+    if (epoch) finishEpoch(epoch, { error: e.message });
+    log.error("epoch error:", e.message);
   } finally {
-    distributing = false;
+    running = false;
   }
 }
 
-// ── share-sync sweep (AUDIT M-1) ─────────────────────────────────────────
-// Watch ROBX transfers; any account whose ledger share drifts from its true
-// balance gets healed. Cheap insurance against a gas-starved share hook.
-const dirty = new Set();
-
-export function watchTransfers() {
-  if (!chain.robx) return;
-  chain.robx.on("Transfer", (from, to) => {
-    if (from && from !== ethers.ZeroAddress) dirty.add(from);
-    if (to && to !== ethers.ZeroAddress) dirty.add(to);
-  });
-  log.info("watching ROBX transfers for share desyncs");
-}
-
-export async function sweepSyncs() {
-  if (!chain.robx || dirty.size === 0) return;
-  const accounts = [...dirty];
-  dirty.clear();
-  for (const a of accounts) {
-    try {
-      const [share, bal] = await Promise.all([
-        distributor.shares(a),
-        chain.robx.balanceOf(a),
-      ]);
-      if (share !== bal) {
-        log.info(`desync ${a} (${share} ≠ ${bal}) → syncShare()`);
-        const tx = await distributor.syncShare(a);
-        await tx.wait();
-        state.syncsSent += 1;
-        log.info(`  healed ${tx.hash}`);
-      }
-    } catch (e) {
-      log.warn(`sync ${a}: ${e.shortMessage || e.message}`);
-    }
-  }
-}
-
-export async function refreshChainId() {
-  try {
-    const net = await provider.getNetwork();
-    state.chainId = Number(net.chainId);
-  } catch {
-    /* ignore */
-  }
+export function ledgerSummary() {
+  const { ledger, totals, epochs } = getState();
+  const entries = Object.values(ledger);
+  return {
+    owedAccounts: entries.length,
+    owedRaw: totalAccrued().toString(),
+    paidOutRaw: totals.paidOutRaw,
+    epochsRun: totals.epochsRun,
+    lastEpoch: epochs[0] ?? null,
+  };
 }

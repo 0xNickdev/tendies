@@ -29,10 +29,40 @@ function useNextPayout() {
 }
 
 export function Treasury() {
-  const { wallet, connect, claimUsdc, shareBps } = useStore();
+  const {
+    wallet,
+    connect,
+    claimUsdc,
+    shareBps,
+    payoutChoice,
+    accruedUsd,
+    minPayoutUsd,
+    setPayoutChoice,
+  } = useStore();
   const { push } = useToast();
   const [pending, setPending] = useState(false);
-  const [payout, setPayout] = useState<StockSym>("TSLA");
+  const [saving, setSaving] = useState(false);
+  // the keeper is the source of truth; local state is only the optimistic view
+  const [local, setLocal] = useState<StockSym>("TSLA");
+  const payout = payoutChoice ?? local;
+
+  // Persisting the pick costs a wallet signature, not a transaction.
+  const choose = async (symbol: StockSym) => {
+    setLocal(symbol);
+    if (!wallet.connected) {
+      push("Connect a wallet to save your payout stock", "pending");
+      return;
+    }
+    setSaving(true);
+    const result = await setPayoutChoice(symbol);
+    setSaving(false);
+    push(
+      result.ok
+        ? `Payouts set to ${PAYOUT_STOCKS.find((s) => s.symbol === symbol)?.token}`
+        : result.error ?? "Could not save your choice",
+      result.ok ? "success" : "error",
+    );
+  };
   const quotes = useQuotes();
   const nextPayout = useNextPayout();
 
@@ -64,7 +94,7 @@ export function Treasury() {
           label="Your Share"
           value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "—"}
           sub={fmtUSD(claimUsdc)}
-          accent="robin"
+          accent="tendie"
         />
         <Stat label="Realized APR" value={TREASURY.apr > 0 ? `${TREASURY.apr}%` : "TBA"} sub="From trade taxes" accent="long" />
       </div>
@@ -77,14 +107,14 @@ export function Treasury() {
               return (
                 <button
                   key={st.symbol}
-                  onClick={() => setPayout(st.symbol)}
-                  className={`flex items-center gap-2 rounded-md border-2 px-3 py-2 font-mono transition-all ${
+                  onClick={() => choose(st.symbol)}
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2 font-mono transition-all ${
                     active
-                      ? "border-robin/60 bg-robin/10"
-                      : "border-robin/15 bg-ink-900/60 hover:border-robin/35"
+                      ? "border-tendie/60 bg-tendie/10"
+                      : "border-tendie/15 bg-ink-900/60 hover:border-tendie/35"
                   }`}
                 >
-                  <span className={`text-sm font-black uppercase ${active ? "text-robin" : "text-zinc-300"}`}>
+                  <span className={`text-sm font-black uppercase ${active ? "text-tendie" : "text-mist-200"}`}>
                     {st.token}
                   </span>
                   <span className="num text-xs font-bold text-white">
@@ -98,18 +128,17 @@ export function Treasury() {
             </span>
           </div>
           <CandleChart symbol={payout} basePrice={payoutPrice} height={300} />
-          <p className="mt-3 text-xs text-zinc-500">
-            {payoutStock.name} — the stock you&apos;ve chosen to receive. Preview
-            candles; live feed arrives with Phase 02.
+          <p className="mt-3 text-xs text-mist-400">
+            {payoutStock.name} — the stock you&apos;ve chosen to receive.
           </p>
         </div>
 
         <div className="panel flex flex-col p-6">
-          <span className="label">Claimable now</span>
-          <div className="num mt-2 text-4xl font-semibold text-robin">
-            {fmtUSD(claimUsdc)}
+          <span className="label">Accrued for you</span>
+          <div className="num mt-2 text-4xl font-semibold text-tendie">
+            {fmtUSD(accruedUsd || claimUsdc)}
           </div>
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="mt-2 text-sm text-mist-400">
             Withdraw as a tokenized stock of your choice, or keep it as perps
             margin.
           </p>
@@ -123,52 +152,55 @@ export function Treasury() {
                 return (
                   <button
                     key={st.symbol}
-                    onClick={() => setPayout(st.symbol)}
-                    className={`rounded-lg border-2 px-2 py-2.5 text-center transition-all ${
+                    onClick={() => choose(st.symbol)}
+                    className={`rounded-lg border px-2 py-2.5 text-center transition-all ${
                       active
-                        ? "border-robin/60 bg-robin/10"
-                        : "border-robin/10 bg-ink-900/60 hover:border-robin/30"
+                        ? "border-tendie/60 bg-tendie/10"
+                        : "border-tendie/10 bg-ink-900/60 hover:border-tendie/30"
                     }`}
                   >
-                    <div className={`font-mono text-xs font-black ${active ? "text-robin" : "text-zinc-300"}`}>
+                    <div className={`font-mono text-xs font-black ${active ? "text-tendie" : "text-mist-200"}`}>
                       {st.token}
                     </div>
-                    <div className="num mt-1 text-[11px] text-zinc-500">
+                    <div className="num mt-1 text-[11px] text-mist-400">
                       ≈ {fmtNum(claimUsdc / price, 3)}
                     </div>
                   </button>
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-zinc-600">
-              1:1-backed stock tokens on Robinhood Chain — held in your own
-              wallet.
+            <p className="mt-2 text-xs text-mist-500">
+              {saving
+                ? "Saving your choice — approve the signature in your wallet…"
+                : minPayoutUsd > 0
+                  ? `1:1-backed xStocks on Solana, held in your own wallet. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} — small amounts keep accruing instead of being eaten by network fees.`
+                  : "1:1-backed xStocks on Solana — held in your own wallet."}
             </p>
           </div>
 
-          <div className="mt-5 space-y-2.5 rounded-xl border border-robin/10 bg-ink-900/40 p-4 text-sm">
+          <div className="mt-5 space-y-2.5 rounded-xl border border-tendie/10 bg-ink-900/40 p-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-400">Share of treasury</span>
-              <span className="num text-zinc-200">{(shareBps / 100).toFixed(2)}%</span>
+              <span className="text-mist-300">Share of treasury</span>
+              <span className="num text-mist-50">{(shareBps / 100).toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-400">Distribution</span>
-              <span className="text-zinc-200">Every {DISTRIBUTION_MINUTES} minutes</span>
+              <span className="text-mist-300">Distribution</span>
+              <span className="text-mist-50">Every {DISTRIBUTION_MINUTES} minutes</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-400">Next payout in</span>
-              <span className="num font-semibold text-robin">{nextPayout}</span>
+              <span className="text-mist-300">Next payout in</span>
+              <span className="num font-semibold text-tendie">{nextPayout}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-400">Payout asset</span>
-              <span className="text-zinc-200">{payoutStock.token} · {payoutStock.name}</span>
+              <span className="text-mist-300">Payout asset</span>
+              <span className="text-mist-50">{payoutStock.token} · {payoutStock.name}</span>
             </div>
           </div>
 
           <button
             onClick={claim}
             disabled={pending || (wallet.connected && claimUsdc <= 0)}
-            className="btn-robin mt-5 w-full py-4"
+            className="btn-tendie mt-5 w-full py-4"
           >
             {!wallet.connected
               ? "Connect Wallet"
@@ -178,7 +210,7 @@ export function Treasury() {
                   ? "Claiming…"
                   : `Claim ${payoutStock.token}`}
           </button>
-          <p className="mt-3 text-center text-xs text-zinc-500">
+          <p className="mt-3 text-center text-xs text-mist-400">
             Claiming reduces your perps margin headroom.
           </p>
         </div>

@@ -1,100 +1,111 @@
-// Tiny HTTP server (no deps) for Railway health checks and a public /status
-// the frontend can read for real treasury numbers.
+// Tiny HTTP server (no deps): Railway health checks, a public /status the
+// frontend reads for real treasury numbers, and the payout-choice endpoints.
 
 import http from "node:http";
-import { ethers } from "ethers";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { distributor, chain, gasBalanceEth } from "./chain.js";
-import { state } from "./keeper.js";
+import { snapshotHolders, solBalance } from "./solana.js";
+import { feeBalance, feeDecimals } from "./swap.js";
+import { state, ledgerSummary } from "./keeper.js";
+import { applyChoice } from "./choice.js";
+import { accruedOf, choiceOf } from "./store.js";
 
 function json(res, code, body) {
-  const data = JSON.stringify(body, null, 2);
   res.writeHead(code, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*", // let the Vercel frontend read it
-    "Cache-Control": "public, max-age=15",
+    "Access-Control-Allow-Origin": config.allowOrigin,
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Cache-Control": "no-store",
   });
-  res.end(data);
+  res.end(JSON.stringify(body, null, 2));
+}
+
+function readBody(req, limit = 4096) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > limit) reject(new Error("body too large"));
+    });
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new Error("invalid JSON"));
+      }
+    });
+    req.on("error", reject);
+  });
 }
 
 async function buildStatus() {
-  const [
-    canDist,
-    last,
-    interval,
-    epochCount,
-    totalDistributed,
-    totalShares,
-    robxTax,
-    usdgBal,
-    gas,
-    rewardCount,
-  ] = await Promise.all([
-    distributor.canDistribute().catch(() => false),
-    distributor.lastDistribution().catch(() => 0n),
-    distributor.epochInterval().catch(() => 1800n),
-    distributor.epochCount().catch(() => 0n),
-    distributor.totalDistributedUsdc().catch(() => 0n),
-    distributor.totalShares().catch(() => 0n),
-    chain.robx ? chain.robx.balanceOf(config.distributor).catch(() => 0n) : 0n,
-    chain.usdg ? chain.usdg.balanceOf(config.distributor).catch(() => 0n) : 0n,
-    gasBalanceEth().catch(() => 0),
-    distributor.allowedRewardTokensLength().catch(() => 0n),
+  const [holders, fee, sol, decimals] = await Promise.all([
+    snapshotHolders().catch(() => []),
+    feeBalance().catch(() => 0n),
+    solBalance().catch(() => 0),
+    feeDecimals().catch(() => 6),
   ]);
 
-  const lastN = Number(last);
-  const intervalN = Number(interval);
-  const nextAt = lastN + intervalN;
-  const secondsUntilNext = Math.max(0, nextAt - Math.floor(Date.now() / 1000));
-  const dec = chain.usdgDecimals;
+  const ledger = ledgerSummary();
+  const toUnits = (raw) => Number(BigInt(raw)) / 10 ** decimals;
+
+  const lastEpoch = state.lastEpochAt ? new Date(state.lastEpochAt).getTime() : 0;
+  const nextAt = lastEpoch + config.epochMinutes * 60_000;
 
   return {
     ok: true,
+    dryRun: config.dryRun,
     keeper: {
-      address: state.keeper,
-      gasBalanceEth: gas,
+      treasury: state.treasury,
+      solBalance: sol,
       bootedAt: state.bootedAt,
-      distributionsSent: state.distributionsSent,
-      syncsSent: state.syncsSent,
-      lastDistributionTx: state.lastDistributionTx,
       lastError: state.lastError,
     },
     treasury: {
-      distributor: config.distributor,
-      pendingTaxRobx: ethers.formatUnits(robxTax, 18),
-      usdgBalance: ethers.formatUnits(usdgBal, dec),
-      totalDistributed: ethers.formatUnits(totalDistributed, dec),
-      totalShares: ethers.formatUnits(totalShares, 18),
-      rewardTokenCount: Number(rewardCount),
+      mint: config.mint || null,
+      feeMint: config.feeMint,
+      pendingFee: toUnits(fee.toString()),
+      payoutStocks: config.payoutMints.map((p) => p.symbol),
+      holders: holders.length,
+    },
+    ledger: {
+      owedAccounts: ledger.owedAccounts,
+      owed: toUnits(ledger.owedRaw),
+      paidOut: toUnits(ledger.paidOutRaw),
+      minPayoutUsd: config.minPayoutUsd,
+      epochsRun: ledger.epochsRun,
+      lastEpoch: ledger.lastEpoch,
     },
     epoch: {
-      count: Number(epochCount),
-      intervalSeconds: intervalN,
-      lastDistribution: lastN,
-      nextDistributionAt: nextAt,
-      secondsUntilNext,
-      canDistributeNow: canDist,
+      intervalMinutes: config.epochMinutes,
+      lastEpochAt: state.lastEpochAt,
+      secondsUntilNext: lastEpoch ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : 0,
     },
-    chainId: state.chainId,
+    cluster: config.rpcUrl,
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function startServer() {
   const server = http.createServer(async (req, res) => {
-    const url = (req.url || "/").split("?")[0];
+    const url = new URL(req.url || "/", "http://localhost");
+    const path = url.pathname;
 
     if (req.method === "OPTIONS") {
-      res.writeHead(204, { "Access-Control-Allow-Origin": "*" });
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": config.allowOrigin,
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      });
       return res.end();
     }
 
-    if (url === "/health" || url === "/") {
-      return json(res, 200, { ok: true, service: "robinx-keeper" });
+    if (path === "/health" || path === "/") {
+      return json(res, 200, { ok: true, service: "tendies-keeper" });
     }
 
-    if (url === "/status") {
+    if (path === "/status") {
       try {
         return json(res, 200, await buildStatus());
       } catch (e) {
@@ -102,11 +113,36 @@ export function startServer() {
       }
     }
 
+    // What one wallet is owed and which stock it is set to receive.
+    if (path === "/account") {
+      const owner = url.searchParams.get("owner") ?? "";
+      if (!owner) return json(res, 400, { ok: false, error: "owner required" });
+      const decimals = await feeDecimals().catch(() => 6);
+      return json(res, 200, {
+        ok: true,
+        owner,
+        choice: choiceOf(owner),
+        accrued: Number(accruedOf(owner)) / 10 ** decimals,
+        minPayoutUsd: config.minPayoutUsd,
+      });
+    }
+
+    // Set the payout stock — body carries the wallet's signature.
+    if (path === "/choice" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const result = applyChoice(body);
+        return json(res, result.ok ? 200 : 400, result);
+      } catch (e) {
+        return json(res, 400, { ok: false, error: e.message });
+      }
+    }
+
     return json(res, 404, { ok: false, error: "not found" });
   });
 
   server.listen(config.port, () => {
-    log.info(`http server on :${config.port} (/health, /status)`);
+    log.info(`http server on :${config.port} (/health, /status, /account, /choice)`);
   });
   return server;
 }
