@@ -8,7 +8,7 @@ export function AreaChart({
   data,
   height = 220,
   showDots = true,
-  stroke = "#D9FF4D",
+  stroke = "#69AAC1",
 }: {
   data: Point[];
   height?: number;

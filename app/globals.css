@@ -15,12 +15,12 @@ html {
 }
 
 body {
-  @apply bg-ink-950 text-zinc-200 antialiased;
+  @apply bg-ink-950 text-mist-50 antialiased;
   /* faint graph-paper grid — the seized-style zine backdrop */
   background-image:
-    linear-gradient(rgba(217, 255, 77, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(217, 255, 77, 0.035) 1px, transparent 1px),
-    radial-gradient(1100px 520px at 50% -10%, rgba(217, 255, 77, 0.06), transparent 60%);
+    linear-gradient(rgba(105, 170, 193, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(105, 170, 193, 0.022) 1px, transparent 1px),
+    radial-gradient(1100px 520px at 50% -10%, rgba(105, 170, 193, 0.06), transparent 60%);
   background-size:
     28px 28px,
     28px 28px,
@@ -36,63 +36,54 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(217, 255, 77, 0.22);
+  background: rgba(105, 170, 193, 0.22);
   border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(217, 255, 77, 0.4);
+  background: rgba(105, 170, 193, 0.4);
 }
 
 @layer components {
-  /* ---- Brutalist panels / cards ---- */
+  /* ---- Surfaces: flat cards, hairline lime borders ---- */
   .panel {
-    @apply rounded-lg border-2 border-robin/25 bg-ink-850;
-    box-shadow: 4px 4px 0 0 rgba(217, 255, 77, 0.16);
+    @apply rounded-xl border border-tendie/15 bg-ink-900/70;
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset;
   }
   .panel-hover {
-    @apply transition-all duration-150;
+    @apply transition-colors duration-150;
   }
   .panel-hover:hover {
-    @apply border-robin/55;
-    box-shadow: 6px 6px 0 0 rgba(217, 255, 77, 0.28);
+    @apply border-tendie/45 bg-ink-850;
   }
 
-  /* ---- Mono section tag:  // 01 · LIVE MARKETS ---- */
+  /* ---- Mono section tag:  // 01 · MARKETS ---- */
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-md border-2 border-robin/35 bg-robin/5 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-robin;
+    @apply inline-flex items-center gap-1.5 rounded-md border border-tendie/25 bg-tendie/[0.06] px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-tendie;
   }
 
-  /* ---- Chunky brutalist buttons ---- */
-  .btn-robin {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border-2 border-robin-600 bg-robin px-5 py-3 font-mono text-sm font-bold uppercase tracking-wide text-ink-950 transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none;
-    box-shadow: 4px 4px 0 0 #728F12;
+  /* ---- Buttons: gradient primary, hairline ghost ---- */
+  .btn-tendie {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-mono text-sm font-bold uppercase tracking-wide text-ink-950 transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none;
+    background-size: 140% 140%;
+    background-position: 0% 0%;
   }
-  .btn-robin:hover {
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 0 #728F12;
+  .btn-tendie:hover {
+    background-position: 100% 100%;
   }
-  .btn-robin:active {
-    transform: translate(4px, 4px);
-    box-shadow: 0 0 0 0 #728F12;
+  .btn-tendie:active {
+    @apply brightness-90;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border-2 border-robin/60 bg-ink-850 px-5 py-3 font-mono text-sm font-bold uppercase tracking-wide text-robin transition-all duration-150;
-    box-shadow: 4px 4px 0 0 rgba(217, 255, 77, 0.6);
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-tendie/30 bg-transparent px-5 py-3 font-mono text-sm font-bold uppercase tracking-wide text-tendie transition-colors duration-150;
   }
   .btn-ghost:hover {
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 0 rgba(217, 255, 77, 0.6);
-    @apply text-robin-200;
-  }
-  .btn-ghost:active {
-    transform: translate(4px, 4px);
-    box-shadow: 0 0 0 0 rgba(217, 255, 77, 0.6);
+    @apply border-tendie/70 bg-tendie/[0.07];
   }
 
   /* ---- Mono uppercase meta label ---- */
   .label {
-    @apply font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500;
+    @apply font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-mist-400;
   }
 
   /* ---- Heavy display heading ---- */
@@ -106,8 +97,9 @@ body {
     @apply font-bold;
   }
 
+  /* ---- Headline accent: the brand gradient as type ---- */
   .grad-text {
-    @apply text-robin;
+    @apply bg-brand bg-clip-text text-transparent;
   }
 
   .num {

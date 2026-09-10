@@ -1,24 +1,29 @@
-/* Brand mark — the hooded-archer image (dark figure on neon lime). */
+/* Brand assets, generated in Flow and keyed to transparent PNGs:
+   - logo-mark.png — the gradient chip with the tender
+   - wordmark.png  — the horizontal lockup (mark + TENDIES.)
+   Both are alpha-cut, so they sit on any surface without a seam. */
+
 export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/logo.jpg"
+      src="/logo-mark.webp"
       alt=""
       aria-hidden
-      className={`${className} rounded-md object-cover`}
+      className={`${className} select-none object-contain`}
+      draggable={false}
     />
   );
 }
 
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <LogoMark />
-      <span className="font-black uppercase tracking-tight text-[15px] text-zinc-100">
-        Robin<span className="text-robin">X</span>
-        <span className="text-robin">.</span>
-      </span>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/wordmark.webp"
+      alt="Tendies"
+      className={`h-7 w-auto select-none object-contain ${className}`}
+      draggable={false}
+    />
   );
 }
