@@ -182,64 +182,127 @@ the candles. Eleven candles, irregular heights, the tallest at the far right.
 ## 5. Шапка X / Twitter
 
 Flow выдаёт 16:9, шапке нужно 3:1 — поэтому **модель рисует сюжет, раскладку
-режет код** (см. §8). И **текст на баннере рисует код, а не модель**: у нас уже
-есть вордмарк с фирменной типографикой, а модель нарисует буквы как получится.
+режет код** (см. §8). И **текст ставит код, а не модель**: вордмарк с фирменной
+типографикой у нас уже есть.
 
-Основной сюжет — продуктовая шутка в одной картинке: график, у которого свечи
-это тендеры.
+Из этого следуют два требования к любому промту ниже, и они важнее композиции:
+
+1. **Фон плоский `#071013`, без сетки и текстуры** — иначе сюжет не отделить
+   от фона.
+2. **Ничего не обрезано краем кадра, всё важное в средней горизонтальной
+   полосе.** При переходе 16:9 → 3:1 теряется 41% высоты, по 20% сверху и
+   снизу. Объект, срезанный краем, после перестановки будет выглядеть
+   обрубленным.
+
+Каждый блок ниже — **целиком, копируй как есть**. Не собирай из кусков разных
+сюжетов: во втором и третьем абзаце есть слова, привязанные к конкретной сцене.
+
+### Свечи-тендеры — продуктовая шутка одной картинкой
 
 ```
 A candlestick chart climbing from the lower left to the upper right, except
 every candle body is a chunky chicken tender standing upright — rounded ends,
 slightly bowed sides — with a thin wick above and below it. Eight candles,
 irregular heights, each roughly following the one before it upward. The last
-one on the right is enormous and breaking out of the top of the frame at an
-angle, like it has been launched, with a spray of breading crumbs trailing
-behind it as exhaust. A few crumbs drift between the other candles.
+one on the right is by far the largest, tilted as if it has been launched,
+with a spray of breading crumbs trailing behind it as exhaust. A few crumbs
+drift between the other candles. Wicks in light #ABC4CE.
 
 Wide 16:9 canvas. The chart occupies the right half of the picture; the whole
 left half is empty dark space with nothing in it. The composition should feel
 kinetic and a little absurd — the moment of a blow-off top — while still
 reading instantly at thumbnail size.
 
+Keep every object fully inside the frame with a clear margin — nothing may
+touch or be cut by any edge. Everything important sits in the middle
+horizontal band of the picture: the top fifth and the bottom fifth are empty
+dark space.
+
 Flat vector illustration, bold closed silhouettes, two flat tones per object,
-editorial poster style with confident geometry. Fill each tender-candle with
-the brand gradient; wicks in light #ABC4CE. The background is solid near-black
-#071013 and completely plain — no grid, no texture, no pattern, no vignette,
-no glow, no motion blur lines.
+editorial poster style with confident geometry. Fill each tender with the
+brand gradient. The background is solid near-black #071013 and completely
+plain — no grid, no texture, no pattern, no vignette, no glow, no motion blur
+lines.
 
 [вставь блок палитры из §0]
 ```
 
-**Другие сюжеты** — тот же промт, меняешь только первый абзац:
-
-*Опрокинутая корзина* — самый «твиттерный», хаос и движение:
+### Опрокинутая корзина — самый твиттерный, хаос и движение
 
 ```
-A fryer basket tipped over in the upper right corner of the frame, with a
-dozen chicken tenders spilling out of it and tumbling down and to the left
-across the picture, каждый at a different angle, some overlapping. A wide
-scatter of breading crumbs flies with them. The tenders thin out toward the
-middle of the frame and the left half is completely empty.
+A fryer basket tipped over on its side in the upper right of the frame, with
+a dozen chicken tenders spilling out of it and tumbling down and to the left,
+each at a different angle, some overlapping. A wide scatter of breading crumbs
+flies with them. The tenders thin out toward the middle of the picture.
+
+Wide 16:9 canvas. The spill occupies the right half; the whole left half is
+empty dark space with nothing in it. The composition should feel kinetic and a
+little absurd, while still reading instantly at thumbnail size.
+
+Keep every object fully inside the frame with a clear margin — nothing may
+touch or be cut by any edge. Everything important sits in the middle
+horizontal band of the picture: the top fifth and the bottom fifth are empty
+dark space.
+
+Flat vector illustration, bold closed silhouettes, two flat tones per object,
+editorial poster style with confident geometry. Fill each tender with the
+brand gradient. The background is solid near-black #071013 and completely
+plain — no grid, no texture, no pattern, no vignette, no glow, no motion blur
+lines.
+
+[вставь блок палитры из §0]
 ```
 
-*Дождь из тендеров* — буквально иллюстрирует «тебе платят»:
+### Дождь из тендеров — буквально «тебе платят»
 
 ```
-Chicken tenders falling from the top of the frame like heavy rain, twelve of
-them at different sizes and angles, densest at the right edge and thinning out
-toward the middle. Breading crumbs fall with them. At the bottom right, a
-single open cardboard carton catches a few. The left half of the frame is
-completely empty.
+Chicken tenders falling like heavy rain, twelve of them at different sizes and
+angles, densest at the right edge of the picture and thinning out toward the
+middle. Breading crumbs fall with them. In the lower right, a single open
+cardboard carton catches a few of them.
+
+Wide 16:9 canvas. The rain occupies the right half; the whole left half is
+empty dark space with nothing in it. The composition should feel kinetic and a
+little absurd, while still reading instantly at thumbnail size.
+
+Keep every object fully inside the frame with a clear margin — nothing may
+touch or be cut by any edge. Everything important sits in the middle
+horizontal band of the picture: the top fifth and the bottom fifth are empty
+dark space.
+
+Flat vector illustration, bold closed silhouettes, two flat tones per object,
+editorial poster style with confident geometry. Fill each tender with the
+brand gradient. The background is solid near-black #071013 and completely
+plain — no grid, no texture, no pattern, no vignette, no glow, no motion blur
+lines.
+
+[вставь блок палитры из §0]
 ```
 
-*Один тендер-ракета* — минималистичный:
+### Один тендер-ракета — минимализм
 
 ```
 A single chicken tender flying diagonally upward across the right half of the
-frame like a rocket, tilted about thirty degrees, with a long tapering trail
+picture like a rocket, tilted about thirty degrees, with a long tapering trail
 of breading crumbs behind it that thins out toward the lower left. Nothing
 else in the picture.
+
+Wide 16:9 canvas. The left half is empty dark space with nothing in it. The
+composition should feel kinetic and a little absurd, while still reading
+instantly at thumbnail size.
+
+Keep every object fully inside the frame with a clear margin — nothing may
+touch or be cut by any edge. Everything important sits in the middle
+horizontal band of the picture: the top fifth and the bottom fifth are empty
+dark space.
+
+Flat vector illustration, bold closed silhouettes, two flat tones per object,
+editorial poster style with confident geometry. Fill each tender with the
+brand gradient. The background is solid near-black #071013 and completely
+plain — no grid, no texture, no pattern, no vignette, no glow, no motion blur
+lines.
+
+[вставь блок палитры из §0]
 ```
 
 ## 5.1. Текст на баннере
