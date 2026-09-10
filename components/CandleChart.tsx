@@ -95,7 +95,7 @@ const DOWN = "#F23674";
 
 const VISIBLE_DEFAULT = 72; // candles on screen before the user zooms
 const VISIBLE_MIN = 16;
-const VISIBLE_MAX = 400;
+const VISIBLE_MAX = 240;
 
 function labelFor(t: number, tf: TF): string {
   const d = new Date(t * 1000);
@@ -146,43 +146,70 @@ export function CandleChart({
   const maxStart = Math.max(0, all.length - count);
   const start = Math.min(view?.start ?? maxStart, maxStart);
   const atRightEdge = start >= maxStart;
-  const candles = all.slice(start, start + count);
+  // A window that computes to nothing would take `last` down with it, and the
+  // whole view renders off `last`.
+  const sliced = all.slice(start, start + count);
+  const candles = sliced.length ? sliced : all;
 
   // ── zoom on wheel, pan on drag ──────────────────────────────────────────
-  // The wheel listener has to be native and non-passive, otherwise the page
-  // scrolls underneath the chart instead of zooming it.
+  // The listener is registered once and reads live values from refs. Attaching
+  // it per render meant re-binding on every wheel tick, and a trackpad fires
+  // around a hundred a second — that plus a full SVG rebuild each time was
+  // enough to stall the renderer.
+  const viewRef = useRef({ count, start, total: all.length });
+  viewRef.current = { count, start, total: all.length };
+  const pending = useRef<number | null>(null);
+
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (all.length <= VISIBLE_MIN) return;
-      // Already fully zoomed out and still scrolling out? Let the page have
-      // the gesture — otherwise the chart traps the scroll and the visitor
-      // can't get past it.
-      const zoomingOut = e.deltaY > 0;
-      if (zoomingOut && count >= all.length) return;
+      const { count: c, start: st, total } = viewRef.current;
+      if (total <= VISIBLE_MIN) return;
+      // already fully zoomed out — let the page have the gesture instead of
+      // trapping the scroll
+      if (e.deltaY > 0 && c >= total) return;
       e.preventDefault();
+
       const rect = el.getBoundingClientRect();
+      if (!rect.width) return;
       const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      setView(() => {
-        const step = e.deltaY > 0 ? 1.18 : 1 / 1.18; // out : in
-        const nextCount = Math.round(
-          Math.min(VISIBLE_MAX, Math.max(VISIBLE_MIN, count * step)),
-        );
-        const anchor = start + frac * count; // keep the candle under the cursor put
-        const nextStart = Math.round(anchor - frac * nextCount);
-        const cap = Math.max(0, all.length - nextCount);
-        return {
-          count: Math.min(nextCount, all.length),
-          start: Math.min(Math.max(0, nextStart), cap),
-        };
-      });
+      const step = e.deltaY > 0 ? 1.18 : 1 / 1.18;
+      const nextCount = Math.round(
+        Math.min(VISIBLE_MAX, Math.min(total, Math.max(VISIBLE_MIN, c * step))),
+      );
+      const anchor = st + frac * c; // keep the candle under the cursor put
+      const cap = Math.max(0, total - nextCount);
+      const nextStart = Math.min(
+        Math.max(0, Math.round(anchor - frac * nextCount)),
+        cap,
+      );
+      if (!Number.isFinite(nextCount) || !Number.isFinite(nextStart)) return;
+
+      // Coalesce a burst of wheel deltas into one state update per frame.
+      // A hidden tab never runs animation frames, so the update would sit in
+      // the queue until the tab came back — apply it straight away there.
+      viewRef.current = { count: nextCount, start: nextStart, total };
+      if (typeof document !== "undefined" && document.hidden) {
+        setView({ count: nextCount, start: nextStart });
+        return;
+      }
+      if (pending.current == null) {
+        pending.current = requestAnimationFrame(() => {
+          pending.current = null;
+          const v = viewRef.current;
+          setView({ count: v.count, start: v.start });
+        });
+      }
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [all.length, count, start]);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (pending.current != null) cancelAnimationFrame(pending.current);
+    };
+  }, []);
 
   const drag = useRef<{ x: number; start: number } | null>(null);
 
@@ -241,7 +268,7 @@ export function CandleChart({
         Math.max(0, drag.current.start - moved),
         Math.max(0, all.length - count),
       );
-      setView({ start: next, count });
+      if (next !== start) setView({ start: next, count });
       setHover(null);
       return;
     }
