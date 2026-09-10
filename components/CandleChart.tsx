@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtUSD } from "@/lib/format";
+import { useCandles } from "@/lib/useCandles";
 
-// Simulated candle feed for the perps preview. Deterministic (seeded PRNG) so
-// SSR and client render identical markup — real candles arrive with Phase 02.
+// Real OHLC from /api/candles. The seeded generator below stays as the
+// fallback: if the feed is unreachable the chart still draws something and
+// says so, instead of collapsing to an empty box.
 
 type TF = "15m" | "1H" | "4H" | "1D";
 
@@ -88,8 +90,20 @@ function genCandles(tf: TF, symbol: string, basePrice: number): Candle[] {
   return candles;
 }
 
-const UP = "#2FE08C";
-const DOWN = "#FF6B8A";
+const UP = "#3CE3AB";
+const DOWN = "#F23674";
+
+const VISIBLE_DEFAULT = 72; // candles on screen before the user zooms
+const VISIBLE_MIN = 16;
+const VISIBLE_MAX = 400;
+
+function labelFor(t: number, tf: TF): string {
+  const d = new Date(t * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return tf === "1D"
+    ? `${p(d.getDate())}.${p(d.getMonth() + 1)}`
+    : `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 export function CandleChart({
   symbol = "TSLA",
@@ -102,11 +116,87 @@ export function CandleChart({
 }) {
   const [tf, setTf] = useState<TF>("1H");
   const [hover, setHover] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  const candles = useMemo(
-    () => genCandles(tf, symbol, basePrice),
-    [tf, symbol, basePrice],
+  const { bars, live } = useCandles(symbol, tf);
+
+  // Real bars when the feed answers, seeded preview when it doesn't.
+  const all = useMemo<Candle[]>(() => {
+    if (bars.length) {
+      return bars.map((b) => ({
+        open: b.o,
+        high: b.h,
+        low: b.l,
+        close: b.c,
+        volume: b.v,
+        label: labelFor(b.t, tf),
+      }));
+    }
+    return genCandles(tf, symbol, basePrice);
+  }, [bars, tf, symbol, basePrice]);
+
+  // Viewport over the series: null means "stick to the right edge".
+  const [view, setView] = useState<{ start: number; count: number } | null>(null);
+  useEffect(() => setView(null), [symbol, tf]);
+
+  const count = Math.min(
+    all.length,
+    view?.count ?? Math.min(VISIBLE_DEFAULT, all.length),
   );
+  const maxStart = Math.max(0, all.length - count);
+  const start = Math.min(view?.start ?? maxStart, maxStart);
+  const atRightEdge = start >= maxStart;
+  const candles = all.slice(start, start + count);
+
+  // ── zoom on wheel, pan on drag ──────────────────────────────────────────
+  // The wheel listener has to be native and non-passive, otherwise the page
+  // scrolls underneath the chart instead of zooming it.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (all.length <= VISIBLE_MIN) return;
+      // Already fully zoomed out and still scrolling out? Let the page have
+      // the gesture — otherwise the chart traps the scroll and the visitor
+      // can't get past it.
+      const zoomingOut = e.deltaY > 0;
+      if (zoomingOut && count >= all.length) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      setView(() => {
+        const step = e.deltaY > 0 ? 1.18 : 1 / 1.18; // out : in
+        const nextCount = Math.round(
+          Math.min(VISIBLE_MAX, Math.max(VISIBLE_MIN, count * step)),
+        );
+        const anchor = start + frac * count; // keep the candle under the cursor put
+        const nextStart = Math.round(anchor - frac * nextCount);
+        const cap = Math.max(0, all.length - nextCount);
+        return {
+          count: Math.min(nextCount, all.length),
+          start: Math.min(Math.max(0, nextStart), cap),
+        };
+      });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [all.length, count, start]);
+
+  const drag = useRef<{ x: number; start: number } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    drag.current = { x: e.clientX, start };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    drag.current = null;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+
+  const resetView = () => setView(null);
 
   const w = 760;
   const h = height;
@@ -131,13 +221,31 @@ export function CandleChart({
 
   const last = candles[candles.length - 1];
   const shown = hover != null ? candles[hover] : last;
+  // the "current price" marker belongs to the live quote, so it is only drawn
+  // while the window is parked at the right edge of the series
+  const markPrice = live && isFinite(basePrice) && basePrice > 0 ? basePrice : last.close;
+  const showMark = atRightEdge && markPrice >= min && markPrice <= max;
   const chg = ((shown.close - shown.open) / shown.open) * 100;
   const chgUp = chg >= 0;
 
   const gridLevels = [0.1, 0.35, 0.6, 0.85];
 
-  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
+
+    // dragging pans the window; the cursor never leaves the candle it grabbed
+    if (drag.current) {
+      const pxPerCandle = rect.width / count;
+      const moved = Math.round((e.clientX - drag.current.x) / pxPerCandle);
+      const next = Math.min(
+        Math.max(0, drag.current.start - moved),
+        Math.max(0, all.length - count),
+      );
+      setView({ start: next, count });
+      setHover(null);
+      return;
+    }
+
     const x = ((e.clientX - rect.left) / rect.width) * w;
     if (x > plotW) return setHover(null);
     const i = Math.min(candles.length - 1, Math.max(0, Math.floor(x / xStep)));
@@ -151,33 +259,41 @@ export function CandleChart({
         <span className="font-mono text-sm font-black uppercase tracking-wide text-white">
           {symbol}-PERP
         </span>
-        <span className="num flex flex-wrap gap-x-3 font-mono text-[11px] text-zinc-500">
+        <span className="num flex flex-wrap gap-x-3 font-mono text-[11px] text-mist-400">
           <span>
-            O <span className="text-zinc-300">{shown.open.toFixed(2)}</span>
+            O <span className="text-mist-200">{shown.open.toFixed(2)}</span>
           </span>
           <span>
-            H <span className="text-zinc-300">{shown.high.toFixed(2)}</span>
+            H <span className="text-mist-200">{shown.high.toFixed(2)}</span>
           </span>
           <span>
-            L <span className="text-zinc-300">{shown.low.toFixed(2)}</span>
+            L <span className="text-mist-200">{shown.low.toFixed(2)}</span>
           </span>
           <span>
-            C <span className="text-zinc-300">{shown.close.toFixed(2)}</span>
+            C <span className="text-mist-200">{shown.close.toFixed(2)}</span>
           </span>
           <span style={{ color: chgUp ? UP : DOWN }}>
             {chgUp ? "+" : ""}
             {chg.toFixed(2)}%
           </span>
         </span>
-        <div className="ml-auto flex gap-1">
+        <div className="ml-auto flex items-center gap-1">
+          {view && (
+            <button
+              onClick={resetView}
+              className="mr-1 rounded border border-tendie/30 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-tendie hover:bg-tendie/10"
+            >
+              Reset
+            </button>
+          )}
           {(Object.keys(TF_CONFIG) as TF[]).map((t) => (
             <button
               key={t}
               onClick={() => setTf(t)}
               className={`rounded px-2.5 py-1 font-mono text-[11px] font-bold transition-colors ${
                 tf === t
-                  ? "border border-robin/50 bg-robin/15 text-robin"
-                  : "border border-transparent text-zinc-500 hover:text-zinc-300"
+                  ? "border border-tendie/50 bg-tendie/15 text-tendie"
+                  : "border border-transparent text-mist-400 hover:text-mist-200"
               }`}
             >
               {t}
@@ -187,12 +303,21 @@ export function CandleChart({
       </div>
 
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${w} ${h}`}
-        className="w-full cursor-crosshair select-none"
+        className="w-full touch-pan-y select-none"
+        style={{ cursor: drag.current ? "grabbing" : "crosshair" }}
         role="img"
-        aria-label={`${symbol} perpetual price chart (simulated preview)`}
-        onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
+        aria-label={`${symbol} price chart — ${live ? "real OHLC" : "simulated preview"}, scroll to zoom, drag to pan`}
+        onPointerMove={onMove}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onDoubleClick={resetView}
+        onPointerLeave={(e) => {
+          onPointerUp(e);
+          setHover(null);
+        }}
       >
         {/* grid + price axis */}
         {gridLevels.map((g) => {
@@ -200,7 +325,7 @@ export function CandleChart({
           const y = py(price);
           return (
             <g key={g}>
-              <line x1={0} x2={plotW} y1={y} y2={y} stroke="rgba(217,255,77,0.07)" />
+              <line x1={0} x2={plotW} y1={y} y2={y} stroke="rgba(105, 170, 193,0.07)" />
               <text
                 x={w - padR + 8}
                 y={y + 3.5}
@@ -244,30 +369,34 @@ export function CandleChart({
         })}
 
         {/* current price line + tag */}
-        <line
-          x1={0}
-          x2={plotW}
-          y1={py(last.close)}
-          y2={py(last.close)}
-          stroke="#D9FF4D"
-          strokeWidth="1"
-          strokeDasharray="4 4"
-          opacity="0.8"
-        />
-        <g>
-          <rect x={plotW + 2} y={py(last.close) - 9} width={padR - 4} height={18} rx={3} fill="#D9FF4D" />
-          <text
-            x={plotW + padR / 2}
-            y={py(last.close) + 3.5}
-            textAnchor="middle"
-            fontSize="10"
-            fontWeight="700"
-            fontFamily="var(--font-mono)"
-            fill="#0A0B05"
-          >
-            {last.close.toFixed(2)}
-          </text>
-        </g>
+        {showMark && (
+          <>
+            <line
+              x1={0}
+              x2={plotW}
+              y1={py(markPrice)}
+              y2={py(markPrice)}
+              stroke="#69AAC1"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+              opacity="0.8"
+            />
+            <g>
+              <rect x={plotW + 2} y={py(markPrice) - 9} width={padR - 4} height={18} rx={3} fill="#69AAC1" />
+              <text
+                x={plotW + padR / 2}
+                y={py(markPrice) + 3.5}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="700"
+                fontFamily="var(--font-mono)"
+                fill="#071013"
+              >
+                {markPrice.toFixed(2)}
+              </text>
+            </g>
+          </>
+        )}
 
         {/* crosshair */}
         {hover != null && (
@@ -277,7 +406,7 @@ export function CandleChart({
               x2={cx(hover)}
               y1={padT}
               y2={padT + plotH + gapV + volH}
-              stroke="rgba(217,255,77,0.35)"
+              stroke="rgba(105, 170, 193,0.35)"
               strokeDasharray="3 3"
             />
             <line
@@ -285,7 +414,7 @@ export function CandleChart({
               x2={plotW}
               y1={py(candles[hover].close)}
               y2={py(candles[hover].close)}
-              stroke="rgba(217,255,77,0.35)"
+              stroke="rgba(105, 170, 193,0.35)"
               strokeDasharray="3 3"
             />
           </g>
@@ -293,7 +422,7 @@ export function CandleChart({
 
         {/* x-axis time labels */}
         {candles.map((c, i) =>
-          i % 12 === 0 ? (
+          i % Math.max(6, Math.round(count / 6)) === 0 ? (
             <text
               key={`t${i}`}
               x={cx(i)}
@@ -309,10 +438,19 @@ export function CandleChart({
         )}
       </svg>
 
-      <p className="mt-2 font-mono text-[11px] text-zinc-600">
-        Simulated preview candles · settles against oracle mark{" "}
-        <span className="text-zinc-400">{fmtUSD(basePrice)}</span> · live feed
-        arrives with Phase 02
+      <p className="mt-2 font-mono text-[11px] text-mist-500">
+        {live ? (
+          <>
+            Nasdaq OHLC · {all.length} bars, delayed ~15 min · scroll to zoom,
+            drag to pan · perps settle against oracle mark{" "}
+            <span className="text-mist-300">{fmtUSD(basePrice)}</span>
+          </>
+        ) : (
+          <>
+            Feed unavailable — simulated preview candles · settles against
+            oracle mark <span className="text-mist-300">{fmtUSD(basePrice)}</span>
+          </>
+        )}
       </p>
     </div>
   );
