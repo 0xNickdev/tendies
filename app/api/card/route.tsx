@@ -12,6 +12,7 @@ const STEEL = "#78A9BF";
 const WHITE = "#F3F8F8";
 const MUTED = "#7E949B";
 const MINT = "#3CE3AB";
+const DEEP = "#5C8394";
 
 // Ranks are earned in epochs held, which is time in the kitchen - the one
 // thing that can't be bought in a single transaction.
@@ -45,6 +46,9 @@ export async function GET(req: Request) {
   }
 
   const short = owner ? `${owner.slice(0, 4)}…${owner.slice(-4)}` : "";
+  // Real brand assets, served from this deployment - a card that doesn't look
+  // like the site is worse than no card.
+  const origin = new URL(req.url).origin;
 
   return new ImageResponse(
     (
@@ -53,65 +57,93 @@ export async function GET(req: Request) {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
           background: GROUND,
-          padding: "64px 72px",
-          fontFamily: "sans-serif",
+          position: "relative",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        {/* the hero art, bled off the right edge */}
+        <img
+          src={`${origin}/card-art.png`}
+          width={440}
+          height={769}
+          style={{ position: "absolute", right: -40, top: -70, opacity: 0.95 }}
+          alt=""
+        />
+
+        {/* brand gradient hairline down the left edge */}
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 10,
+            background: `linear-gradient(200deg, ${LIGHT}, ${STEEL} 55%, ${DEEP})`,
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "58px 64px",
+            width: 780,
+          }}
+        >
+          <img src={`${origin}/card-wordmark.png`} width={232} height={65} alt="Tendies" />
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", color: MUTED, fontSize: 21, letterSpacing: 5 }}>
+              KITCHEN RANK
+            </div>
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 11,
-                background: `linear-gradient(215deg, ${LIGHT}, ${STEEL})`,
+                display: "flex",
+                color: WHITE,
+                fontSize: rank(streak).length > 12 ? 76 : 92,
+                fontWeight: 800,
+                letterSpacing: -3,
+                lineHeight: 1.05,
+                marginTop: 6,
               }}
-            />
-            <div style={{ display: "flex", color: WHITE, fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>
-              TENDIES
+            >
+              {rank(streak)}
             </div>
           </div>
-          <div style={{ display: "flex", color: MUTED, fontSize: 20, letterSpacing: 2 }}>{short}</div>
-        </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", color: MUTED, fontSize: 22, letterSpacing: 4 }}>KITCHEN RANK</div>
-          <div
-            style={{ display: "flex", 
-              color: LIGHT,
-              fontSize: 96,
-              fontWeight: 800,
-              letterSpacing: -3,
-              lineHeight: 1.05,
- }}
-          >
-            {rank(streak)}
+          <div style={{ display: "flex", gap: 56 }}>
+            {[
+              ["EPOCH STREAK", String(streak), WHITE],
+              ["PAID OUT", `$${totalPaid.toFixed(2)}`, MINT],
+              ["COOKING", choice ?? "—", LIGHT],
+            ].map(([label, value, colour]) => (
+              <div key={label} style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", color: MUTED, fontSize: 18, letterSpacing: 3 }}>
+                  {label}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    color: colour,
+                    fontSize: 46,
+                    fontWeight: 800,
+                    marginTop: 4,
+                  }}
+                >
+                  {value}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
 
-        <div style={{ display: "flex", gap: 72 }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", color: MUTED, fontSize: 20, letterSpacing: 3 }}>EPOCH STREAK</div>
-            <div style={{ display: "flex", color: WHITE, fontSize: 52, fontWeight: 800 }}>{streak}</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", color: MUTED, fontSize: 20, letterSpacing: 3 }}>PAID OUT</div>
-            <div style={{ display: "flex", color: MINT, fontSize: 52, fontWeight: 800 }}>
-              ${totalPaid.toFixed(2)}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
+            <div style={{ display: "flex", color: WHITE, fontSize: 30, fontWeight: 700 }}>
+              I&apos;m cooking.
             </div>
+            <div style={{ display: "flex", color: MUTED, fontSize: 18 }}>{short}</div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", color: MUTED, fontSize: 20, letterSpacing: 3 }}>COOKING</div>
-            <div style={{ display: "flex", color: WHITE, fontSize: 52, fontWeight: 800 }}>{choice ?? "-"}</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div style={{ display: "flex", color: WHITE, fontSize: 30, fontWeight: 700 }}>I&apos;m cooking.</div>
-          <div style={{ display: "flex", color: MUTED, fontSize: 20 }}>gettendies.vercel.app</div>
         </div>
       </div>
     ),
