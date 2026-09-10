@@ -58,7 +58,7 @@ keeper/
 | `PAYOUT_MINTS` | ✅ | — | `TSLAx:<mint>,NVDAx:<mint>,SPCXx:<mint>` — xStock mints, pasted from the official list |
 | `SOLANA_RPC` | — | public mainnet RPC | use Helius/QuickNode/Triton in production; the public endpoint is rate-limited |
 | `FEE_MINT` | — | USDC | what the fee accrues in before the swap |
-| `EXCLUDE_ACCOUNTS` | — | — | comma-separated pubkeys that must never earn (curve/pool/treasury/LP/CEX) |
+| `EXCLUDE_ACCOUNTS` | — | — | comma-separated pubkeys that must never earn - the launchpad pool above all |
 | `STATE_DIR` | — | `./data` | **mount a Railway Volume here** — see below |
 | `MIN_PAYOUT_USD` | — | `1` | balances under this keep accruing instead of being sent |
 | `ALLOW_ORIGIN` | — | `*` | set to the site origin so only it can POST choices |
@@ -131,7 +131,11 @@ curl localhost:3333/status
   rent for holder ATAs it has to create.
 - Verify every mint you paste (TENDIE, the xStocks, `FEE_MINT`) on solscan.io.
   These are funds-bearing addresses; a typo sends real money to a stranger.
-- Fill `EXCLUDE_ACCOUNTS` with the stonkfun curve/pool accounts before the
-  first epoch, or the pool earns rewards alongside real holders.
+- Fill `EXCLUDE_ACCOUNTS` before the first epoch. The launchpad pool holds a
+  large slice of supply and is a program, not a person: rewards sent there are
+  unspendable, and every real holder is diluted by exactly that share. Find it
+  on Solscan under the token's Holders tab - it is the largest holder - and add
+  the treasury alongside it. The keeper warns if any single wallet holds more
+  than 15% and isn't excluded, but the warning is a net, not a substitute.
 - Dry-run one full epoch against mainnet with the real mint and no
   `TREASURY_SECRET_KEY` first, and read the plan in the logs.
