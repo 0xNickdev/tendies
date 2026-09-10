@@ -18,7 +18,14 @@ export const TREASURY_WALLET = "";
 // The keeper service (accrual ledger + payout choices). Set
 // NEXT_PUBLIC_KEEPER_URL to the Railway URL; blank disables the payout-choice
 // UI instead of letting it pretend to work.
-export const KEEPER_URL = process.env.NEXT_PUBLIC_KEEPER_URL ?? "";
+// Normalised, because a value pasted without a scheme ("host.up.railway.app")
+// would be treated as a relative path by fetch and fail silently.
+export const KEEPER_URL = (() => {
+  const raw = (process.env.NEXT_PUBLIC_KEEPER_URL ?? "").trim();
+  if (!raw) return "";
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.replace(/\/+$/, "");
+})();
 
 // ─── Solana mainnet-beta ─────────────────────────────────────────────────
 // Balance reads go through /api/rpc, which forwards to SOLANA_RPC on the
