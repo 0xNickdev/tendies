@@ -11,7 +11,7 @@ import { config } from "./config.js";
 import { log } from "./log.js";
 import { snapshotHolders, solBalance, treasury } from "./solana.js";
 import { duePayouts, payGroup } from "./payout.js";
-import { feeBalance, feeDecimals, swapFeeInto } from "./swap.js";
+import { feeBalance, feeDecimals, swapFeeInto, NoRouteError } from "./swap.js";
 import {
   addAccrual,
   finishEpoch,
@@ -124,9 +124,24 @@ export async function tickEpoch() {
       log.info(
         `${group.symbol}: ${group.owners.length} holders due, ${group.total} raw fee`,
       );
-      const swap = await swapFeeInto(group.mint, group.total);
-      const stockRaw = swap ? BigInt(swap.outAmount) : group.total; // dry-run keeps units
-      await payGroup(group, stockRaw, epoch, recordPayout);
+      try {
+        const swap = await swapFeeInto(group.mint, group.total);
+        const stockRaw = swap ? BigInt(swap.outAmount) : group.total; // dry-run keeps units
+        await payGroup(group, stockRaw, epoch, recordPayout);
+      } catch (e) {
+        if (!(e instanceof NoRouteError)) throw e;
+        // Thin liquidity shouldn't cost a holder their epoch: pay the group in
+        // the fee token they already own instead of skipping the round.
+        log.warn(
+          `${group.symbol}: no route after ${config.swapAttempts} tries - paying this group in the fee token instead`,
+        );
+        await payGroup(
+          { ...group, symbol: `${group.symbol}→fee`, mint: config.feeMint },
+          group.total,
+          epoch,
+          recordPayout,
+        );
+      }
     }
 
     finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });

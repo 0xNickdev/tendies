@@ -92,7 +92,7 @@ live on Solana mainnet.
 | --- | --- |
 | Website | *TBA — drop at launch* |
 | Terminal | `/terminal` — live now (Nasdaq feed, perps preview) |
-| X / Twitter | https://x.com/robinxtech |
+| X / Twitter | https://x.com/Tendies_Stonk |
 | Mint (CA) | *TBA at launch* |
 | Buy | *stonkfun coin page — TBA at launch* |
 | Chain | Solana · launched on [stonkfun](https://www.stonkfun.xyz/) |

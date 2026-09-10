@@ -324,7 +324,7 @@ export default function DocsPage() {
             <Link href="/terminal" className="btn-tendie !px-6 !py-3">
               Enter Terminal
             </Link>
-            <a href="https://x.com/robinxtech" target="_blank" rel="noopener noreferrer" className="btn-ghost !px-6 !py-3">
+            <a href="https://x.com/Tendies_Stonk" target="_blank" rel="noopener noreferrer" className="btn-ghost !px-6 !py-3">
               Follow on X
             </a>
           </div>

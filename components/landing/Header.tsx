@@ -15,7 +15,7 @@ const NAV = [
   { label: "Docs", href: "/docs" },
 ];
 
-const X_URL = "https://x.com/robinxtech";
+const X_URL = "https://x.com/Tendies_Stonk";
 
 function XIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (

@@ -7,15 +7,19 @@ The server-side of Tendies on **Solana**. One always-on Node service that:
    the excluded accounts (launchpad curve/pool, treasury, LPs, CEX wallets).
 2. **Accrues** — credits the fee that arrived since the last epoch to every
    holder by share, into a durable ledger. Everyone accrues, however small.
-3. **Pays whoever cleared the floor** — swaps through Jupiter into the xStock
+3. **Falls back rather than skipping** - if Jupiter has no route after
+   `SWAP_ATTEMPTS` tries (tolerance widening each time), that group is paid in
+   the fee token they can already use instead of losing the epoch. Thin
+   weekend liquidity shouldn't cost a holder their payout.
+4. **Pays whoever cleared the floor** — swaps through Jupiter into the xStock
    each holder chose, then sends batched `transferChecked` transfers, creating
    recipient token accounts idempotently. Balances under `MIN_PAYOUT_USD` keep
    accruing instead: opening a token account costs the treasury ~0.002 SOL of
    rent, which would dwarf a few-cent payout.
-4. **Records** — every confirmed batch settles those owners in the ledger
+5. **Records** — every confirmed batch settles those owners in the ledger
    immediately and is written to the epoch journal, so a crash mid-epoch can
    neither double-pay nor lose what is owed.
-5. **Serves health/status/choices** — HTTP endpoints for Railway monitoring,
+6. **Serves health/status/choices** — HTTP endpoints for Railway monitoring,
    for the frontend to read real treasury numbers, and for holders to set
    their payout stock with a wallet signature.
 
@@ -58,7 +62,8 @@ keeper/
 | `STATE_DIR` | — | `./data` | **mount a Railway Volume here** — see below |
 | `MIN_PAYOUT_USD` | — | `1` | balances under this keep accruing instead of being sent |
 | `ALLOW_ORIGIN` | — | `*` | set to the site origin so only it can POST choices |
-| `SLIPPAGE_BPS` | — | `100` | Jupiter slippage tolerance |
+| `SLIPPAGE_BPS` | — | `100` | Jupiter slippage tolerance on the first try |
+| `SWAP_ATTEMPTS` | — | `3` | route attempts before paying that group in the fee token |
 | `CHOICE_TTL_MS` | — | `600000` | how long a signed choice message stays valid |
 | `EPOCH_MINUTES` | — | `30` | accrual cadence |
 | `CHECK_INTERVAL_MS` | — | `60000` | how often the loop checks whether an epoch is due |

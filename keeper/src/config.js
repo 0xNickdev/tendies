@@ -38,6 +38,9 @@ export const config = {
   allowOrigin: process.env.ALLOW_ORIGIN || "*",
 
   slippageBps: Number(process.env.SLIPPAGE_BPS || 100),
+  // How many times to look for a swap route before paying that group in the
+  // fee token instead. Tolerance widens with each attempt.
+  swapAttempts: Number(process.env.SWAP_ATTEMPTS || 3),
 
   epochMinutes: Number(process.env.EPOCH_MINUTES || 30),
   checkIntervalMs: Number(process.env.CHECK_INTERVAL_MS || 60_000),

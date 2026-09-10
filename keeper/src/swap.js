@@ -37,17 +37,53 @@ export async function feeBalance() {
   }
 }
 
+// Thrown when every attempt failed. The caller pays that group in the fee
+// token instead of skipping them — a holder should never lose an epoch because
+// an xStock had thin liquidity at 3am.
+export class NoRouteError extends Error {
+  constructor(mint) {
+    super(`no route for ${mint}`);
+    this.name = "NoRouteError";
+  }
+}
+
+async function quoteWithRetries(outputMint, rawAmount) {
+  let lastError = null;
+  for (let attempt = 0; attempt < config.swapAttempts; attempt++) {
+    // widen the tolerance each try: a thin book is the usual reason a route
+    // that exists still can't be filled
+    const slippage = config.slippageBps * (attempt + 1);
+    try {
+      const url =
+        `${JUPITER}/quote?inputMint=${config.feeMint}&outputMint=${outputMint}` +
+        `&amount=${rawAmount.toString()}&slippageBps=${slippage}`;
+      const res = await fetch(url);
+      const quote = res.ok ? await res.json() : null;
+      if (quote?.outAmount) {
+        if (attempt) log.info(`  route found on try ${attempt + 1} (slippage ${slippage}bps)`);
+        return quote;
+      }
+      lastError = quote?.error ?? `HTTP ${res.status}`;
+    } catch (e) {
+      lastError = e.message;
+    }
+    log.warn(
+      `  no route for ${outputMint} (try ${attempt + 1}/${config.swapAttempts}): ${lastError}`,
+    );
+    if (attempt < config.swapAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  throw new NoRouteError(outputMint);
+}
+
 export async function swapFeeInto(outputMint, rawAmount) {
   if (config.dryRun || !treasury) {
     log.info(`  [dry-run] swap ${rawAmount} fee → ${outputMint}`);
     return null;
   }
 
-  const quoteUrl =
-    `${JUPITER}/quote?inputMint=${config.feeMint}&outputMint=${outputMint}` +
-    `&amount=${rawAmount.toString()}&slippageBps=${config.slippageBps}`;
-  const quote = await fetch(quoteUrl).then((r) => r.json());
-  if (!quote?.outAmount) throw new Error(`no route for ${outputMint}`);
+  const quote = await quoteWithRetries(outputMint, rawAmount);
 
   const { swapTransaction } = await fetch(`${JUPITER}/swap`, {
     method: "POST",
