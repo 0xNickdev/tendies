@@ -151,6 +151,12 @@ export async function swapFeeInto(outputMint, rawAmount) {
 
   const quote = await quoteWithRetries(outputMint, rawAmount);
 
+  // What the swap actually delivers, not what it was quoted. The quote is an
+  // estimate with slippage tolerance under it, so paying out quote.outAmount
+  // can try to send more of the stock than the treasury received — and the
+  // last batch of the group fails, taking the whole epoch's payout with it.
+  const before = await treasuryBalance(outputMint);
+
   const { swapTransaction } = await fetch(`${JUPITER}/swap`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -166,6 +172,13 @@ export async function swapFeeInto(outputMint, rawAmount) {
   tx.sign([treasury]);
   const signature = await connection.sendRawTransaction(tx.serialize(), { maxRetries: 3 });
   await connection.confirmTransaction(signature, "confirmed");
-  log.info(`  swapped → ${outputMint}: ${signature}`);
-  return { signature, outAmount: Number(quote.outAmount) };
+  const received = (await treasuryBalance(outputMint)) - before;
+  if (received <= 0n) throw new NoRouteError(outputMint); // swap landed nothing
+  const quoted = BigInt(quote.outAmount);
+  if (received < quoted) {
+    log.info(`  filled ${received} vs ${quoted} quoted (${signature})`);
+  } else {
+    log.info(`  swapped → ${outputMint}: ${signature}`);
+  }
+  return { signature, outAmount: received };
 }

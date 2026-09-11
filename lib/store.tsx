@@ -153,7 +153,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const account = await fetchAccount(address);
     if (account) {
       setChoice(symbolForToken(account.choice));
-      setAccrued(account.accrued);
+      // accrued is in fee-token units; accruedUsd is the same thing in money.
+      setAccrued(account.accruedUsd ?? account.accrued);
       setMinPayout(account.minPayoutUsd);
       setShareBps(account.shareBps ?? 0);
       setTotalPaid(account.totalPaid ?? 0);

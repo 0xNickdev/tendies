@@ -126,6 +126,7 @@ export async function tickEpoch() {
       log.warn(`${e.message} — no payouts this epoch, every balance carries`);
       finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
       state.lastEpochAt = new Date().toISOString();
+      state.lastError = null; // carrying balances is a normal outcome, not a fault
       return;
     }
 
@@ -159,7 +160,9 @@ export async function tickEpoch() {
       );
       try {
         const swap = await swapFeeInto(group.mint, group.total);
-        const stockRaw = swap ? BigInt(swap.outAmount) : group.total; // dry-run keeps units
+        // null means no swap happened — dry-run, or the payout token is the fee
+        // token already — so the units carry over untouched.
+        const stockRaw = swap ? swap.outAmount : group.total;
         await payGroup(group, stockRaw, epoch, recordPayout);
       } catch (e) {
         if (!(e instanceof NoRouteError)) throw e;

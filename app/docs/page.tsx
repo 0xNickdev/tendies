@@ -161,12 +161,13 @@ export default function DocsPage() {
                 ))}
               </ol>
               <p className="rounded-lg border border-tendie/20 bg-tendie/5 p-4 text-sm text-mist-200">
-                <b className="text-tendie">Under the hood:</b> rewards are
-                accounted internally in USDC (a stablecoin) so your claimable
-                value is stable and the swap into a stock is a single hop. USDC
-                is just the unit of account - you receive stocks, not USDC
-                (a USDC fallback only kicks in if a stock&apos;s pool is ever
-                unavailable).
+                <b className="text-tendie">Under the hood:</b> the fee arrives
+                in the token TENDIE is paired against - TSLAx - so that is what
+                the ledger counts until payout. Your balance is therefore held
+                in Tesla, not in dollars, and moves with it; the payout floor is
+                converted from dollars at the live rate each epoch. If a stock&apos;s
+                pool is ever unroutable, that group is paid in TSLAx instead of
+                waiting.
               </p>
             </Section>
 

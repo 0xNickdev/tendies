@@ -19,10 +19,21 @@ export const treasury = config.treasurySecret
   ? Keypair.fromSecretKey(bs58.decode(config.treasurySecret))
   : null;
 
-// SPL token accounts are a fixed 165-byte layout with the mint at offset 0 and
-// the owner at 32 — so one getProgramAccounts call enumerates every holder.
-const ACCOUNT_SIZE = 165;
+// The mint sits at offset 0 of every token account, so one getProgramAccounts
+// call per program enumerates every holder.
+//
+// Deliberately NOT filtered by dataSize. A classic SPL account is always 165
+// bytes, but a Token-2022 account grows with its extensions, and the
+// associated-token program stamps ImmutableOwner on every ATA it creates —
+// which makes real holders 170 bytes. stonkfun mints on Token-2022 even for a
+// standard launch, so a dataSize:165 filter matches only accounts the program
+// opened itself: the bonding-curve vault, holding ~99% of supply, and nobody
+// else. That is the difference between paying every holder and paying an
+// unspendable PDA everything.
 const OWNER_OFFSET = 32;
+
+// A wallet this large is almost certainly the pool, not a person.
+const SUSPICIOUS_SHARE = 0.15;
 
 export async function snapshotHolders() {
   if (!config.mint) return [];
@@ -33,10 +44,7 @@ export async function snapshotHolders() {
     [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID].map((programId) =>
       connection
         .getParsedProgramAccounts(programId, {
-          filters: [
-            { dataSize: ACCOUNT_SIZE },
-            { memcmp: { offset: 0, bytes: mint.toBase58() } },
-          ],
+          filters: [{ memcmp: { offset: 0, bytes: mint.toBase58() } }],
         })
         .catch(() => []),
     ),
@@ -44,11 +52,18 @@ export async function snapshotHolders() {
 
   const byOwner = new Map();
   for (const account of perProgram.flat()) {
-    const info = account.account?.data?.parsed?.info;
+    const parsed = account.account?.data?.parsed;
+    // Without a dataSize filter the mint account itself can come back; only
+    // token accounts have an owner and a balance.
+    if (parsed?.type !== "account") continue;
+    const info = parsed.info;
     const owner = info?.owner;
     const amount = Number(info?.tokenAmount?.uiAmount ?? 0);
     if (!owner || amount <= 0) continue;
-    if (excluded.has(owner)) continue;
+    // Excluding by owner alone is a trap: the pool's owner is a PDA, while the
+    // address a human copies off Solscan is usually the token account. Accept
+    // either, so a correct-looking entry cannot silently do nothing.
+    if (excluded.has(owner) || excluded.has(account.pubkey.toBase58())) continue;
     // one owner can hold the mint in several accounts
     byOwner.set(owner, (byOwner.get(owner) ?? 0) + amount);
   }
@@ -58,10 +73,24 @@ export async function snapshotHolders() {
     balance,
   }));
   const supplyHeld = holders.reduce((sum, h) => sum + h.balance, 0);
-  return holders.map((h) => ({
+  const withShare = holders.map((h) => ({
     ...h,
     share: supplyHeld > 0 ? h.balance / supplyHeld : 0,
   }));
+
+  // The net promised in the README: forgetting EXCLUDE_ACCOUNTS is quiet, and
+  // rewards sent to a program are gone while every real holder is diluted by
+  // exactly that share.
+  for (const h of withShare) {
+    if (h.share > SUSPICIOUS_SHARE) {
+      log.warn(
+        `${h.owner} holds ${(h.share * 100).toFixed(1)}% and is NOT excluded — ` +
+          `if that is the launchpad pool, add it to EXCLUDE_ACCOUNTS before paying`,
+      );
+    }
+  }
+
+  return withShare;
 }
 
 export async function solBalance() {

@@ -5,7 +5,7 @@ import http from "node:http";
 import { config } from "./config.js";
 import { log } from "./log.js";
 import { snapshotHolders, solBalance } from "./solana.js";
-import { feeBalance, feeDecimals, buybackReserve } from "./swap.js";
+import { feeBalance, feeDecimals, buybackReserve, feeUnitsPerDollar } from "./swap.js";
 import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice } from "./choice.js";
 import { accruedOf, choiceOf, profileOf } from "./store.js";
@@ -134,6 +134,10 @@ export function startServer() {
       const owner = url.searchParams.get("owner") ?? "";
       if (!owner) return json(res, 400, { ok: false, error: "owner required" });
       const decimals = await feeDecimals().catch(() => 6);
+      // The ledger counts fee-token units. Once the fee accrues in a stock
+      // those are nothing like dollars, and the site labels this field as
+      // money — so convert here rather than letting the UI guess.
+      const perDollar = await feeUnitsPerDollar().catch(() => null);
       const info = holderInfo(owner);
       const prof = profileOf(owner);
       return json(res, 200, {
@@ -141,6 +145,7 @@ export function startServer() {
         owner,
         choice: choiceOf(owner),
         accrued: Number(accruedOf(owner)) / 10 ** decimals,
+        accruedUsd: perDollar ? Number(accruedOf(owner)) / Number(perDollar) : null,
         minPayoutUsd: config.minPayoutUsd,
         // доля из последнего снимка эпохи, не из живого запроса
         balance: info.balance,

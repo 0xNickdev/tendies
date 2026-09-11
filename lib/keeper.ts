@@ -10,7 +10,10 @@ import { PAYOUT_STOCKS, type StockSym } from "./stocks";
 export type Account = {
   owner: string;
   choice: string | null; // xStock ticker, e.g. "NVDAx"
-  accrued: number; // in fee-token units (USDC)
+  accrued: number; // in fee-token units — TSLAx once paired against it
+  // The same balance in dollars, converted by the keeper at the live rate.
+  // null when the fee token could not be priced this request.
+  accruedUsd: number | null;
   minPayoutUsd: number;
   balance: number; // TENDIE held at the last epoch snapshot
   shareBps: number; // share of circulating supply, basis points
