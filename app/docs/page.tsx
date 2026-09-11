@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Wordmark } from "@/components/Logo";
+import { TENDIE_MINT, TREASURY_WALLET, explorerAccount } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "Tendies Docs - How it works",
@@ -61,6 +62,28 @@ function Addr({ children }: { children: string }) {
     <code className="break-all rounded bg-ink-900/80 px-1.5 py-0.5 font-mono text-[11px] text-tendie">
       {children}
     </code>
+  );
+}
+
+// Same chip, but clickable through to the explorer. Used for the addresses a
+// reader should be able to audit rather than just read.
+function AddrLink({ address, label }: { address: string; label: string }) {
+  return (
+    <span>
+      {label}{" "}
+      {address ? (
+        <a
+          href={explorerAccount(address)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          <Addr>{address}</Addr>
+        </a>
+      ) : (
+        <span className="text-mist-400">TBA at launch</span>
+      )}
+    </span>
   );
 }
 
@@ -291,6 +314,21 @@ export default function DocsPage() {
                   it can&apos;t be set by anyone but you.
                 </li>
               </ul>
+              <p className="text-sm font-semibold uppercase tracking-wide text-mist-300">
+                Addresses you can audit
+              </p>
+              <div className="panel p-5 text-sm">
+                <div className="flex flex-col gap-2">
+                  <AddrLink label="TENDIE mint" address={TENDIE_MINT} />
+                  <AddrLink label="Treasury" address={TREASURY_WALLET} />
+                </div>
+                <p className="mt-3 text-xs text-mist-400">
+                  The treasury is the wallet the launchpad forwards the creator
+                  fee to, and the one every payout is signed by. Open it in the
+                  explorer to see what came in and what went out - the schedule
+                  is checkable by anyone, without taking our word for it.
+                </p>
+              </div>
               <p className="text-sm font-semibold uppercase tracking-wide text-mist-300">Reward stock tokens (verified on-chain)</p>
               <div className="panel p-5 text-sm">
                 <div className="flex flex-col gap-2">
