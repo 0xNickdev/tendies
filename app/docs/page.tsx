@@ -265,7 +265,7 @@ export default function DocsPage() {
                 <Row k="Token program" v="SPL Token" />
                 <Row k="Explorer" v={<Addr>solscan.io</Addr>} />
                 <Row k="Gas token" v="SOL" />
-                <Row k="Reward stable" v="USDC (internal accounting only)" />
+                <Row k="Ledger unit" v="TSLAx - what the fee arrives in" />
               </div>
               <p className="text-sm text-mist-300">
                 Connect any Solana wallet - Phantom, Solflare or anything that

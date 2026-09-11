@@ -148,13 +148,17 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-mist-300">In the treasury</span>
               <span className="num font-semibold text-white">
-                {keeper ? fmtUSDCompact(keeper.treasury.pendingFee) : "TBA"}
+                {keeper?.treasury.pendingFeeUsd != null
+                  ? fmtUSDCompact(keeper.treasury.pendingFeeUsd)
+                  : "TBA"}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-mist-300">Paid out so far</span>
               <span className="num font-semibold text-long">
-                {keeper ? fmtUSDCompact(keeper.ledger.paidOut) : "TBA"}
+                {keeper?.ledger.paidOutUsd != null
+                  ? fmtUSDCompact(keeper.ledger.paidOutUsd)
+                  : "TBA"}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">

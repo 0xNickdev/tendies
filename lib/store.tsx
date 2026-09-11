@@ -157,7 +157,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setAccrued(account.accruedUsd ?? account.accrued);
       setMinPayout(account.minPayoutUsd);
       setShareBps(account.shareBps ?? 0);
-      setTotalPaid(account.totalPaid ?? 0);
+      setTotalPaid(account.totalPaidUsd ?? account.totalPaid ?? 0);
       setStreak(account.streak ?? 0);
       setPayouts(account.payouts ?? []);
     }

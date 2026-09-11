@@ -91,7 +91,7 @@ export function Treasury() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat
           label="In the treasury"
-          value={keeper ? fmtUSD(keeper.treasury.pendingFee) : "TBA"}
+          value={keeper?.treasury.pendingFeeUsd != null ? fmtUSD(keeper.treasury.pendingFeeUsd) : "TBA"}
           sub={keeper ? `${keeper.treasury.holders} holders accruing` : "Pays out in tokenized stocks"}
         />
         <Stat
@@ -102,7 +102,7 @@ export function Treasury() {
         />
         <Stat
           label="Paid out so far"
-          value={keeper ? fmtUSD(keeper.ledger.paidOut) : "TBA"}
+          value={keeper?.ledger.paidOutUsd != null ? fmtUSD(keeper.ledger.paidOutUsd) : "TBA"}
           sub={keeper ? `${keeper.ledger.epochsRun} distributions` : "From trade fees"}
           accent="long"
         />
@@ -205,7 +205,7 @@ export function Treasury() {
                         {new Date(p.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                       <span className="font-mono font-bold text-mist-50">{p.symbol}</span>
-                      <span className="num text-mist-200">{fmtUSD(p.value)}</span>
+                      <span className="num text-mist-200">{p.valueUsd != null ? fmtUSD(p.valueUsd) : fmtNum(p.value)}</span>
                       <a
                         href={solscanTx(p.signature)}
                         target="_blank"

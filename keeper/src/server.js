@@ -40,16 +40,22 @@ function readBody(req, limit = 4096) {
 }
 
 async function buildStatus() {
-  const [holders, fee, sol, decimals, reserve] = await Promise.all([
+  const [holders, fee, sol, decimals, reserve, perDollar] = await Promise.all([
     snapshotHolders().catch(() => []),
     feeBalance().catch(() => 0n),
     solBalance().catch(() => 0),
     feeDecimals().catch(() => 6),
     buybackReserve().catch(() => 0n),
+    feeUnitsPerDollar().catch(() => null),
   ]);
 
   const ledger = ledgerSummary();
   const toUnits = (raw) => Number(BigInt(raw)) / 10 ** decimals;
+  // Every figure below is counted in fee-token units. While that was USDC the
+  // two were the same number; paired against a stock they are not, and the site
+  // renders these as money — so publish the dollar value rather than leave the
+  // UI to multiply by a rate it does not have.
+  const toUsd = (raw) => (perDollar ? Number(BigInt(raw)) / Number(perDollar) : null);
 
   const lastEpoch = state.lastEpochAt ? new Date(state.lastEpochAt).getTime() : 0;
   const nextAt = lastEpoch + config.epochMinutes * 60_000;
@@ -67,6 +73,7 @@ async function buildStatus() {
       mint: config.mint || null,
       feeMint: config.feeMint,
       pendingFee: toUnits(fee.toString()),
+      pendingFeeUsd: toUsd(fee.toString()),
       payoutStocks: config.payoutMints.map((p) => p.symbol),
       holders: holders.length,
       // The TENDIE side of the creator fee. Never distributed — it accumulates
@@ -76,7 +83,9 @@ async function buildStatus() {
     ledger: {
       owedAccounts: ledger.owedAccounts,
       owed: toUnits(ledger.owedRaw),
+      owedUsd: toUsd(ledger.owedRaw),
       paidOut: toUnits(ledger.paidOutRaw),
+      paidOutUsd: toUsd(ledger.paidOutRaw),
       minPayoutUsd: config.minPayoutUsd,
       epochsRun: ledger.epochsRun,
       lastEpoch: ledger.lastEpoch,
@@ -153,6 +162,7 @@ export function startServer() {
         snapshotAt: info.snapshotAt,
         // measured, never assigned
         totalPaid: Number(BigInt(prof.totalPaid)) / 10 ** decimals,
+        totalPaidUsd: perDollar ? Number(BigInt(prof.totalPaid)) / Number(perDollar) : null,
         streak: prof.streak,
         epochsHeld: prof.firstEpoch ? prof.lastEpoch - prof.firstEpoch + 1 : 0,
         payouts: prof.payouts.map((x) => ({
@@ -160,6 +170,7 @@ export function startServer() {
           at: x.at,
           symbol: x.symbol,
           value: Number(BigInt(x.paidRaw)) / 10 ** decimals,
+          valueUsd: perDollar ? Number(BigInt(x.paidRaw)) / Number(perDollar) : null,
           signature: x.signature,
         })),
       });

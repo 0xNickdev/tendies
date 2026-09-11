@@ -20,6 +20,7 @@ export type Account = {
   snapshotAt: string | null;
   // measured by the keeper, never assigned
   totalPaid: number;
+  totalPaidUsd: number | null;
   streak: number;
   epochsHeld: number;
   payouts: Payout[];
@@ -29,7 +30,8 @@ export type Payout = {
   epoch: number;
   at: string;
   symbol: string; // xStock ticker
-  value: number; // in fee-token units (USDC)
+  value: number; // in fee-token units — TSLAx once paired against it
+  valueUsd: number | null; // the same, in dollars, converted by the keeper
   signature: string;
 };
 
@@ -41,8 +43,22 @@ export const solscanTx = (signature: string) =>
 // until the token has traded for a while.
 export type KeeperStatus = {
   dryRun: boolean;
-  treasury: { pendingFee: number; holders: number; payoutStocks: string[] };
-  ledger: { owed: number; paidOut: number; owedAccounts: number; epochsRun: number; minPayoutUsd: number };
+  treasury: {
+    pendingFee: number; // fee-token units
+    pendingFeeUsd: number | null; // the same in dollars, null if unpriced
+    buybackReserve: number; // TENDIE held back for buybacks
+    holders: number;
+    payoutStocks: string[];
+  };
+  ledger: {
+    owed: number;
+    owedUsd: number | null;
+    paidOut: number;
+    paidOutUsd: number | null;
+    owedAccounts: number;
+    epochsRun: number;
+    minPayoutUsd: number;
+  };
   epoch: { intervalMinutes: number; secondsUntilNext: number; lastEpochAt: string | null };
 };
 
