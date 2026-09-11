@@ -27,6 +27,11 @@ const empty = () => ({
   // newest first, capped
   epochs: [],
   totals: { paidOutRaw: "0", epochsRun: 0 },
+  // When the last epoch ran. Persisted because the epoch clock is a schedule,
+  // not a runtime detail: kept in memory alone, every redeploy resets it to
+  // "never" and fires an epoch immediately, so "every 30 minutes" quietly
+  // becomes "every 30 minutes, plus once per deploy".
+  lastEpochAt: null,
 });
 
 let state = empty();
@@ -67,6 +72,15 @@ export function saveState() {
 // ── accrual ledger ────────────────────────────────────────────────────────
 // Amounts are raw integer units of the fee token (USDC, 6 decimals), carried
 // as strings because JSON numbers lose precision above 2^53.
+
+export function getLastEpochAt() {
+  return state.lastEpochAt ?? null;
+}
+
+export function setLastEpochAt(iso) {
+  state.lastEpochAt = iso;
+  saveState();
+}
 
 export function accruedOf(owner) {
   return BigInt(state.ledger[owner]?.accrued ?? "0");

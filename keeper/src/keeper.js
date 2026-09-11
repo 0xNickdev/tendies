@@ -21,8 +21,10 @@ import {
 import {
   addAccrual,
   finishEpoch,
+  getLastEpochAt,
   markPresent,
   getState,
+  setLastEpochAt,
   recordPayout,
   saveState,
   startEpoch,
@@ -50,7 +52,14 @@ export const state = {
   treasury: treasury?.publicKey.toBase58() ?? null,
   dryRun: config.dryRun,
   lastCheck: null,
-  lastEpochAt: null,
+  // Delegated to the ledger file so the schedule survives a redeploy. Everything
+  // that reads or writes state.lastEpochAt keeps working unchanged.
+  get lastEpochAt() {
+    return getLastEpochAt();
+  },
+  set lastEpochAt(iso) {
+    setLastEpochAt(iso);
+  },
   lastError: null,
   holders: 0,
 };
