@@ -1,8 +1,8 @@
 # 🍗 Tendies — Hold the bag. Get the tendies.
 
 **One-liner:** Tendies is a Solana protocol, launched on **stonkfun**, that
-turns a 4% trade fee into **real tokenized stocks** — TSLA, NVDA or SPCX, your
-pick — paid out to holders **every 30 minutes**.
+turns **1.5% of every trade** into **real tokenized stocks** — TSLA, NVDA or
+SPCX, your pick — paid out to holders **every 30 minutes**.
 
 > Hold the bag. Get the tendies.
 
@@ -24,8 +24,8 @@ every 30 minutes.
 ## ⚙️ Mechanics (30 seconds)
 
 ```
-   BUY / SELL $TENDIE
-        │  4% tax
+   BUY / SELL $TENDIE  (pool charges 2%)
+        │  1.5%
         ▼
     🏦 TREASURY ──── every 30 min ────▶  📈 STOCK REWARDS
         │                                TSLAx · NVDAx · SPCXx
@@ -34,8 +34,8 @@ every 30 minutes.
     margin = your accrued claim
 ```
 
-1. **Trade tax → treasury.** Every buy and sell of TENDIE routes 4% into a shared
-   treasury.
+1. **Trade fee → treasury.** TENDIE itself is untaxed. Its pool on stonkfun
+   charges 2% per trade: 1.5% goes to the treasury, 0.5% to the launchpad.
 2. **Treasury → stocks.** Every **30 minutes** the treasury distributes
    rewards pro-rata to holders — **in tokenized stocks, not farm tokens**.
    Each holder chooses their payout asset in the app.
@@ -51,8 +51,10 @@ every 30 minutes.
 | Payout frequency | **Every 30 minutes**, automatic              |
 | Eligibility      | Pro-rata to every TENDIE holder                |
 | Custody          | Straight to your own wallet                  |
-| Trade tax        | 4% on buys and sells → treasury              |
-| Total supply     | 100,000,000 TENDIE                             |
+| Quote pair       | **TSLAx** — permanent, set at launch          |
+| Pool fee         | 2% per trade → 1.5% treasury, 0.5% launchpad  |
+| Token transfer tax | None — the mint carries no fee extension   |
+| Total supply     | 1,000,000,000 TENDIE                         |
 
 No emissions. No inflation. Rewards are funded purely by trading volume.
 
@@ -73,7 +75,7 @@ live on Solana mainnet.
 
 | Phase | Status | What |
 | ----- | ------ | ---- |
-| **01 · Token & Treasury** | 🟢 Shipped | TENDIE on stonkfun + 4% fee, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
+| **01 · Token & Treasury** | 🟢 Shipped | TENDIE/TSLAx on stonkfun + 1.5% fee, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
 | **02 · Stock Perps** | 🔥 In the fryer | Long/short TSLA, NVDA & SPCX oracle marks, 1–10× leverage, claim-as-margin, risk gating. Preview already live in the terminal |
 | **03 · Auto-Trading** | 🧊 Still frozen | Strategy vaults (auto-DCA the marks), copy-trade the top cooks, signal bots on oracle prints |
 

@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/Logo";
 export const metadata: Metadata = {
   title: "Tendies Docs - How it works",
   description:
-    "Full documentation for Tendies: the TENDIE token on Solana, the 4% treasury fee, 30-minute xStock rewards (TSLA · NVDA · SPCX), perps, the keeper, and security.",
+    "Full documentation for Tendies: the TENDIE token on Solana, the 1.5% treasury fee, 30-minute xStock rewards (TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
 
 // xStock mints get pasted in from the official xStocks list at launch — see
@@ -145,9 +145,9 @@ export default function DocsPage() {
               <p>The whole loop is three steps:</p>
               <ol className="ml-1 space-y-3">
                 {[
-                  ["Trade tax → treasury", "Every buy and sell of TENDIE pays a 4% tax into a shared treasury contract."],
+                  ["Trade fee → treasury", "TENDIE itself is untaxed. Its pool on stonkfun charges 2% per trade, of which 1.5% is routed to the treasury and 0.5% kept by the launchpad."],
                   ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks - not farm tokens - once they clear a small floor, so network fees never cost more than the payout itself."],
-                  ["Claim → your wallet", "You pick your payout stock and claim; the treasury swaps into that stock at claim time and sends it to you. Or let it accrue and use it as perps margin (Phase 02)."],
+                  ["Stocks → your wallet", "There is no claim button. You pick your payout stock by signing a message; the treasury swaps and sends automatically once your balance clears the floor. Or let it keep accruing and use it as perps margin (Phase 02)."],
                 ].map(([t, b], i) => (
                   <li key={t} className="panel flex gap-4 p-5">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-tendie/40 bg-tendie/5 font-mono text-sm font-black text-tendie">
@@ -173,17 +173,19 @@ export default function DocsPage() {
             <Section id="tokenomics" n="03" title="Tokenomics">
               <div className="panel p-6">
                 <Row k="Token" v="TENDIE" />
-                <Row k="Total supply" v="100,000,000 (fixed, no mint)" />
-                <Row k="Buy tax" v="4% → treasury" />
-                <Row k="Sell tax" v="4% → treasury" />
-                <Row k="Max tax (hard cap)" v="5% - owner can never exceed" />
-                <Row k="Wallet ↔ wallet" v="0% (tax-free transfers)" />
+                <Row k="Total supply" v="1,000,000,000 (fixed, no mint)" />
+                <Row k="Quote pair" v="TSLAx - permanent, set at launch" />
+                <Row k="Pool fee" v="2% per trade" />
+                <Row k="→ Treasury" v="1.5% of every trade" />
+                <Row k="→ Launchpad" v="0.5% of every trade" />
+                <Row k="Token transfer tax" v="None - the mint carries no fee extension" />
+                <Row k="Wallet ↔ wallet" v="0% (free transfers)" />
                 <Row k="Emissions" v="None - rewards come only from volume" />
               </div>
               <p className="text-sm text-mist-300">
-                The tax rate is adjustable by the owner but capped at 5% in the
-                contract itself, so it can never be raised beyond that - a
-                built-in protection for holders.
+                Nobody can raise the fee after launch: the pool&apos;s rate is
+                fixed by the launchpad when the pool is created, and the mint
+                carries no transfer-fee extension for anyone to turn on later.
               </p>
             </Section>
 
@@ -275,8 +277,9 @@ export default function DocsPage() {
               <p>Two moving parts run the whole thing:</p>
               <ul className="space-y-2 text-sm">
                 <li className="panel p-4">
-                  <b className="text-white">TENDIE</b> - the token. Fixed supply,
-                  4% DEX tax (5% hard cap), no mint function after deploy.
+                  <b className="text-white">TENDIE</b> - the token. Fixed 1B
+                  supply, no transfer tax, no mint authority after launch - the
+                  mint is created by the launchpad, not by us.
                 </li>
                 <li className="panel p-4">
                   <b className="text-white">Distributor keeper</b> - the
@@ -303,7 +306,7 @@ export default function DocsPage() {
             <Section id="faq" n="09" title="FAQ">
               {[
                 ["Do I own real shares?", "No. Rewards are tokenized stocks (1:1-backed) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
-                ["Where do rewards come from?", "Purely from the 4% trade fee the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
+                ["Where do rewards come from?", "Purely from the 1.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (TSLAx). You can change your payout stock any time in the Treasury tab."],
                 ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
                 ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch - the mint address will appear here and on the dashboard."],

@@ -38,9 +38,11 @@ export function About() {
             or SpaceX every 30 minutes, straight to your wallet.
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-mist-300">
-            The token itself grants no equity. A 4% trade tax feeds the treasury,
-            which distributes real tokenized stocks pro-rata to holders - no
-            emissions, no inflation - and unlocks a speculative perps layer on top.
+            The token itself grants no equity. TENDIE carries no transfer tax at
+            all - the pool it trades in charges 2% per trade, and 1.5% of that
+            feeds the treasury, which distributes real tokenized stocks pro-rata
+            to holders - no emissions, no inflation - and unlocks a speculative
+            perps layer on top.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {["No brokerage account", "24/7 markets", "Self-custody", "Solana native"].map(
@@ -291,7 +293,7 @@ export function FAQ() {
     },
     {
       q: "How does the treasury make money?",
-      a: "Every buy and sell of the token pays a small tax (currently 4%) into a shared treasury. Every 30 minutes the treasury converts and distributes rewards in the tokenized stock each holder selected.",
+      a: "The token itself is untaxed. Its pool on stonkfun charges 2% per trade, of which 1.5% is routed to the treasury and 0.5% kept by the launchpad. Every 30 minutes the treasury converts and distributes rewards in the tokenized stock each holder selected.",
     },
     {
       q: "What are the perps?",

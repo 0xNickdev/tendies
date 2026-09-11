@@ -207,7 +207,8 @@ not points. not a farm token. not an IOU.
 TSLAx, NVDAx or SPCXx — you pick.
 ```
 ```
-2/ where it comes from: every trade pays a 4% fee into a shared treasury.
+2/ where it comes from: every trade pays a 2% fee. 1.5% of it lands in the
+treasury, the launchpad keeps the rest.
 
 no emissions, no inflation, nothing minted to pay you.
 
@@ -223,11 +224,13 @@ it's yours, in your own wallet. we can't touch it after it's sent.
 4/ there's no claim button.
 
 rewards accrue to your balance every 30 minutes and get sent automatically
-once they're worth sending — below that they keep stacking, so network fees
-never cost more than the payout.
+once they clear about a dollar — under that they keep stacking, so network
+fees never cost more than the payout.
 ```
 ```
-5/ launching on @stonkfun.
+5/ launching on @stonkfun, paired against TSLAx.
+
+the pair is the thesis: a coin priced in tesla that pays you in stock.
 
 $TENDIE — hold the bag, get the tendies.
 

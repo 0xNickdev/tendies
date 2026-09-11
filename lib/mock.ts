@@ -14,14 +14,14 @@ export const FEATURES = {
 // is wired in.
 export const TREASURY = {
   totalUsdc: 0,
-  taxRateBps: 400, // 4% buy/sell tax → treasury
+  taxRateBps: 150, // 1.5% of every trade → treasury (the pool charges 2%)
   tokenPriceUsd: 0,
   tokenSymbol: "TENDIE",
-  // Where the 4% comes from: the stonkfun launchpad's creator fee share on
-  // trading volume. If we ever mint TENDIE ourselves it becomes a Token-2022
-  // transfer fee instead — same number, same destination.
+  // Where the 1.5% comes from: the stonkfun launchpad's creator fee share on
+  // trading volume. The mint itself carries no transfer fee — a standard
+  // stonkfun launch provably has none — so wallet↔wallet moves are free.
   feeSource: "stonkfun creator fee",
-  totalSupply: 100_000_000,
+  totalSupply: 1_000_000_000, // stonkfun mints exactly 1B at 6 decimals
   decimals: 6, // SPL mint decimals
   apr: 0,
 };
