@@ -82,9 +82,21 @@ async function buildStatus() {
       lastEpochAt: state.lastEpochAt,
       secondsUntilNext: lastEpoch ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : 0,
     },
-    cluster: config.rpcUrl,
+    // Host only — config.rpcUrl carries a paid API key in its query string,
+    // and /status is public.
+    cluster: rpcHost(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+// The RPC endpoint without credentials: the URL holds a paid API key that
+// must never leave the server, but the host itself is useful in /status.
+function rpcHost() {
+  try {
+    return new URL(config.rpcUrl).host;
+  } catch {
+    return "invalid-rpc-url";
+  }
 }
 
 export function startServer() {
