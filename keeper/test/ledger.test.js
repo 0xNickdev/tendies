@@ -59,13 +59,31 @@ console.log("\n2. Долларовый порог: пыль копится, а �
   }
   saveState();
   check("после 3 эпох накоплено $0.90", accruedOf("DUST"), 90n * USDC / 100n);
-  check("к выплате никого (ниже $1)", duePayouts(6).length, 0);
+  check("к выплате никого (ниже $1)", duePayouts(USDC).length, 0);
 
   addAccrual("DUST", cut(smallFee, 1.0)); // 4th epoch → $1.20
   saveState();
-  const due = duePayouts(6);
+  const due = duePayouts(USDC);
   check("после 4-й эпохи выплата созрела", due.length, 1);
   check("сумма к выплате $1.20", due[0].total, 120n * USDC / 100n);
+}
+
+console.log("\n2b. Порог считается в долларах, а не в единицах fee-токена");
+{
+  fs.rmSync("./data-test", { recursive: true, force: true });
+  loadState();
+  // Fee accruing in TSLAx: 8 decimals, ~$363 each, so a dollar is ~0.00275 of
+  // one — the case that silently turned the $1 floor into a $363 floor.
+  const perDollar = 274_247n; // raw TSLAx units per $1
+  addAccrual("RICH", 2n * perDollar); // ~$2
+  addAccrual("POOR", perDollar / 2n); // ~$0.50
+  saveState();
+  const due = duePayouts(perDollar);
+  check("группа одна", due.length, 1);
+  check("платим только тому, кто выше $1", due[0].owners.length, 1);
+  check("и это RICH", due[0].owners[0].owner, "RICH");
+  // The old math would have used 1 * 10**8 as the floor — nobody clears that.
+  check("старая формула не выплатила бы никому", duePayouts(10n ** 8n).length, 0);
 }
 
 console.log("\n3. Группировка по выбранной акции");
@@ -76,7 +94,7 @@ console.log("\n3. Группировка по выбранной акции");
   addAccrual("BBB", 20n * USDC);
   saveState();
   check("без выбора все идут в первую акцию", payoutFor("AAA").symbol, "TSLAx");
-  const groups = duePayouts(6);
+  const groups = duePayouts(USDC);
   check("одна группа", groups.length, 1);
   check("в ней оба холдера", groups[0].owners.length, 2);
   check("итог группы $30", groups[0].total, 30n * USDC);

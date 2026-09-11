@@ -11,7 +11,13 @@ import { config } from "./config.js";
 import { log } from "./log.js";
 import { snapshotHolders, solBalance, treasury } from "./solana.js";
 import { duePayouts, payGroup } from "./payout.js";
-import { feeBalance, feeDecimals, swapFeeInto, NoRouteError } from "./swap.js";
+import {
+  feeBalance,
+  feeUnitsPerDollar,
+  swapFeeInto,
+  NoRouteError,
+  UnpricedFeeError,
+} from "./swap.js";
 import {
   addAccrual,
   finishEpoch,
@@ -82,7 +88,6 @@ export async function tickEpoch() {
     }
 
     epoch = startEpoch();
-    const decimals = await feeDecimals();
 
     // streaks are measured from presence in the snapshot, not from payouts —
     // a small holder still shows up every epoch while their balance accrues
@@ -111,7 +116,20 @@ export async function tickEpoch() {
     }
 
     // ── 2. pay whoever cleared the floor ─────────────────────────────────
-    const groups = duePayouts(decimals);
+    let unitsPerDollar;
+    try {
+      unitsPerDollar = await feeUnitsPerDollar();
+    } catch (e) {
+      if (!(e instanceof UnpricedFeeError)) throw e;
+      // Accrual already happened, so nobody loses their share — it just waits
+      // for an epoch where the floor can be computed honestly.
+      log.warn(`${e.message} — no payouts this epoch, every balance carries`);
+      finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
+      state.lastEpochAt = new Date().toISOString();
+      return;
+    }
+
+    const groups = duePayouts(unitsPerDollar);
     if (!groups.length) {
       log.info(`nobody over the $${config.minPayoutUsd} floor yet — all balances carried`);
       finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });

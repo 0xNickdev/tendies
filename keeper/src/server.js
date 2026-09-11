@@ -5,7 +5,7 @@ import http from "node:http";
 import { config } from "./config.js";
 import { log } from "./log.js";
 import { snapshotHolders, solBalance } from "./solana.js";
-import { feeBalance, feeDecimals } from "./swap.js";
+import { feeBalance, feeDecimals, buybackReserve } from "./swap.js";
 import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice } from "./choice.js";
 import { accruedOf, choiceOf, profileOf } from "./store.js";
@@ -40,11 +40,12 @@ function readBody(req, limit = 4096) {
 }
 
 async function buildStatus() {
-  const [holders, fee, sol, decimals] = await Promise.all([
+  const [holders, fee, sol, decimals, reserve] = await Promise.all([
     snapshotHolders().catch(() => []),
     feeBalance().catch(() => 0n),
     solBalance().catch(() => 0),
     feeDecimals().catch(() => 6),
+    buybackReserve().catch(() => 0n),
   ]);
 
   const ledger = ledgerSummary();
@@ -68,6 +69,9 @@ async function buildStatus() {
       pendingFee: toUnits(fee.toString()),
       payoutStocks: config.payoutMints.map((p) => p.symbol),
       holders: holders.length,
+      // The TENDIE side of the creator fee. Never distributed — it accumulates
+      // as the buyback reserve, in TENDIE's own 6 decimals, not the fee token's.
+      buybackReserve: Number(reserve) / 10 ** 6,
     },
     ledger: {
       owedAccounts: ledger.owedAccounts,

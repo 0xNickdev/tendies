@@ -7,9 +7,16 @@ import { config } from "./config.js";
 import { log } from "./log.js";
 import { connection, treasury, tokenProgramFor } from "./solana.js";
 
-const JUPITER = "https://quote-api.jup.ag/v6";
+// quote-api.jup.ag/v6 was retired — its DNS record is gone, so every call
+// there fails to connect rather than returning an error worth reading.
+const JUPITER = "https://lite-api.jup.ag/swap/v1";
+
+// A dollar, in the fee token's own raw units. USDC is the reference leg
+// because one USDC is one dollar by construction.
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 let cachedDecimals = null;
+let cachedUnitsPerDollar = null;
 
 export async function feeDecimals() {
   if (cachedDecimals != null) return cachedDecimals;
@@ -24,10 +31,10 @@ export async function feeDecimals() {
 }
 
 // Raw integer units — the ledger never touches floats.
-export async function feeBalance() {
-  if (!treasury) return 0n;
+export async function treasuryBalance(mintStr) {
+  if (!treasury || !mintStr) return 0n;
   try {
-    const mint = new PublicKey(config.feeMint);
+    const mint = new PublicKey(mintStr);
     const programId = await tokenProgramFor(mint);
     const ata = await getAssociatedTokenAddress(
       mint, treasury.publicKey, false, programId,
@@ -35,7 +42,55 @@ export async function feeBalance() {
     const account = await getAccount(connection, ata, undefined, programId);
     return account.amount;
   } catch {
-    return 0n; // no fee account yet
+    return 0n; // no token account yet
+  }
+}
+
+export const feeBalance = () => treasuryBalance(config.feeMint);
+
+// The TENDIE half of the creator fee. It is deliberately never swapped or
+// distributed: it sits in the treasury as the buyback reserve. Reported so the
+// pile is visible rather than looking like a stuck balance.
+export const buybackReserve = () => treasuryBalance(config.mint);
+
+// Thrown when the fee token could not be priced and never has been. The
+// payout floor is a dollar figure, so without a rate there is no honest way to
+// decide who clears it.
+export class UnpricedFeeError extends Error {
+  constructor(why) {
+    super(`cannot price ${config.feeMint}: ${why}`);
+    this.name = "UnpricedFeeError";
+  }
+}
+
+// How many raw units of the fee token one dollar buys.
+//
+// The ledger counts fee-token units, but the payout floor is in dollars. While
+// the fee accrued in USDC those were the same number; paired against a stock
+// they differ by a factor of hundreds, so the floor has to be converted with a
+// live rate or it silently becomes a $363 floor that nobody ever clears.
+export async function feeUnitsPerDollar() {
+  if (config.feeMint === USDC_MINT) return 1_000_000n; // a dollar is a dollar
+
+  try {
+    const url =
+      `${JUPITER}/quote?inputMint=${USDC_MINT}&outputMint=${config.feeMint}` +
+      `&amount=1000000&slippageBps=${config.slippageBps}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { outAmount } = await res.json();
+    const units = BigInt(outAmount ?? 0);
+    if (units <= 0n) throw new Error("empty quote");
+    cachedUnitsPerDollar = units;
+    return units;
+  } catch (e) {
+    // A stale rate is far better than a wrong one: too high a floor only makes
+    // balances carry to the next epoch, which costs nobody anything.
+    if (cachedUnitsPerDollar) {
+      log.warn(`  could not price the fee token (${e.message}) — reusing the last rate`);
+      return cachedUnitsPerDollar;
+    }
+    throw new UnpricedFeeError(e.message);
   }
 }
 
@@ -80,6 +135,15 @@ async function quoteWithRetries(outputMint, rawAmount) {
 }
 
 export async function swapFeeInto(outputMint, rawAmount) {
+  // Paying out the very token the fee accrues in — pairing against TSLAx makes
+  // this the common case, not an edge one. Asking Jupiter to route a mint to
+  // itself just fails, and the caller's NoRouteError fallback would then pay
+  // the right amount while logging a false alarm. Say so up front instead.
+  if (outputMint === config.feeMint) {
+    log.info(`  ${rawAmount} already in the payout token — no swap needed`);
+    return null; // null means "units unchanged", which is exactly true here
+  }
+
   if (config.dryRun || !treasury) {
     log.info(`  [dry-run] swap ${rawAmount} fee → ${outputMint}`);
     return null;

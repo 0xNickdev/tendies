@@ -30,8 +30,13 @@ export function payoutFor(owner) {
 }
 
 // Everyone whose accrued balance clears the floor, grouped by chosen stock.
-export function duePayouts(feeDecimals) {
-  const minRaw = BigInt(Math.round(config.minPayoutUsd * 10 ** feeDecimals));
+//
+// unitsPerDollar comes from feeUnitsPerDollar(): the floor is a dollar figure
+// but the ledger counts fee-token units, and those only coincide while the fee
+// accrues in a stablecoin.
+export function duePayouts(unitsPerDollar) {
+  const minRaw =
+    (BigInt(Math.round(config.minPayoutUsd * 1e6)) * unitsPerDollar) / 1_000_000n;
   const groups = new Map();
 
   for (const { owner, accrued } of eligible(minRaw)) {
