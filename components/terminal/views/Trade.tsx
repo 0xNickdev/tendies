@@ -11,34 +11,37 @@ import { useToast } from "../Toast";
 type Side = "buy" | "sell";
 
 export function Trade() {
-  const { wallet, connect, walletUsdc, tendieBalance, buyToken, sellToken } =
+  const { wallet, connect, walletQuote, tendieBalance, buyToken, sellToken } =
     useStore();
   const { push } = useToast();
   const [side, setSide] = useState<Side>("buy");
   const [amount, setAmount] = useState("");
   const [pending, setPending] = useState(false);
 
-  const taxRate = TREASURY.taxRateBps / 10_000;
+  // What the trader pays, and what of it reaches the treasury — two numbers.
+  const poolFee = TREASURY.poolFeeBps / 10_000;
+  const treasuryCut = TREASURY.treasuryFeeBps / 10_000;
   const price = TREASURY.tokenPriceUsd;
+  const quote = TREASURY.quoteSymbol;
   const numAmount = parseFloat(amount) || 0;
 
   const calc = useMemo(() => {
-    if (side === "buy") {
-      const tax = numAmount * taxRate;
-      const net = numAmount - tax;
-      const tokens = price > 0 ? net / price : 0;
-      return { tax, net, tokens, outLabel: `${TREASURY.tokenSymbol} received` };
-    } else {
-      const gross = numAmount * price;
-      const tax = gross * taxRate;
-      const net = gross - tax;
-      return { tax, net, tokens: net, outLabel: "USDC received" };
-    }
-  }, [numAmount, side, taxRate, price]);
+    // Both legs are denominated in the quote asset, because that is the other
+    // side of the pool — there is no stablecoin anywhere in this trade.
+    const gross = side === "buy" ? numAmount : numAmount * price;
+    const fee = gross * poolFee;
+    const net = gross - fee;
+    return {
+      fee,
+      toTreasury: gross * treasuryCut,
+      net,
+      tokens: side === "buy" ? (price > 0 ? net / price : 0) : net,
+    };
+  }, [numAmount, side, poolFee, treasuryCut, price]);
 
-  const max = side === "buy" ? walletUsdc : tendieBalance;
+  const max = side === "buy" ? walletQuote : tendieBalance;
   const overBalance = numAmount > max + 1e-9;
-  const unit = side === "buy" ? "USDC" : TREASURY.tokenSymbol;
+  const unit = side === "buy" ? quote : TREASURY.tokenSymbol;
 
   const submit = () => {
     if (!FEATURES.tradeLive) return; // unlocks with the token launch
@@ -52,7 +55,7 @@ export function Trade() {
         push(`Bought ${fmtNum(calc.tokens)} ${TREASURY.tokenSymbol}`, "success");
       } else {
         sellToken(numAmount);
-        push(`Sold for ${fmtUSD(calc.net)}`, "success");
+        push(`Sold for ${fmtNum(calc.net)} ${quote}`, "success");
       }
       setAmount("");
       setPending(false);
@@ -63,7 +66,7 @@ export function Trade() {
     <div className="mx-auto max-w-xl">
       <ViewHeader
         title="Trade"
-        subtitle={`Buy or sell ${TREASURY.tokenSymbol}. A ${TREASURY.taxRateBps / 100}% tax routes to the treasury on every trade.`}
+        subtitle={`Buy or sell ${TREASURY.tokenSymbol} against ${quote}. The pool takes ${TREASURY.poolFeeBps / 100}% per trade, of which ${TREASURY.treasuryFeeBps / 100}% funds the treasury.`}
         right={
           !FEATURES.tradeLive ? (
             <span className="chip !border-tendie !bg-tendie !text-ink-950">Soon</span>
@@ -159,13 +162,18 @@ export function Trade() {
               {fmtNum(calc.tokens)}
             </span>
             <span className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-sm font-semibold text-mist-200">
-              {side === "buy" ? TREASURY.tokenSymbol : "USDC"}
+              {side === "buy" ? TREASURY.tokenSymbol : quote}
             </span>
           </div>
         </div>
 
         <div className="mt-5 space-y-2.5 rounded-xl border border-tendie/10 bg-ink-900/40 p-4 text-sm">
-          <Row label={`Treasury tax (${TREASURY.taxRateBps / 100}%)`} value={fmtUSD(calc.tax)} accent />
+          <Row label={`Pool fee (${TREASURY.poolFeeBps / 100}%)`} value={`${fmtNum(calc.fee)} ${quote}`} />
+          <Row
+            label={`↳ to treasury (${TREASURY.treasuryFeeBps / 100}%)`}
+            value={`${fmtNum(calc.toTreasury)} ${quote}`}
+            accent
+          />
           <Row label={`${TREASURY.tokenSymbol} price`} value={price > 0 ? fmtUSD(price) : "TBA at launch"} />
           <Row label="Network" value="Solana" />
           <Row label="Est. network fee" value="~$0.004" />
@@ -196,8 +204,9 @@ export function Trade() {
         </button>
 
         <p className="mt-3 text-center text-xs text-mist-400">
-          The {TREASURY.taxRateBps / 100}% tax is split between treasury growth
-          and holder claims.
+          TENDIE itself is untaxed — the {TREASURY.poolFeeBps / 100}% is charged
+          by the pool. {TREASURY.treasuryFeeBps / 100}% of it funds the stock
+          rewards; stonkfun keeps the rest.
         </p>
       </div>
     </div>

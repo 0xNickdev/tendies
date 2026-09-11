@@ -182,7 +182,7 @@ export function Mechanics() {
           </div>
           <ul className="divide-y divide-tendie/10">
             {[
-              ["Buy / sell tax", `${TREASURY.taxRateBps / 100}% → treasury`],
+              ["Pool fee", `${TREASURY.poolFeeBps / 100}% per trade → ${TREASURY.treasuryFeeBps / 100}% to treasury`],
               ["Rewards paid in", "Real tokenized stocks"],
               ["Your pick", "TSLAx · NVDAx · SPCXx"],
               ["Distribution", "Every 30 minutes"],
@@ -251,7 +251,7 @@ export function Mechanics() {
 export function Stats() {
   const stats = [
     { label: "Treasury size", value: "TBA" },
-    { label: "Trade tax", value: `${TREASURY.taxRateBps / 100}%` },
+    { label: "To treasury", value: `${TREASURY.treasuryFeeBps / 100}% per trade` },
     { label: "Payout cycle", value: "30 min" },
     { label: "Network", value: NETWORK.name },
   ];

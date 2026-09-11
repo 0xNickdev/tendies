@@ -58,8 +58,8 @@ type Store = {
   wallet: WalletState;
   walletMissing: boolean; // no Solana wallet injected in this browser
   tendieBalance: number;
-  claimUsdc: number;
-  walletUsdc: number;
+  claimUsd: number; // the accrued claim in dollars, not in any stablecoin
+  walletQuote: number; // balance of the quote asset (TSLAx)
   shareBps: number;
   positions: Position[];
   history: ClosedPosition[];
@@ -132,8 +132,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
   const [walletMissing, setWalletMissing] = useState(false);
   const [tendieBalance, setTendie] = useState(0);
-  const [claimUsdc, setClaim] = useState(0);
-  const [walletUsdc, setWalletUsdc] = useState(0);
+  const [claimUsd, setClaim] = useState(0);
+  const [walletQuote, setWalletQuote] = useState(0);
   const [shareBps, setShareBps] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedPosition[]>([]);
@@ -243,21 +243,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [adopt]);
 
   // Trade is gated behind FEATURES.tradeLive — these stay inert until launch.
-  const buyToken = useCallback((usdc: number) => {
-    if (usdc <= 0 || TREASURY.tokenPriceUsd <= 0) return;
-    const taxed = usdc * (1 - TREASURY.taxRateBps / 10_000);
-    const tokens = taxed / TREASURY.tokenPriceUsd;
-    setWalletUsdc((b) => Math.max(0, b - usdc));
+  const buyToken = useCallback((quote: number) => {
+    if (quote <= 0 || TREASURY.tokenPriceUsd <= 0) return;
+    // The trader loses the whole pool fee; only our slice reaches the treasury.
+    const net = quote * (1 - TREASURY.poolFeeBps / 10_000);
+    const tokens = net / TREASURY.tokenPriceUsd;
+    setWalletQuote((b) => Math.max(0, b - quote));
     setTendie((b) => b + tokens);
-    setClaim((c) => c + usdc * (TREASURY.taxRateBps / 10_000) * 0.4);
+    setClaim((c) => c + quote * (TREASURY.treasuryFeeBps / 10_000));
   }, []);
 
   const sellToken = useCallback((tendie: number) => {
     if (tendie <= 0 || TREASURY.tokenPriceUsd <= 0) return;
     const gross = tendie * TREASURY.tokenPriceUsd;
-    const taxed = gross * (1 - TREASURY.taxRateBps / 10_000);
+    const net = gross * (1 - TREASURY.poolFeeBps / 10_000);
     setTendie((b) => Math.max(0, b - tendie));
-    setWalletUsdc((b) => b + taxed);
+    setWalletQuote((b) => b + net);
   }, []);
 
   const openPosition = useCallback(
@@ -328,8 +329,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wallet,
       walletMissing,
       tendieBalance,
-      claimUsdc,
-      walletUsdc,
+      claimUsd,
+      walletQuote,
       shareBps,
       positions,
       history,
@@ -351,8 +352,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wallet,
       walletMissing,
       tendieBalance,
-      claimUsdc,
-      walletUsdc,
+      claimUsd,
+      walletQuote,
       shareBps,
       positions,
       history,

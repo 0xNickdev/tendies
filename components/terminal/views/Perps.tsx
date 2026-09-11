@@ -18,7 +18,7 @@ export function Perps() {
   const {
     wallet,
     connect,
-    claimUsdc,
+    claimUsd,
     positions,
     openPosition,
     closePosition,
@@ -37,7 +37,7 @@ export function Perps() {
   const entry = quotePrice(quotes, market);
   const numMargin = parseFloat(margin) || 0;
   const size = numMargin * lev;
-  const overBalance = numMargin > claimUsdc + 1e-9;
+  const overBalance = numMargin > claimUsd + 1e-9;
 
   const liq = useMemo(() => {
     const move = entry / lev;
@@ -157,10 +157,10 @@ export function Perps() {
             <div className="mb-2 flex items-center justify-between">
               <span className="label">Margin (from claim)</span>
               <button
-                onClick={() => setMargin(String(Math.floor(claimUsdc)))}
+                onClick={() => setMargin(String(Math.floor(claimUsd)))}
                 className="text-xs text-tendie hover:underline"
               >
-                Avail: {fmtUSD(claimUsdc)} · Max
+                Avail: {fmtUSD(claimUsd)} · Max
               </button>
             </div>
             <div
@@ -176,7 +176,7 @@ export function Perps() {
                 className="num w-full bg-transparent text-2xl font-semibold text-white outline-none placeholder:text-mist-500"
               />
               <span className="shrink-0 rounded-lg bg-tendie/10 px-3 py-1.5 text-sm font-semibold text-tendie">
-                USDC
+                USD
               </span>
             </div>
             {overBalance && (

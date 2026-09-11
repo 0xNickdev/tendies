@@ -14,7 +14,13 @@ export const FEATURES = {
 // is wired in.
 export const TREASURY = {
   totalUsdc: 0,
-  taxRateBps: 150, // 1.5% of every trade → treasury (the pool charges 2%)
+  // Two different numbers, and conflating them is how the site ended up
+  // promising 4%. poolFeeBps is what the trader pays; treasuryFeeBps is our
+  // slice of it, which is the entire reward budget. stonkfun keeps the rest.
+  poolFeeBps: 200, // the 2% fee tier, chosen once at launch
+  treasuryFeeBps: 150, // → treasury
+  // TENDIE is priced against this, not against a stablecoin.
+  quoteSymbol: "TSLAx",
   tokenPriceUsd: 0,
   tokenSymbol: "TENDIE",
   // Where the 1.5% comes from: the stonkfun launchpad's creator fee share on
