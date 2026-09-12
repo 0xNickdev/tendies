@@ -154,7 +154,7 @@ export function Treasury() {
 
           <div className="mt-5">
             <span className="label">Receive rewards as</span>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {PAYOUT_STOCKS.map((st) => {
                 const price = quotePrice(quotes, st.symbol);
                 const active = payout === st.symbol;
@@ -182,8 +182,8 @@ export function Treasury() {
               {saving
                 ? "Saving your choice - approve the signature in your wallet…"
                 : minPayoutUsd > 0
-                  ? `1:1-backed xStocks on Solana, held in your own wallet. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} - small amounts keep accruing instead of being eaten by network fees.`
-                  : "1:1-backed xStocks on Solana - held in your own wallet."}
+                  ? `Tokenized stocks on Solana, held in your own wallet - xStocks are 1:1-backed, OPENAI is pre-IPO exposure via PreStocks. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} - small amounts keep accruing instead of being eaten by network fees.`
+                  : "Tokenized stocks on Solana - held in your own wallet. xStocks are 1:1-backed; OPENAI is pre-IPO exposure via PreStocks."}
             </p>
           </div>
 

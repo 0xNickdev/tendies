@@ -37,7 +37,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
       <ViewHeader
         title="Dashboard"
         subtitle="Your Tendies account at a glance - live reward markets."
-        right={<LiveFeedChip />}
+        right={<LiveFeedChip label={feedLabel(market)} />}
       />
 
       {!wallet.connected && (
