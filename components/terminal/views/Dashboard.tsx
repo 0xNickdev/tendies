@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TREASURY } from "@/lib/mock";
 import { PAYOUT_STOCKS, type StockSym } from "@/lib/stocks";
@@ -18,6 +18,16 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
   const keeper = useKeeperStatus();
 
   const [market, setMarket] = useState<StockSym>("TSLA");
+
+  // Open on the market the reader clicked. Read from the URL after mount rather
+  // than through useSearchParams, which would force this whole view behind a
+  // Suspense boundary for one optional string.
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("market");
+    if (want && PAYOUT_STOCKS.some((s) => s.symbol === want)) {
+      setMarket(want as StockSym);
+    }
+  }, []);
   const marketStock = PAYOUT_STOCKS.find((s) => s.symbol === market)!;
   const marketPrice = quotePrice(quotes, market);
   const marketChg = quotes[market]?.changePct ?? 0;

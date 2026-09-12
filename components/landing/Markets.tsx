@@ -23,6 +23,26 @@ const FILTERS: { id: "all" | MarketClass; label: string }[] = [
   { id: "nasdaq", label: "Nasdaq" },
 ];
 
+// A market card: a link for the stocks you can actually receive, an inert panel
+// for the ones that are only on the feed.
+function Card({
+  symbol,
+  payout,
+  children,
+  ...rest
+}: {
+  symbol: string;
+  payout: boolean;
+  children: React.ReactNode;
+} & React.HTMLAttributes<HTMLElement>) {
+  if (!payout) return <div {...rest}>{children}</div>;
+  return (
+    <Link href={`/terminal?market=${symbol}`} {...rest}>
+      {children}
+    </Link>
+  );
+}
+
 export function Markets() {
   const quotes = useQuotes();
   const reduced = useReducedMotion();
@@ -99,11 +119,16 @@ export function Markets() {
       </div>
 
       {/* listing grid */}
+      {/* A card only links where there is something to open. The terminal
+          charts the three payout stocks and nothing else, so sending a feed-only
+          ticker there used to land the reader on Tesla — a card promising GME
+          and delivering something else. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((m, i) => (
           <Reveal key={m.symbol} delay={Math.min(i, 7) * 45}>
-          <Link
-            href="/terminal"
+          <Card
+            symbol={m.symbol}
+            payout={m.classes.includes("payout")}
             onPointerMove={(e) => {
               if (reduced) return;
               // tilt the card toward the cursor — depth without a library
@@ -167,7 +192,7 @@ export function Markets() {
                 )}
               </div>
             </div>
-          </Link>
+          </Card>
           </Reveal>
         ))}
       </div>
