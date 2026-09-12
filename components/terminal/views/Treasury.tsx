@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TREASURY } from "@/lib/mock";
-import { PAYOUT_STOCKS, DISTRIBUTION_MINUTES, type StockSym } from "@/lib/stocks";
+import { PAYOUT_STOCKS, DEFAULT_STOCK, DISTRIBUTION_MINUTES, feedLabel, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
 import { solscanTx } from "@/lib/keeper";
@@ -53,7 +53,7 @@ export function Treasury() {
   const { push } = useToast();
   const [saving, setSaving] = useState(false);
   // the keeper is the source of truth; local state is only the optimistic view
-  const [local, setLocal] = useState<StockSym>("TSLA");
+  const [local, setLocal] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const payout = payoutChoice ?? local;
 
   // Persisting the pick costs a wallet signature, not a transaction.
@@ -133,7 +133,7 @@ export function Treasury() {
               );
             })}
             <span className="ml-auto hidden sm:block">
-              <LiveFeedChip label={quotes[payout]?.live ? "Live · Nasdaq feed" : "On-chain priced"} />
+              <LiveFeedChip label={quotes[payout]?.live ? feedLabel(payout) : "On-chain priced"} />
             </span>
           </div>
           <CandleChart symbol={payout} basePrice={payoutPrice} height={300} />

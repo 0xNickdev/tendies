@@ -135,7 +135,7 @@ async function quoteWithRetries(outputMint, rawAmount) {
 }
 
 export async function swapFeeInto(outputMint, rawAmount) {
-  // Paying out the very token the fee accrues in — pairing against TSLAx makes
+  // Paying out the very token the fee accrues in — pairing against OPENAI makes
   // this the common case, not an edge one. Asking Jupiter to route a mint to
   // itself just fails, and the caller's NoRouteError fallback would then pay
   // the right amount while logging a false alarm. Say so up front instead.

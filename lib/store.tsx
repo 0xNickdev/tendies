@@ -59,7 +59,7 @@ type Store = {
   walletMissing: boolean; // no Solana wallet injected in this browser
   tendieBalance: number;
   claimUsd: number; // the accrued claim in dollars, not in any stablecoin
-  walletQuote: number; // balance of the quote asset (TSLAx)
+  walletQuote: number; // balance of the quote asset (OPENAI)
   shareBps: number;
   positions: Position[];
   history: ClosedPosition[];

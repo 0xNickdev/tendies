@@ -88,9 +88,9 @@ const PHASES: Phase[] = [
     statusLabel: "Shipped · Live",
     title: "Token & Treasury",
     points: [
-      "TENDIE paired with TSLAx - 1.5% of every trade tithes to the treasury",
-      "Rewards in real tokenized stocks - TSLAx, NVDAx or SPCXx, your pick",
-      "Distribution every 30 minutes + live Nasdaq price feed",
+      "TENDIE paired with OPENAI - 1.5% of every trade tithes to the treasury",
+      "Rewards in tokenized stocks - OPENAI, TSLAx, NVDAx or SPCXx, your pick",
+      "Distribution every 30 minutes + live Nasdaq & DEX price feeds",
     ],
     icon: <BasketFull />,
     cta: { label: "Enter Terminal", href: "/terminal" },
@@ -101,7 +101,7 @@ const PHASES: Phase[] = [
     statusLabel: "In the fryer · Soon",
     title: "Stock Perps",
     points: [
-      "Long / short TSLA, NVDA & SPCX oracle marks",
+      "Long / short OPENAI, TSLA, NVDA & SPCX oracle marks",
       "1-10× leverage, treasury claim as margin",
       "Mandatory risk gating before every trade",
     ],

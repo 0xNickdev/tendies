@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TREASURY } from "@/lib/mock";
-import { PAYOUT_STOCKS, type StockSym } from "@/lib/stocks";
+import { PAYOUT_STOCKS, DEFAULT_STOCK, feedLabel, type StockSym } from "@/lib/stocks";
 import { BUY_TENDIE_URL } from "@/lib/config";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
@@ -17,7 +17,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
   const quotes = useQuotes();
   const keeper = useKeeperStatus();
 
-  const [market, setMarket] = useState<StockSym>("TSLA");
+  const [market, setMarket] = useState<StockSym>(DEFAULT_STOCK.symbol);
 
   // Open on the market the reader clicked. Read from the URL after mount rather
   // than through useSearchParams, which would force this whole view behind a
@@ -110,7 +110,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
               );
             })}
             <span className="ml-auto hidden sm:block">
-              <LiveFeedChip label={quotes[market]?.live ? "Live · Nasdaq feed" : "On-chain priced"} />
+              <LiveFeedChip label={quotes[market]?.live ? feedLabel(market) : "On-chain priced"} />
             </span>
           </div>
 

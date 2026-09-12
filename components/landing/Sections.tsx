@@ -33,9 +33,9 @@ export function About() {
           </h2>
           <p className="mt-6 text-pretty leading-relaxed text-mist-300">
             Stocks used to be gated behind brokers, borders, and market hours.
-            xStocks put real equities on Solana - Tendies turns them into a
-            reward. Hold TENDIE and the treasury pays you tokenized Tesla, NVIDIA
-            or SpaceX every 30 minutes, straight to your wallet.
+            Tokenized equities put them on Solana - Tendies turns them into a
+            reward. Hold TENDIE and the treasury pays you tokenized OpenAI,
+            Tesla, NVIDIA or SpaceX every 30 minutes, straight to your wallet.
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-mist-300">
             The token itself grants no equity. TENDIE carries no transfer tax at
@@ -62,6 +62,7 @@ export function About() {
           </div>
           <ul className="divide-y divide-tendie/10">
             {[
+              ["OPENAI", "OpenAI · pre-IPO"],
               ["TSLAx", "Tesla"],
               ["NVDAx", "NVIDIA"],
               ["SPCXx", "SpaceX · biggest IPO in history"],
@@ -91,7 +92,7 @@ export function Mission() {
     },
     {
       title: "A self-sustaining treasury",
-      body: "Every buy and sell pays a small tax into a shared treasury. Every 30 minutes it distributes real tokenized stocks - TSLA, NVDA or SpaceX, your pick - pro-rata to holders.",
+      body: "Every buy and sell pays a small tax into a shared treasury. Every 30 minutes it distributes tokenized stocks - OpenAI, TSLA, NVDA or SpaceX, your pick - pro-rata to holders.",
     },
     {
       title: "Conviction, expressed",
@@ -184,7 +185,7 @@ export function Mechanics() {
             {[
               ["Pool fee", `${TREASURY.poolFeeBps / 100}% per trade → ${TREASURY.treasuryFeeBps / 100}% to treasury`],
               ["Rewards paid in", "Real tokenized stocks"],
-              ["Your pick", "TSLAx · NVDAx · SPCXx"],
+              ["Your pick", "OPENAI · TSLAx · NVDAx · SPCXx"],
               ["Distribution", "Every 30 minutes"],
             ].map(([k, v]) => (
               <li
@@ -219,7 +220,7 @@ export function Mechanics() {
           <ul className="divide-y divide-tendie/10">
             {[
               ["Margin source", "Your treasury claim"],
-              ["Markets", "TSLA · NVDA · SPCX"],
+              ["Markets", "OPENAI · TSLA · NVDA · SPCX"],
               ["Direction", "Long (up) / Short (down)"],
               ["Outcome", "Win grows · lose shrinks"],
             ].map(([k, v]) => (
@@ -281,15 +282,15 @@ export function FAQ() {
   const faqs = [
     {
       q: "Do I own real shares?",
-      a: "The rewards are real xStocks (TSLAx, NVDAx, SPCXx) - 1:1-collateralised equity tokens on Solana, held in your own wallet. TENDIE itself is a utility token and confers no equity or shareholder rights. Not affiliated with the underlying companies.",
+      a: "The rewards are tokenized equities on Solana, held in your own wallet. TSLAx, NVDAx and SPCXx are xStocks - 1:1-collateralised equity tokens. OPENAI is a PreStocks token: pre-IPO exposure via an SPV that holds the shares, not a share itself. TENDIE confers no equity or shareholder rights. Not affiliated with the underlying companies.",
     },
     {
       q: "Where does the price data come from?",
-      a: "The reward stocks trade on Nasdaq (SpaceX is priced on-chain). We show live quotes in the app, and perps settle against official oracle marks published on-chain.",
+      a: "Tesla, NVIDIA and SpaceX trade on Nasdaq; OpenAI is not listed yet, so its price is the on-chain pool's. We show live quotes in the app, and perps settle against official oracle marks published on-chain.",
     },
     {
       q: "How do I receive real stocks?",
-      a: "Rewards are paid in xStocks - Backed Finance's 1:1-collateralised equity tokens on Solana. In the Treasury tab you pick the payout asset (TSLAx, NVDAx or SPCXx); every 30 minutes the treasury distributes it pro-rata, straight to your wallet.",
+      a: "Rewards are paid in tokenized equities on Solana - OpenAI via PreStocks, the rest as Backed Finance xStocks. In the Treasury tab you pick the payout asset (OPENAI, TSLAx, NVDAx or SPCXx); every 30 minutes the treasury distributes it pro-rata, straight to your wallet. If you never pick, you get OPENAI.",
     },
     {
       q: "How does the treasury make money?",
@@ -297,7 +298,7 @@ export function FAQ() {
     },
     {
       q: "What are the perps?",
-      a: "A perpetual-futures market on the reward stocks (TSLA, NVDA, SPCX). You post your treasury claim as margin, pick long or short with leverage, and settle against the next published oracle mark. Liquidation applies if the mark moves far enough against you.",
+      a: "A perpetual-futures market on the reward stocks (OPENAI, TSLA, NVDA, SPCX). You post your treasury claim as margin, pick long or short with leverage, and settle against the next published oracle mark. Liquidation applies if the mark moves far enough against you.",
     },
     {
       q: "What chain is this on?",

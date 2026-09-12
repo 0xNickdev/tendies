@@ -4,7 +4,7 @@
 // below; these are the tokenomics constants that sell the mechanic.
 export function HeroStats() {
   const stats = [
-    { value: "TSLA · NVDA · SPCX", label: "Reward Stocks" },
+    { value: "OpenAI · TSLA · NVDA · SPCX", label: "Reward Stocks" },
     { value: "30 min", label: "Payout Cycle" },
     { value: "1.5%", label: "To Treasury" },
     { value: "1B", label: "Supply" },

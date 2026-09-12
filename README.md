@@ -1,6 +1,6 @@
 # Tendies
 
-Tokenized-stock exposure (TSLA · NVDA · SPCX) on **Solana** — a mobile-first
+Tokenized-stock exposure (OpenAI · TSLA · NVDA · SPCX) on **Solana** — a mobile-first
 DeFi app. $TENDIE launches on the **stonkfun** launchpad; hold it and the
 treasury pays you **real xStocks** of your choice every **30 minutes**, then
 speculate on the next oracle mark with on-chain perps.
@@ -71,8 +71,9 @@ lib/
 Frontend and backend ship together — the Next.js app *is* the full stack:
 
 - **Backend**: `app/api/prices/route.ts` serves live quotes for
-  TSLA/NVDA/SPCX/NVDA/AAPL/GME/PLTR/COIN. Primary source Yahoo Finance,
-  fallback Stooq, final fallback seed prices (flagged `live:false`).
+  OPENAI/TSLA/NVDA/SPCX/AAPL/GME/PLTR/COIN. Listed stocks: Yahoo Finance,
+  fallback CNBC; OPENAI (pre-IPO, no ticker): Jupiter pool price by mint.
+  Final fallback seed prices (flagged `live:false`).
   No API keys or env vars required. Responses cache for 30s.
 - **Frontend**: landing ticker, perps market tabs, candle chart and treasury
   payout pricing all poll `/api/prices` every 60s via `lib/useQuotes.ts`.

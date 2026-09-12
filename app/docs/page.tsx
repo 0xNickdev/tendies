@@ -6,7 +6,7 @@ import { TENDIE_MINT, TREASURY_WALLET, explorerAccount } from "@/lib/config";
 export const metadata: Metadata = {
   title: "Tendies Docs - How it works",
   description:
-    "Full documentation for Tendies: the TENDIE token on Solana, the 1.5% treasury fee, 30-minute xStock rewards (TSLA · NVDA · SPCX), perps, the keeper, and security.",
+    "Full documentation for Tendies: the TENDIE token on Solana, the 1.5% treasury fee, 30-minute tokenized-stock rewards (OpenAI · TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
 
 // xStock mints get pasted in from the official xStocks list at launch — see
@@ -141,7 +141,7 @@ export default function DocsPage() {
                 Solana that turns trading activity into{" "}
                 <b className="text-tendie">real tokenized stocks</b>. Hold the{" "}
                 <b className="text-white">TENDIE</b> token and the treasury pays
-                you tokenized Tesla, NVIDIA or SpaceX - your pick - every{" "}
+                you tokenized OpenAI, Tesla, NVIDIA or SpaceX - your pick - every{" "}
                 <b className="text-white">30 minutes</b>, straight to your
                 wallet.
               </p>
@@ -154,7 +154,7 @@ export default function DocsPage() {
                 {[
                   ["Hold", "Buy & hold TENDIE"],
                   ["Earn", "Tokenized stocks every 30 min"],
-                  ["Pick", "TSLA · NVDA · SPCX"],
+                  ["Pick", "OPENAI · TSLA · NVDA · SPCX"],
                 ].map(([h, b]) => (
                   <div key={h} className="panel p-4">
                     <div className="font-mono text-xs font-black uppercase text-tendie">{h}</div>
@@ -185,11 +185,11 @@ export default function DocsPage() {
               </ol>
               <p className="rounded-lg border border-tendie/20 bg-tendie/5 p-4 text-sm text-mist-200">
                 <b className="text-tendie">Under the hood:</b> the fee arrives
-                in the token TENDIE is paired against - TSLAx - so that is what
+                in the token TENDIE is paired against - OPENAI - so that is what
                 the ledger counts until payout. Your balance is therefore held
-                in Tesla, not in dollars, and moves with it; the payout floor is
+                in OpenAI, not in dollars, and moves with it; the payout floor is
                 converted from dollars at the live rate each epoch. If a stock&apos;s
-                pool is ever unroutable, that group is paid in TSLAx instead of
+                pool is ever unroutable, that group is paid in OPENAI instead of
                 waiting.
               </p>
             </Section>
@@ -198,7 +198,7 @@ export default function DocsPage() {
               <div className="panel p-6">
                 <Row k="Token" v="TENDIE" />
                 <Row k="Total supply" v="1,000,000,000 (fixed, no mint)" />
-                <Row k="Quote pair" v="TSLAx - permanent, set at launch" />
+                <Row k="Quote pair" v="OPENAI (PreStocks) - permanent, set at launch" />
                 <Row k="Pool fee" v="2% per trade" />
                 <Row k="→ Treasury" v="1.5% of every trade" />
                 <Row k="→ Launchpad" v="0.5% of every trade" />
@@ -215,13 +215,13 @@ export default function DocsPage() {
 
             <Section id="rewards" n="04" title="Rewards & distribution">
               <div className="panel p-6">
-                <Row k="Reward assets" v="TSLAx · NVDAx · SPCXx" />
-                <Row k="Backing" v="1:1-backed xStocks on Solana" />
+                <Row k="Reward assets" v="OPENAI · TSLAx · NVDAx · SPCXx" />
+                <Row k="Backing" v="xStocks 1:1-backed · OPENAI via PreStocks SPV" />
                 <Row k="Accrual" v="Every 30 minutes, automatic" />
                 <Row k="Eligibility" v="Pro-rata to every TENDIE holder" />
                 <Row k="Sent when" v="Your balance passes the payout floor" />
                 <Row k="Custody" v="Straight to your own wallet" />
-                <Row k="Default payout" v="Tesla (TSLAx) if you never pick" />
+                <Row k="Default payout" v="OpenAI (OPENAI) if you never pick" />
               </div>
               <p>
                 Two things happen on different clocks.{" "}
@@ -247,9 +247,10 @@ export default function DocsPage() {
               </p>
             </Section>
 
-            <Section id="stocks" n="05" title="The stocks - and why these three">
-              <div className="grid gap-4 sm:grid-cols-3">
+            <Section id="stocks" n="05" title="The stocks - and why these four">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {[
+                  ["OPENAI", "OpenAI", "The most anticipated IPO on the planet, and you cannot buy it on any exchange - this is the only way in before it lists."],
                   ["TSLAx", "Tesla", "The most-traded retail stock on Earth - cult following, huge volatility."],
                   ["NVDAx", "NVIDIA", "The AI trade itself - the most-watched company on the planet."],
                   ["SPCXx", "SpaceX", "The biggest IPO in history (June 2026) - Elon\u2019s rocket company, freshly public and one of the most hyped tickers on the market."],
@@ -262,8 +263,13 @@ export default function DocsPage() {
                 ))}
               </div>
               <p className="text-sm text-mist-300">
-                All three are xStocks - Backed Finance&apos;s 1:1-collateralised
-                equity tokens on Solana, tracking their Nasdaq-listed shares.
+                Tesla, NVIDIA and SpaceX are xStocks - Backed Finance&apos;s
+                1:1-collateralised equity tokens on Solana, tracking their
+                Nasdaq-listed shares. OpenAI is a PreStocks token: it tracks
+                shares held by an SPV in a private company, so there is no
+                exchange price - it is priced by its on-chain pool - and OpenAI
+                has publicly said it does not recognise such transfers. It is
+                exposure, not a share.
               </p>
             </Section>
 
@@ -288,7 +294,7 @@ export default function DocsPage() {
                 <Row k="Token program" v="SPL Token" />
                 <Row k="Explorer" v={<Addr>solscan.io</Addr>} />
                 <Row k="Gas token" v="SOL" />
-                <Row k="Ledger unit" v="TSLAx - what the fee arrives in" />
+                <Row k="Ledger unit" v="OPENAI - what the fee arrives in" />
               </div>
               <p className="text-sm text-mist-300">
                 Connect any Solana wallet - Phantom, Solflare or anything that
@@ -344,9 +350,9 @@ export default function DocsPage() {
 
             <Section id="faq" n="09" title="FAQ">
               {[
-                ["Do I own real shares?", "No. Rewards are tokenized stocks (1:1-backed) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
+                ["Do I own real shares?", "No. Rewards are tokenized stocks (xStocks 1:1-backed; OPENAI is SPV-backed pre-IPO exposure) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
                 ["Where do rewards come from?", "Purely from the 1.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
-                ["What if I never pick a stock?", "You receive the default (TSLAx). You can change your payout stock any time in the Treasury tab."],
+                ["What if I never pick a stock?", "You receive the default (OPENAI). You can change your payout stock any time in the Treasury tab."],
                 ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
                 ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch - the mint address will appear here and on the dashboard."],
               ].map(([q, a]) => (
@@ -374,7 +380,7 @@ export default function DocsPage() {
           <p className="mt-10 border-t border-tendie/10 pt-6 font-mono text-xs text-mist-500">
             Synthetic exposure only · No equity · Not investment advice · DeFi
             carries risk of total loss. Not affiliated with Robinhood Markets,
-            Inc., Tesla, Inc., NVIDIA Corp. or SpaceX.
+            Inc., OpenAI, Tesla, Inc., NVIDIA Corp. or SpaceX.
           </p>
         </div>
       </div>

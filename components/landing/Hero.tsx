@@ -78,9 +78,9 @@ export function Hero() {
             style={{ animationDelay: "120ms" }}
           >
             Tokenized stock exposure - 24/7, on-chain, no brokerage account.
-            Hold $TENDIE and the treasury pays you real xStocks - Tesla, NVIDIA
-            or even SpaceX - every 30 minutes. Then put the stack to work on
-            perps.
+            Hold $TENDIE and the treasury pays you tokenized OpenAI - before
+            the IPO - or Tesla, NVIDIA, SpaceX, every 30 minutes. Then put the
+            stack to work on perps.
           </p>
 
           <div

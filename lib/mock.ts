@@ -20,7 +20,7 @@ export const TREASURY = {
   poolFeeBps: 200, // the 2% fee tier, chosen once at launch
   treasuryFeeBps: 150, // → treasury
   // TENDIE is priced against this, not against a stablecoin.
-  quoteSymbol: "TSLAx",
+  quoteSymbol: "OPENAI",
   tokenPriceUsd: 0,
   tokenSymbol: "TENDIE",
   // Where the 1.5% comes from: the stonkfun launchpad's creator fee share on

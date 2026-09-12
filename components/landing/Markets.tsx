@@ -36,17 +36,18 @@ export function Markets() {
         <div>
           <span className="chip mb-5">// 01 · Markets</span>
           <h2 className="display text-balance text-4xl text-white sm:text-5xl">
-            Three stocks on the menu.
+            Four stocks on the menu.
           </h2>
           <p className="mt-4 max-w-xl text-pretty leading-relaxed text-mist-300">
-            Pick one and it lands in your wallet every 30 minutes, as a real
-            tokenized share. Change your pick whenever you like.
+            Pick one and it lands in your wallet every 30 minutes, as a
+            tokenized share - OpenAI before it even lists. Change your pick
+            whenever you like.
           </p>
         </div>
       </Reveal>
 
       {/* Each card opens its own market in the terminal. */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((m, i) => (
           <Reveal key={m.symbol} delay={Math.min(i, 7) * 45}>
           <Link
@@ -99,6 +100,11 @@ export function Markets() {
                 {/* No "Payout" badge: every card in this grid is one, so the
                     label would mark nothing. Perps stays — it says "later",
                     which is information rather than decoration. */}
+                {m.classes.includes("preipo") && (
+                  <span className="rounded border border-tendie/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-tendie">
+                    Pre-IPO
+                  </span>
+                )}
                 {m.classes.includes("perps") && (
                   <span className="rounded border border-mist-700 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-mist-300">
                     Perps soon

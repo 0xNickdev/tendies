@@ -10,7 +10,7 @@ import { PAYOUT_STOCKS, type StockSym } from "./stocks";
 export type Account = {
   owner: string;
   choice: string | null; // xStock ticker, e.g. "NVDAx"
-  accrued: number; // in fee-token units — TSLAx once paired against it
+  accrued: number; // in fee-token units — OPENAI once paired against it
   // The same balance in dollars, converted by the keeper at the live rate.
   // null when the fee token could not be priced this request.
   accruedUsd: number | null;
@@ -30,7 +30,7 @@ export type Payout = {
   epoch: number;
   at: string;
   symbol: string; // xStock ticker
-  value: number; // in fee-token units — TSLAx once paired against it
+  value: number; // in fee-token units — OPENAI once paired against it
   valueUsd: number | null; // the same, in dollars, converted by the keeper
   signature: string;
 };

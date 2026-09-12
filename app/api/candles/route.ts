@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { PAYOUT_STOCKS } from "@/lib/stocks";
 
 // Real OHLC history for the terminal charts.
 //
-// Yahoo's chart endpoint already carries the whole series next to the quote we
-// were reading — this route just stops throwing it away. Two hosts are tried
-// so a throttled query1 doesn't blank the chart; if both fail we return an
-// empty series and the client falls back to its seeded preview candles.
+// Listed stocks: Yahoo's chart endpoint already carries the whole series next
+// to the quote we were reading — this route just stops throwing it away. Two
+// hosts are tried so a throttled query1 doesn't blank the chart.
+// DEX-priced tokens (OPENAI): Jupiter's chart API, by mint.
+// If the feed fails we return an empty series and the client falls back to
+// its seeded preview candles.
 
 export const dynamic = "force-dynamic";
 
@@ -81,22 +84,61 @@ async function fromYahoo(
   }
 }
 
+// Jupiter's chart API takes a candle count and an interval name; the ranges
+// above map onto counts so both feeds show about the same window.
+const JUP_TF: Record<string, { interval: string; candles: number }> = {
+  "15m": { interval: "15_MINUTE", candles: 5 * 24 * 4 },
+  "1H": { interval: "1_HOUR", candles: 30 * 24 },
+  "4H": { interval: "4_HOUR", candles: 6 * 30 * 6 },
+  "1D": { interval: "1_DAY", candles: 365 },
+};
+
+async function fromJupiter(mint: string, tfKey: string): Promise<Bar[] | null> {
+  const tf = JUP_TF[tfKey] ?? JUP_TF["1H"];
+  try {
+    const res = await fetch(
+      `https://datapi.jup.ag/v2/charts/${mint}?interval=${tf.interval}` +
+        `&to=${Date.now()}&candles=${tf.candles}&type=price`,
+      { headers: UA, next: { revalidate: 60 } },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    const rows = json?.candles;
+    if (!Array.isArray(rows)) return null;
+    const bars: Bar[] = [];
+    for (const r of rows) {
+      const { open: o, high: h, low: l, close: c } = r ?? {};
+      if ([o, h, l, c].some((n) => n == null || !isFinite(n))) continue;
+      bars.push({ t: Number(r.time), o, h, l, c, v: Number(r.volume ?? 0) });
+    }
+    return bars.length ? bars : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const symbol = (url.searchParams.get("symbol") ?? "TSLA")
+  const symbol = (url.searchParams.get("symbol") ?? PAYOUT_STOCKS[0].symbol)
     .toUpperCase()
     .replace(/[^A-Z0-9.-]/g, "")
     .slice(0, 12);
   const tfKey = url.searchParams.get("tf") ?? "1H";
   const tf = TF[tfKey] ?? TF["1H"];
 
-  let bars: Bar[] | null = null;
-  for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
-    bars = await fromYahoo(symbol, host, tf.range, tf.interval);
-    if (bars) break;
-  }
+  const dex = PAYOUT_STOCKS.find((s) => s.symbol === symbol && s.priceSource === "dex");
 
-  const candles = bars ? fold(bars, tf.fold) : [];
+  let candles: Bar[] = [];
+  if (dex) {
+    candles = (await fromJupiter(dex.mint, tfKey)) ?? [];
+  } else {
+    let bars: Bar[] | null = null;
+    for (const host of ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]) {
+      bars = await fromYahoo(symbol, host, tf.range, tf.interval);
+      if (bars) break;
+    }
+    candles = bars ? fold(bars, tf.fold) : [];
+  }
   return NextResponse.json(
     { symbol, tf: tfKey, live: candles.length > 0, candles },
     { headers: { "Cache-Control": "public, max-age=60" } },

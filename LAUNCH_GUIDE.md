@@ -58,13 +58,15 @@ Phantom → Настройки → «Показать секретный клю�
 - **Ticker:** `TENDIE`
 - **Image:** логотип (см. `BRAND_PROMPTS.md` — там промт для генерации)
 - **Description:** «Hold the bag. Get the tendies. Треasury платит холдерам
-  реальными xStocks (TSLAx · NVDAx · SPCXx) каждые 30 минут.»
-- **Quote token:** вот здесь весь смысл. Вкладка **xStocks** → **TSLAX**
-  (`XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB`). Квота ровно одна и
-  **навсегда** — поменять после создания пула нельзя. Пара TENDIE/TSLAx сама
-  рассказывает историю продукта, монета попадает в категорию xStocks, и треть
-  выплат потом идёт вообще без свопа, потому что комиссия капает в том числе
-  в TSLAx.
+  токенизированными акциями (OpenAI · TSLAx · NVDAx · SPCXx) каждые 30 минут.»
+- **Quote token:** вот здесь весь смысл. Вкладка **PreStocks** → **OPENAI**
+  (`PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF`). ⚠️ В списке два OPENAI —
+  бери тот, что в категории **PreStocks** с этим минтом, а не «T-OpenAI» от
+  Tessera (`oPAi…`, ликвидность вдвое меньше). Квота ровно одна и
+  **навсегда** — поменять после создания пула нельзя. Пара TENDIE/OPENAI сама
+  рассказывает историю продукта, монета попадает в категорию PreStocks, и
+  выплаты в OpenAI потом идут вообще без свопа, потому что комиссия капает
+  в том числе в OPENAI.
 - **Режим:** **Fee coin** (`standard`), НЕ «Reward coin». Reward-режим платит
   холдерам сам, но только одной акцией и без доли создателя — а нам нужна
   доля создателя, чтобы кипер платил тремя акциями на выбор.
@@ -83,25 +85,27 @@ Phantom → Настройки → «Показать секретный клю�
 claim'ить ничего не нужно. Раз по шагу 0.1 создатель и есть казна — деньги
 уже там, где их ждёт кипер.
 
-Комиссия приходит **обоими токенами пары**: частью в TENDIE, частью в TSLAx.
+Комиссия приходит **обоими токенами пары**: частью в TENDIE, частью в OPENAI.
 Кипер это умеет — он свопает накопленное в ту акцию, которую выбрал холдер.
 
 ---
 
-## ЧАСТЬ 2. Адреса xStocks (10 минут)
+## ЧАСТЬ 2. Адреса акций (10 минут)
 
-Награды платятся в xStocks — токенизированных акциях Backed Finance на Solana.
+Награды платятся токенизированными акциями на Solana: OpenAI — через
+PreStocks (pre-IPO экспозиция через SPV), остальные — xStocks Backed Finance.
 
-Три минта уже выписаны и сверены с реестром пар StonkFun — они лежат в
+Четыре минта уже выписаны и сверены с реестром пар StonkFun — они лежат в
 `lib/stocks.ts`, переписывать ничего не надо:
 
 | Акция | Тикер | Минт |
 | --- | --- | --- |
+| OpenAI | OPENAI | `PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF` |
 | Tesla | TSLAx | `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB` |
 | NVIDIA | NVDAx | `Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh` |
 | SpaceX | SPCXx | `Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8` |
 
-Это **Token-2022** минты с 8 знаками после запятой, не классический SPL —
+Это **Token-2022** минты (OPENAI — 9 знаков, xStocks — 8), не классический SPL —
 кипер спрашивает у сети, какая программа владеет минтом, потому что адрес
 токен-аккаунта у них считается по-разному.
 
@@ -168,13 +172,14 @@ GitHub repo** → твой репозиторий. В **Settings → Root Direct
 | `TENDIE_MINT` | минт из шага 1.3 |
 | `TREASURY_SECRET_KEY` | секретный ключ казны (base58) из 0.3 |
 | `PAYOUT_MINTS` | готовая строка — см. под таблицей |
+| `FEE_MINT` | `PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF` — квота пула (OPENAI); без этого кипер думает, что комиссия приходит в USDC |
 | `SOLANA_RPC` | твой Helius/QuickNode endpoint |
 | `EXCLUDE_ACCOUNTS` | адреса пула/кривой stonkfun и самой казны, через запятую |
 
 `PAYOUT_MINTS` копируй целиком, одной строкой без пробелов:
 
 ```
-TSLAx:XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB,NVDAx:Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh,SPCXx:Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8
+OPENAI:PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF,TSLAx:XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB,NVDAx:Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh,SPCXx:Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8
 ```
 
 `EXCLUDE_ACCOUNTS` — обязательно. Иначе пул ликвидности будет получать награды
@@ -206,9 +211,9 @@ TSLAx:XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB,NVDAx:Xsc9qvGR1efVDFGLrVsmkzv3
 ## Порядок одним взглядом
 
 1. Один кошелёк (создатель = казна) + 0.3–0.5 SOL (Часть 0)
-2. Создать TENDIE на stonkfun: квота **TSLAx**, режим **Fee coin**, тариф
+2. Создать TENDIE на stonkfun: квота **OPENAI** (PreStocks, минт PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF), режим **Fee coin**, тариф
    **2%**, записать минт (Часть 1)
-3. Минты TSLAx / NVDAx / SPCXx уже в `lib/stocks.ts` (Часть 2)
+3. Минты OPENAI / TSLAx / NVDAx / SPCXx уже в `lib/stocks.ts` (Часть 2)
 4. Вписать адреса в `lib/config.ts` и `lib/stocks.ts`, задеплоить сайт (Часть 3)
 5. Railway: кипер в DRY-RUN → посмотреть план → включить ключ казны (Часть 4)
 6. Безопасность: остаток в казне, проверка минтов, маленькая первая эпоха (Часть 5)

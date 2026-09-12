@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { FEATURES } from "@/lib/mock";
-import { PAYOUT_STOCKS, type StockSym } from "@/lib/stocks";
+import { PAYOUT_STOCKS, DEFAULT_STOCK, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { fmtUSD, fmtNum, fmtPct } from "@/lib/format";
 import { Segmented, ViewHeader, EmptyState } from "../ui";
@@ -25,7 +25,7 @@ export function Perps() {
   } = useStore();
   const { push } = useToast();
 
-  const [market, setMarket] = useState<StockSym>("TSLA");
+  const [market, setMarket] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const [dir, setDir] = useState<Direction>("long");
   const [lev, setLev] = useState(3);
   const [margin, setMargin] = useState("");

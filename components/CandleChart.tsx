@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtUSD } from "@/lib/format";
 import { useCandles } from "@/lib/useCandles";
+import { PAYOUT_STOCKS } from "@/lib/stocks";
 
 // Real OHLC from /api/candles. The seeded generator below stays as the
 // fallback: if the feed is unreachable the chart still draws something and
@@ -104,7 +105,7 @@ function labelFor(t: number, tf: TF): string {
 }
 
 export function CandleChart({
-  symbol = "TSLA",
+  symbol = "OPENAI",
   basePrice,
   height = 320,
 }: {
@@ -117,6 +118,7 @@ export function CandleChart({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const { bars, live } = useCandles(symbol, tf);
+  const isDex = PAYOUT_STOCKS.find((s) => s.symbol === symbol)?.priceSource === "dex";
 
   // Real bars when the feed answers, seeded preview when it doesn't.
   const all = useMemo<Candle[]>(() => {
@@ -411,7 +413,7 @@ export function CandleChart({
       <p className="mt-2 font-mono text-[11px] text-mist-500">
         {live ? (
           <>
-            Nasdaq OHLC · {all.length} bars, delayed ~15 min · drag to pan · perps settle against oracle mark{" "}
+            {isDex ? "DEX OHLC" : "Nasdaq OHLC"} · {all.length} bars{isDex ? "" : ", delayed ~15 min"} · drag to pan · perps settle against oracle mark{" "}
             <span className="text-mist-300">{fmtUSD(basePrice)}</span>
           </>
         ) : (
