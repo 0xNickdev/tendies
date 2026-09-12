@@ -1,134 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { MARKETS, SEED_PRICES, type MarketClass } from "@/lib/stocks";
+import { useMemo } from "react";
+import { MARKETS, SEED_PRICES } from "@/lib/stocks";
 import { useQuotes } from "@/lib/useQuotes";
 import { useReducedMotion } from "@/lib/motion";
 import { Reveal } from "@/components/Reveal";
 
-// Sorts are limited to what we can compute from the live feed — no invented
-// market caps or volumes.
-const SORTS = [
-  { id: "movers", label: "Top movers" },
-  { id: "price", label: "Price" },
-  { id: "az", label: "A-Z" },
-] as const;
-type SortId = (typeof SORTS)[number]["id"];
-
-const FILTERS: { id: "all" | MarketClass; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "payout", label: "Payout stocks" },
-  { id: "perps", label: "Perps" },
-  { id: "nasdaq", label: "Nasdaq" },
-];
-
-// A market card: a link for the stocks you can actually receive, an inert panel
-// for the ones that are only on the feed.
-function Card({
-  symbol,
-  payout,
-  children,
-  ...rest
-}: {
-  symbol: string;
-  payout: boolean;
-  children: React.ReactNode;
-} & React.HTMLAttributes<HTMLElement>) {
-  if (!payout) return <div {...rest}>{children}</div>;
-  return (
-    <Link href={`/terminal?market=${symbol}`} {...rest}>
-      {children}
-    </Link>
-  );
-}
-
+// Only the stocks the treasury actually pays out. The feed carries more, and
+// the marquee shows them — but a card in a grid reads as something you can act
+// on, and five tickers that go nowhere teach a reader that half the page is
+// decoration. That is an expensive thing to teach on a page asking them to
+// trust a treasury.
 export function Markets() {
   const quotes = useQuotes();
   const reduced = useReducedMotion();
-  const [sort, setSort] = useState<SortId>("movers");
-  const [filter, setFilter] = useState<"all" | MarketClass>("all");
 
-  const rows = useMemo(() => {
-    const list = MARKETS.filter(
-      (m) => filter === "all" || m.classes.includes(filter),
-    ).map((m) => {
-      const q = quotes[m.symbol];
-      return {
-        ...m,
-        price: q?.price ?? SEED_PRICES[m.symbol] ?? 0,
-        changePct: q?.changePct ?? 0,
-        live: q?.live ?? false,
-      };
-    });
-
-    if (sort === "movers")
-      list.sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
-    if (sort === "price") list.sort((a, b) => b.price - a.price);
-    if (sort === "az") list.sort((a, b) => a.symbol.localeCompare(b.symbol));
-    return list;
-  }, [quotes, sort, filter]);
+  const rows = useMemo(
+    () =>
+      MARKETS.filter((m) => m.classes.includes("payout")).map((m) => {
+        const q = quotes[m.symbol];
+        return {
+          ...m,
+          price: q?.price ?? SEED_PRICES[m.symbol] ?? 0,
+          changePct: q?.changePct ?? 0,
+          live: q?.live ?? false,
+        };
+      }),
+    [quotes],
+  );
 
   return (
     <section id="markets" className="mx-auto max-w-7xl px-5 py-24 sm:px-6">
-      <Reveal className="flex flex-wrap items-end justify-between gap-6">
+      <Reveal>
         <div>
           <span className="chip mb-5">// 01 · Markets</span>
           <h2 className="display text-balance text-4xl text-white sm:text-5xl">
-            Every ticker on the menu.
+            Three stocks on the menu.
           </h2>
           <p className="mt-4 max-w-xl text-pretty leading-relaxed text-mist-300">
-            Payout assets land in your wallet every 30 minutes. Perps markets
-            settle against the oracle mark. Everything else is on the feed.
+            Pick one and it lands in your wallet every 30 minutes, as a real
+            tokenized share. Change your pick whenever you like.
           </p>
-        </div>
-
-        {/* sort tabs */}
-        <div className="flex items-center gap-1 rounded-lg border border-tendie/20 bg-ink-900/60 p-1">
-          {SORTS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSort(s.id)}
-              className={`rounded-md px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                sort === s.id
-                  ? "bg-tendie text-ink-950"
-                  : "text-mist-300 hover:text-tendie"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
         </div>
       </Reveal>
 
-      {/* class filters */}
-      <div className="mt-7 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={`rounded-md border px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${
-              filter === f.id
-                ? "border-tendie bg-tendie/10 text-tendie"
-                : "border-tendie/20 text-mist-300 hover:border-tendie/50 hover:text-tendie"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* listing grid */}
-      {/* A card only links where there is something to open. The terminal
-          charts the three payout stocks and nothing else, so sending a feed-only
-          ticker there used to land the reader on Tesla — a card promising GME
-          and delivering something else. */}
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Each card opens its own market in the terminal. */}
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((m, i) => (
           <Reveal key={m.symbol} delay={Math.min(i, 7) * 45}>
-          <Card
-            symbol={m.symbol}
-            payout={m.classes.includes("payout")}
+          <Link
+            href={`/terminal?market=${m.symbol}`}
             onPointerMove={(e) => {
               if (reduced) return;
               // tilt the card toward the cursor — depth without a library
@@ -174,14 +96,12 @@ export function Markets() {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                {m.classes.includes("payout") && (
-                  <span className="rounded border border-tendie/25 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-tendie/80">
-                    Payout
-                  </span>
-                )}
+                {/* No "Payout" badge: every card in this grid is one, so the
+                    label would mark nothing. Perps stays — it says "later",
+                    which is information rather than decoration. */}
                 {m.classes.includes("perps") && (
                   <span className="rounded border border-mist-700 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-mist-300">
-                    Perps
+                    Perps soon
                   </span>
                 )}
                 {m.live && (
@@ -192,7 +112,7 @@ export function Markets() {
                 )}
               </div>
             </div>
-          </Card>
+          </Link>
           </Reveal>
         ))}
       </div>
