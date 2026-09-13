@@ -4,16 +4,16 @@
 
 // PERPTENDIE SPL mint on Solana.
 // ⟵ PASTE THE MINT ADDRESS HERE after the stonkfun launch (enables balance reads)
-export const TENDIE_MINT = "BV1xoYPcCga2jy4pzrQTP5gaTeXANyGgu2xejMyo92M5";
+export const TENDIE_MINT = "";
 
 // PERPTENDIE is launched on the stonkfun launchpad — coins paired with real
 // assets. ⟵ PASTE THE COIN PAGE URL HERE once it exists, e.g.
 //    https://www.stonkfun.xyz/coin/<mint>
-export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/token/BV1xoYPcCga2jy4pzrQTP5gaTeXANyGgu2xejMyo92M5";
+export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/";
 
 // Treasury wallet that accumulates the trade fee and pays holders out in
 // xStocks. ⟵ PASTE THE TREASURY PUBKEY HERE at launch.
-export const TREASURY_WALLET = "rd86qw84ZYcr23PhX28ba7WTN2Bw8MUyrGNtmGYxk7g";
+export const TREASURY_WALLET = "";
 
 // Bump whenever the kitchen card's artwork changes. X caches link previews by
 // URL for about a week, so a redesigned card would otherwise keep showing the
