@@ -28,7 +28,7 @@ export type PayoutStock = {
 // associated-token address differs between the two. OPENAI has 9 decimals,
 // the xStocks 8.
 //
-// The first entry is the quote asset PERPTENDIES is paired against on stonkfun and
+// The first entry is the quote asset PERPTENDIE is paired against on stonkfun and
 // the payout a holder gets if they never pick.
 export const PAYOUT_STOCKS: PayoutStock[] = [
   {

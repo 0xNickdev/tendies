@@ -234,7 +234,7 @@ export function Treasury() {
                 href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
                   streak > 0
                     ? `${streak} epochs in the kitchen. paid in real tokenized stock, every 30 minutes.\n\nI'm cooking.`
-                    : "holding $PERPTENDIES. paid in real tokenized stock every 30 minutes.\n\nI'm cooking.",
+                    : "holding $PERPTENDIE. paid in real tokenized stock every 30 minutes.\n\nI'm cooking.",
                 )}&url=${encodeURIComponent(`${SITE_URL}/card/${wallet.address}?v=${CARD_VERSION}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"

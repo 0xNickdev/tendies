@@ -89,8 +89,8 @@ async function buildStatus() {
       pendingFeeUsd: toUsd(fee.toString()),
       payoutStocks: config.payoutMints.map((p) => p.symbol),
       holders: holders.length,
-      // The PERPTENDIES side of the creator fee. Never distributed — it accumulates
-      // as the buyback reserve, in PERPTENDIES's own 6 decimals, not the fee token's.
+      // The PERPTENDIE side of the creator fee. Never distributed — it accumulates
+      // as the buyback reserve, in PERPTENDIE's own 6 decimals, not the fee token's.
       buybackReserve: Number(reserve) / 10 ** 6,
     },
     ledger: {

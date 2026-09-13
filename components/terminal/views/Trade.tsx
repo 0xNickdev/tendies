@@ -78,10 +78,10 @@ export function Trade() {
         <div className="panel mb-6 flex flex-col items-start justify-between gap-3 border-tendie/30 bg-tendie/5 p-5 sm:flex-row sm:items-center">
           <div>
             <div className="font-bold text-tendie">
-              In-app trading unlocks with the PERPTENDIES launch
+              In-app trading unlocks with the PERPTENDIE launch
             </div>
             <div className="mt-1 text-sm text-mist-300">
-              Until then, PERPTENDIES trades on its stonkfun launchpad page - the
+              Until then, PERPTENDIE trades on its stonkfun launchpad page - the
               button below takes you there.
             </div>
           </div>
@@ -204,7 +204,7 @@ export function Trade() {
         </button>
 
         <p className="mt-3 text-center text-xs text-mist-400">
-          PERPTENDIES itself is untaxed — the {TREASURY.poolFeeBps / 100}% is charged
+          PERPTENDIE itself is untaxed — the {TREASURY.poolFeeBps / 100}% is charged
           by the pool. {TREASURY.treasuryFeeBps / 100}% of it funds the stock
           rewards; stonkfun keeps the rest.
         </p>

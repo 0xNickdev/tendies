@@ -53,7 +53,7 @@ export async function treasuryBalance(mintStr) {
 
 export const feeBalance = () => treasuryBalance(config.feeMint);
 
-// The PERPTENDIES half of the creator fee. It is deliberately never swapped or
+// The PERPTENDIE half of the creator fee. It is deliberately never swapped or
 // distributed: it sits in the treasury as the buyback reserve. Reported so the
 // pile is visible rather than looking like a stuck balance.
 export const buybackReserve = () => treasuryBalance(config.mint);
