@@ -221,8 +221,8 @@ export function Perps() {
               </span>
             </div>
             <p className="mt-2 font-mono text-[11px] text-mist-500">
-              ≈ {marginInQuote.toLocaleString("en-US", { maximumFractionDigits: 5 })} {DEFAULT_STOCK.token} of your
-              accrued rewards · locked in dollars while the position is open
+              ≈ {marginInQuote.toLocaleString("en-US", { maximumFractionDigits: 5 })} {DEFAULT_STOCK.token} · rewards
+              accrue in {DEFAULT_STOCK.token} and are swapped to your pick only at payout · held in dollars while open
             </p>
             {overBalance && (
               <p className="mt-2 text-xs text-short">Exceeds your accrued balance.</p>
