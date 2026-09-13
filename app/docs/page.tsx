@@ -269,7 +269,10 @@ export default function DocsPage() {
                 shares held by an SPV in a private company, so there is no
                 exchange price - it is priced by its on-chain pool - and OpenAI
                 has publicly said it does not recognise such transfers. It is
-                exposure, not a share.
+                exposure, not a share. The OPENAI mint also carries a 0.5%
+                token-level transfer fee set by PreStocks, so an OPENAI payout
+                lands 0.5% lighter than the amount sent - that fee goes to
+                PreStocks, not to us.
               </p>
             </Section>
 

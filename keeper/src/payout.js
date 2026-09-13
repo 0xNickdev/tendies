@@ -81,10 +81,8 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
   const signatures = [];
   let sent = 0;
 
-  for (let i = 0; i < cuts.length; i += config.transfersPerTx) {
-    const batch = cuts.slice(i, i + config.transfersPerTx).filter((c) => c.amount > 0n);
-    if (!batch.length) continue;
-
+  // One transaction for a slice of the group. Returns the signature, or throws.
+  const send = async (batch) => {
     const tx = new Transaction();
     for (const cut of batch) {
       const owner = new PublicKey(cut.owner);
@@ -111,10 +109,12 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
         ),
       );
     }
+    return sendAndConfirmTransaction(connection, tx, [treasury]);
+  };
 
-    const signature = await sendAndConfirmTransaction(connection, tx, [treasury]);
-
-    // settle immediately: confirmed money leaves the ledger before we move on
+  // Book a confirmed transfer: profile, ledger, epoch journal - in that order,
+  // so a crash between them can only under-report, never double-pay.
+  const book = (batch, signature) => {
     for (const cut of batch) {
       recordDelivery(cut.owner, {
         epoch: epoch.id,
@@ -132,10 +132,34 @@ export async function payGroup(group, stockRawAmount, epoch, record) {
       signature,
       paidRaw: batch.reduce((sum, c) => sum + c.accrued, 0n).toString(),
     });
-
     signatures.push(signature);
     sent += batch.length;
-    log.info(`  ${group.symbol} batch ${signatures.length}: ${signature}`);
+  };
+
+  for (let i = 0; i < cuts.length; i += config.transfersPerTx) {
+    const batch = cuts.slice(i, i + config.transfersPerTx).filter((c) => c.amount > 0n);
+    if (!batch.length) continue;
+
+    try {
+      const signature = await send(batch);
+      book(batch, signature);
+      log.info(`  ${group.symbol} batch ${signatures.length}: ${signature}`);
+      continue;
+    } catch (e) {
+      // One bad recipient - a frozen account, an owner an ATA cannot be derived
+      // for - must not hold the other seven hostage. Retry them one at a time;
+      // whoever still fails stays owed and is tried again next epoch.
+      log.warn(`  ${group.symbol} batch failed (${e.message}) - retrying its ${batch.length} transfers one by one`);
+    }
+    for (const cut of batch) {
+      try {
+        const signature = await send([cut]);
+        book([cut], signature);
+        log.info(`  ${group.symbol} single ${cut.owner.slice(0, 6)}…: ${signature}`);
+      } catch (e) {
+        log.warn(`  ${group.symbol} ${cut.owner.slice(0, 6)}… could not be paid (${e.message}) - stays owed`);
+      }
+    }
   }
 
   return { sent, signatures };

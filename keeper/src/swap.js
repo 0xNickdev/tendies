@@ -17,6 +17,11 @@ const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 let cachedDecimals = null;
 let cachedUnitsPerDollar = null;
+let cachedUnitsPerDollarAt = 0;
+// /status, /account and /perps all need the rate, and the site polls them.
+// A quote a few seconds old is as good as a fresh one for a payout floor, so
+// share one across requests instead of asking Jupiter on every hit.
+const RATE_TTL_MS = 30_000;
 
 export async function feeDecimals() {
   if (cachedDecimals != null) return cachedDecimals;
@@ -71,6 +76,9 @@ export class UnpricedFeeError extends Error {
 // live rate or it silently becomes a $363 floor that nobody ever clears.
 export async function feeUnitsPerDollar() {
   if (config.feeMint === USDC_MINT) return 1_000_000n; // a dollar is a dollar
+  if (cachedUnitsPerDollar && Date.now() - cachedUnitsPerDollarAt < RATE_TTL_MS) {
+    return cachedUnitsPerDollar;
+  }
 
   try {
     const url =
@@ -82,6 +90,7 @@ export async function feeUnitsPerDollar() {
     const units = BigInt(outAmount ?? 0);
     if (units <= 0n) throw new Error("empty quote");
     cachedUnitsPerDollar = units;
+    cachedUnitsPerDollarAt = Date.now();
     return units;
   } catch (e) {
     // A stale rate is far better than a wrong one: too high a floor only makes

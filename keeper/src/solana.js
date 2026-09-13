@@ -39,6 +39,10 @@ export async function snapshotHolders() {
   if (!config.mint) return [];
   const mint = new PublicKey(config.mint);
   const excluded = new Set(config.exclude);
+  // The treasury holds the TENDIE half of the creator fee as the buyback
+  // reserve. Left in the snapshot it would pay itself a share of every epoch,
+  // so it is excluded whether or not the operator remembered to list it.
+  if (treasury) excluded.add(treasury.publicKey.toBase58());
 
   const perProgram = await Promise.all(
     [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID].map((programId) =>
@@ -51,6 +55,7 @@ export async function snapshotHolders() {
   );
 
   const byOwner = new Map();
+  let programOwned = 0;
   for (const account of perProgram.flat()) {
     const parsed = account.account?.data?.parsed;
     // Without a dataSize filter the mint account itself can come back; only
@@ -64,9 +69,19 @@ export async function snapshotHolders() {
     // address a human copies off Solscan is usually the token account. Accept
     // either, so a correct-looking entry cannot silently do nothing.
     if (excluded.has(owner) || excluded.has(account.pubkey.toBase58())) continue;
+    // A token account owned by a PDA belongs to a program - a launchpad curve,
+    // an AMM vault, a lending pool - never to a person. Those must not earn,
+    // and paying one would fail anyway: an associated token account cannot be
+    // derived for an off-curve owner, and that throw would sink the whole
+    // batch, so every real holder behind it in the queue would wait too.
+    if (!PublicKey.isOnCurve(new PublicKey(owner).toBytes())) {
+      programOwned++;
+      continue;
+    }
     // one owner can hold the mint in several accounts
     byOwner.set(owner, (byOwner.get(owner) ?? 0) + amount);
   }
+  if (programOwned) log.info(`  skipped ${programOwned} program-owned token accounts (pools, vaults)`);
 
   const holders = [...byOwner.entries()].map(([owner, balance]) => ({
     owner,
