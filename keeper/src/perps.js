@@ -22,11 +22,13 @@ import bs58 from "bs58";
 import { randomBytes } from "node:crypto";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { feeBalance, feeUnitsPerDollar } from "./swap.js";
+import { feeUnitsPerDollar } from "./swap.js";
 import { treasury } from "./solana.js";
 import {
   accruedOf,
   addAccrual,
+  adjustReserve,
+  reserveOf,
   debitAccrual,
   allPositions,
   closePositionRecord,
@@ -120,14 +122,25 @@ export function view(pos) {
 
 // ── limits ──────────────────────────────────────────────────────────────
 
-async function treasuryUsd(unitsPerDollar) {
-  if (!treasury) return config.perps.dryRunPoolUsd;
-  const balance = await feeBalance().catch(() => 0n);
-  return rawToUsd(balance, unitsPerDollar);
+// The house bankroll in dollars. Before launch there is no fee flow to build
+// one, so a configured stand-in lets the engine be exercised.
+function reserveUsd(unitsPerDollar) {
+  if (!treasury) return config.perps.dryRunReserveUsd;
+  return rawToUsd(reserveOf(), unitsPerDollar);
 }
 
 export function openInterestUsd() {
   return usd(allPositions().reduce((sum, p) => sum + p.sizeUsd, 0));
+}
+
+export function limits(unitsPerDollar) {
+  const reserve = usd(reserveUsd(unitsPerDollar));
+  return {
+    reserveUsd: reserve,
+    maxPositionUsd: usd((reserve * config.perps.maxPositionPct) / 100),
+    maxOpenInterestUsd: usd((reserve * config.perps.maxOpenInterestPct) / 100),
+    openInterestUsd: openInterestUsd(),
+  };
 }
 
 // ── open ────────────────────────────────────────────────────────────────
@@ -180,14 +193,12 @@ export async function openPosition(body) {
   }
 
   const sizeUsd = usd(margin * lev);
-  const pool = await treasuryUsd(unitsPerDollar);
-  const maxPosition = usd((pool * config.perps.maxPositionPct) / 100);
-  if (sizeUsd > maxPosition) {
-    return { ok: false, error: `position too large: max $${maxPosition.toFixed(2)} right now (${config.perps.maxPositionPct}% of the treasury)` };
+  const lim = limits(unitsPerDollar);
+  if (sizeUsd > lim.maxPositionUsd) {
+    return { ok: false, error: `position too large: max $${lim.maxPositionUsd.toFixed(2)} right now (${config.perps.maxPositionPct}% of the house reserve)` };
   }
-  const maxOi = usd((pool * config.perps.maxOpenInterestPct) / 100);
-  if (openInterestUsd() + sizeUsd > maxOi) {
-    return { ok: false, error: `treasury is at its open-interest cap - try a smaller size or later` };
+  if (lim.openInterestUsd + sizeUsd > lim.maxOpenInterestUsd) {
+    return { ok: false, error: `house is at its open-interest cap ($${lim.maxOpenInterestUsd.toFixed(2)}) - try a smaller size or later` };
   }
 
   if (!debitAccrual(owner, marginRaw)) {
@@ -215,17 +226,35 @@ export async function openPosition(body) {
 
 // ── close / settle ──────────────────────────────────────────────────────
 
-// Return what is left of the position to the ledger. Equity below zero is
-// impossible past liquidation, but clamp anyway: the ledger never goes negative.
+// Return what is left of the position to the ledger. The margin itself was
+// the holder's all along; anything above it is a win paid out of the house
+// reserve, anything below it is a loss the reserve keeps. If the reserve
+// cannot cover a win in full - a run of winners against a young reserve -
+// the payout is trimmed to what is there and the trim is recorded. Equity
+// below zero is impossible past liquidation, but clamp anyway.
 async function settle(pos, mark, reason, returned = equityUsd(pos, mark)) {
-  const equity = Math.max(0, returned);
+  let equity = Math.max(0, returned);
   let unitsPerDollar;
   try {
     unitsPerDollar = await feeUnitsPerDollar();
   } catch (e) {
     throw new Error(`cannot settle ${pos.id}: ${e.message}`);
   }
-  const returnRaw = usdToRaw(equity, unitsPerDollar);
+  const marginRaw = BigInt(pos.marginRaw);
+  let returnRaw = usdToRaw(equity, unitsPerDollar);
+  let trimmedUsd = 0;
+  if (returnRaw > marginRaw) {
+    const paid = -adjustReserve(-(returnRaw - marginRaw)); // what the reserve could give
+    const short = returnRaw - marginRaw - paid;
+    if (short > 0n) {
+      trimmedUsd = usd(rawToUsd(short, unitsPerDollar));
+      returnRaw = marginRaw + paid;
+      equity = usd(rawToUsd(returnRaw, unitsPerDollar));
+      log.warn(`  reserve short by $${trimmedUsd} on ${pos.id} - win trimmed to what the house holds`);
+    }
+  } else {
+    adjustReserve(marginRaw - returnRaw);
+  }
   addAccrual(pos.owner, returnRaw);
   const closed = closePositionRecord(pos.id, {
     closedAt: new Date().toISOString(),
@@ -234,8 +263,9 @@ async function settle(pos, mark, reason, returned = equityUsd(pos, mark)) {
     pnlUsd: pnlUsd(pos, mark),
     returnedUsd: equity,
     returnedRaw: returnRaw.toString(),
+    trimmedUsd,
   });
-  log.info(`perp ${reason} ${pos.id} ${pos.side} ${pos.symbol} @ ${mark} · pnl $${closed.pnlUsd} · returned $${equity}`);
+  log.info(`perp ${reason} ${pos.id} ${pos.side} ${pos.symbol} @ ${mark} · pnl $${closed.pnlUsd} · returned $${equity} · reserve ${reserveOf()}`);
   return closed;
 }
 
@@ -296,12 +326,19 @@ export async function tickPositions() {
   }
 }
 
-export function summary() {
+export async function summary() {
   const open = allPositions();
+  const unitsPerDollar = await feeUnitsPerDollar().catch(() => null);
+  const lim = unitsPerDollar ? limits(unitsPerDollar) : null;
   return {
     enabled: config.perps.enabled,
     openPositions: open.length,
     openInterestUsd: openInterestUsd(),
+    reserveUsd: lim?.reserveUsd ?? null,
+    maxPositionUsd: lim?.maxPositionUsd ?? null,
+    maxOpenInterestUsd: lim?.maxOpenInterestUsd ?? null,
+    reserveBps: config.perps.reserveBps,
+    reserveCapPct: config.perps.reserveCapPct,
     maxLeverage: config.perps.maxLeverage,
     minMarginUsd: config.perps.minMarginUsd,
     fundingRateBps: config.perps.fundingRateBps,

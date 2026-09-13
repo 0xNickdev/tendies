@@ -3,7 +3,7 @@
 // answers. Seeds the trader's accrued balance through the state file first.
 //
 //   node test/e2e-perps.mjs seed        # writes the trader's balance + key
-//   STATE_DIR=./data-e2e PORT=3344 FEE_MINT=<USDC> PERPS_DRYRUN_POOL_USD=1000 \
+//   STATE_DIR=./data-e2e PORT=3344 FEE_MINT=<USDC> PERPS_DRYRUN_RESERVE_USD=200 \
 //     PAYOUT_MINTS=... node index.js &
 //   node test/e2e-perps.mjs             # trades through the HTTP API
 import fs from "node:fs";

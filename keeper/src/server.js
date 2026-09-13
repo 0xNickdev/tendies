@@ -88,6 +88,9 @@ async function buildStatus() {
       owedUsd: toUsd(ledger.owedRaw),
       paidOut: toUnits(ledger.paidOutRaw),
       paidOutUsd: toUsd(ledger.paidOutRaw),
+      // the perps house bankroll - held back, never owed to anyone
+      reserve: toUnits(ledger.reserveRaw),
+      reserveUsd: toUsd(ledger.reserveRaw),
       minPayoutUsd: config.minPayoutUsd,
       epochsRun: ledger.epochsRun,
       lastEpoch: ledger.lastEpoch,
@@ -97,7 +100,7 @@ async function buildStatus() {
       lastEpochAt: state.lastEpochAt,
       secondsUntilNext: lastEpoch ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : 0,
     },
-    perps: { ...perpsSummary(), marks: allMarks() },
+    perps: { ...(await perpsSummary()), marks: allMarks() },
     // Host only — config.rpcUrl carries a paid API key in its query string,
     // and /status is public.
     cluster: rpcHost(),
@@ -194,7 +197,7 @@ export function startServer() {
     if (path === "/perps") {
       return json(res, 200, {
         ok: true,
-        ...perpsSummary(),
+        ...(await perpsSummary()),
         markets: markets().map((m) => m.market),
         marks: allMarks(),
       });

@@ -9,10 +9,10 @@ process.env.STATE_DIR = "./data-test-perps";
 process.env.FEE_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // USDC → 1e6 units per dollar
 process.env.PAYOUT_MINTS =
   "OPENAI:PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF,TSLAx:XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB";
-process.env.PERPS_DRYRUN_POOL_USD = "1000";
+process.env.PERPS_DRYRUN_RESERVE_USD = "200"; // stand-in house bankroll for limits
 process.env.PERPS_MAX_LEVERAGE = "10";
-process.env.PERPS_MAX_POSITION_PCT = "10"; // $100 max size
-process.env.PERPS_MAX_OI_PCT = "50"; // $500 max open interest
+process.env.PERPS_MAX_POSITION_PCT = "50"; // $100 max size
+process.env.PERPS_MAX_OI_PCT = "250"; // $500 max open interest
 process.env.PERPS_FUNDING_BPS = "5";
 process.env.PERPS_FUNDING_INTERVAL_MS = String(8 * 3_600_000);
 
@@ -23,11 +23,12 @@ import bs58 from "bs58";
 
 fs.rmSync("./data-test-perps", { recursive: true, force: true });
 
-const { loadState, addAccrual, accruedOf, totalAccrued, lockedMargin, setMarks, allPositions, positionHistoryOf } =
+const { loadState, addAccrual, accruedOf, totalAccrued, lockedMargin, setMarks, allPositions, positionHistoryOf, adjustReserve, reserveOf } =
   await import("../src/store.js");
 const { openPosition, closePosition, openMessage, closeMessage, tickPositions, view } =
   await import("../src/perps.js");
 const { markets } = await import("../src/oracle.js");
+const { splitNewFee } = await import("../src/keeper.js");
 
 loadState();
 
@@ -69,6 +70,7 @@ console.log("\n1. Рынки из PAYOUT_MINTS");
 console.log("\n2. Открытие: маржа уходит из леджера, но остаётся в owed");
 {
   addAccrual(owner, 50n * USDC); // holder is owed $50
+  adjustReserve(100n * USDC); // the house holds $100 for wins
   mark("OPENAI", 1000);
   const r = await open({ market: "OPENAI", side: "long", leverage: 5, marginUsd: 20 });
   check("открыто", r.ok, true);
@@ -90,6 +92,7 @@ console.log("\n3. Закрытие с прибылью: маржа + PnL воз�
   check("pnl записан", r.position.pnlUsd, 10);
   check("возвращено $30", r.position.returnedUsd, 30);
   check("леджер $60", accruedOf(owner), 60n * USDC);
+  check("выигрыш $10 взят из резерва: 100 → 90", reserveOf(), 90n * USDC);
   check("ничего не залочено", lockedMargin(), 0n);
   check("в истории", positionHistoryOf(owner).length, 1);
 }
@@ -110,6 +113,7 @@ console.log("\n4. Ликвидация: трейдер не получает н�
   check("причина liquidated", last.reason, "liquidated");
   check("возвращено $0", last.returnedUsd, 0);
   check("леджер остался $50 — маржа ушла в казну", accruedOf(owner), 50n * USDC);
+  check("маржа $10 легла в резерв: 90 → 100", reserveOf(), 100n * USDC);
 }
 
 console.log("\n5. Funding: 0.05% от размера каждые 8 часов");
@@ -123,7 +127,24 @@ console.log("\n5. Funding: 0.05% от размера каждые 8 часов")
   check("equity = 10 − 0.02", view(pos).equityUsd, 9.98);
   const c = await close(pos.id);
   check("вернулось 9.98", c.position.returnedUsd, 9.98);
+  check("funding $0.02 в резерве", reserveOf(), 100_020_000n);
   void r;
+}
+
+console.log("\n5b. Резерв пуст — выигрыш урезается до того, что есть (ADL)");
+{
+  adjustReserve(-reserveOf()); // drain the house
+  adjustReserve(3n * USDC); // it holds $3
+  mark("OPENAI", 1000);
+  await open({ market: "OPENAI", side: "long", leverage: 10, marginUsd: 10 }); // size $100
+  mark("OPENAI", 1100); // +10% → +$10, but the house has $3
+  const [pos] = allPositions();
+  const c = await close(pos.id);
+  check("возвращено 10 + 3, не 10 + 10", c.position.returnedUsd, 13);
+  check("урезано на $7", c.position.trimmedUsd, 7);
+  check("резерв пуст", reserveOf(), 0n);
+  check("леджер: 49.98 − 10 + 13 = 52.98", accruedOf(owner), 52_980_000n);
+  adjustReserve(100n * USDC); // refill for the limit tests
 }
 
 console.log("\n6. Лимиты");
@@ -167,7 +188,22 @@ console.log("\n7. Подписи");
   check("просроченная подпись отклонена", r.error?.includes("expired"), true);
 }
 
-console.log("\n8. Состояние переживает перезапуск");
+console.log("\n8. Резерв набирается из комиссии: 10% до потолка в 20% казны");
+{
+  // balance $1000, reserve $0, new fee $100 → hold $10
+  let s = splitNewFee(100n * USDC, 1000n * USDC, 0n);
+  check("10% нового fee в резерв", s.held, 10n * USDC);
+  check("остальное холдерам", s.toHolders, 90n * USDC);
+  // reserve already $195 of a $200 cap → only $5 more
+  s = splitNewFee(100n * USDC, 1000n * USDC, 195n * USDC);
+  check("до потолка — только остаток", s.held, 5n * USDC);
+  // at cap → nothing held
+  s = splitNewFee(100n * USDC, 1000n * USDC, 200n * USDC);
+  check("на потолке ничего не удерживается", s.held, 0n);
+  check("всё холдерам", s.toHolders, 100n * USDC);
+}
+
+console.log("\n9. Состояние переживает перезапуск");
 {
   const before = allPositions().length;
   const owed = totalAccrued();

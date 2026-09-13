@@ -207,6 +207,10 @@ export type PerpsInfo = {
   enabled: boolean;
   openPositions: number;
   openInterestUsd: number;
+  // the house bankroll and what it allows right now; null while unpriced
+  reserveUsd: number | null;
+  maxPositionUsd: number | null;
+  maxOpenInterestUsd: number | null;
   maxLeverage: number;
   minMarginUsd: number;
   fundingRateBps: number;

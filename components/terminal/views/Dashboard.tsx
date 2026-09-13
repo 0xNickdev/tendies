@@ -119,7 +119,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
 
           <p className="mt-3 text-xs text-mist-400">
             {marketStock.name} - one of the tokenized stocks the treasury pays
-            out. Perps trading on this market arrives with Phase 02.
+            out. {FEATURES.perpsLive ? "Long or short it in Perps." : "Perps on this market go live with the token."}
           </p>
         </div>
 

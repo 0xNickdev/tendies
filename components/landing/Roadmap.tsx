@@ -98,12 +98,12 @@ const PHASES: Phase[] = [
   {
     n: "02",
     status: "next",
-    statusLabel: "In the fryer · Soon",
+    statusLabel: "Built · Live at launch",
     title: "Stock Perps",
     points: [
-      "Long / short OPENAI, TSLA, NVDA & SPCX oracle marks",
-      "1-10× leverage, treasury claim as margin",
-      "Mandatory risk gating before every trade",
+      "Long / short OPENAI, TSLA, NVDA & SPCX on signed 5-minute marks",
+      "1-10× leverage, your accrued rewards as margin - nothing leaves your wallet",
+      "No expiry: 0.05% funding every 8h, liquidation at −95% of margin",
     ],
     icon: <Fryer />,
     cta: { label: "Preview in Terminal", href: "/terminal" },

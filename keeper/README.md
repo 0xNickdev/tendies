@@ -67,13 +67,15 @@ keeper/
 | `PERPS_ENABLED` | — | `true` | `false` pauses opening; existing positions still mark, fund and close |
 | `PERPS_MAX_LEVERAGE` | — | `10` | |
 | `PERPS_MIN_MARGIN_USD` | — | `1` | |
-| `PERPS_MAX_POSITION_PCT` | — | `10` | one position's size, as % of the treasury fee balance |
-| `PERPS_MAX_OI_PCT` | — | `50` | all open positions together, as % of the fee balance |
+| `PERPS_RESERVE_BPS` | — | `1000` | share of each epoch's new fee held back into the house reserve (10%) |
+| `PERPS_RESERVE_CAP_PCT` | — | `20` | stop holding back once the reserve is this % of the fee balance |
+| `PERPS_MAX_POSITION_PCT` | — | `50` | one position's size, as % of the reserve |
+| `PERPS_MAX_OI_PCT` | — | `200` | all open positions together, as % of the reserve |
 | `PERPS_LIQUIDATION_PCT` | — | `95` | liquidate once losses reach this % of margin |
 | `PERPS_FUNDING_BPS` | — | `5` | funding per interval, in bps of position size (5 = 0.05%) |
 | `PERPS_FUNDING_INTERVAL_MS` | — | 8h | |
 | `PERPS_MARK_INTERVAL_MS` | — | 5 min | mark refresh + funding/liquidation check |
-| `PERPS_DRYRUN_POOL_USD` | — | `0` | stands in for the treasury balance when there is no signer, so perps can be tried before launch |
+| `PERPS_DRYRUN_RESERVE_USD` | — | `0` | stands in for the reserve when there is no signer, so perps can be tried before launch |
 
 ### Perps
 
@@ -81,7 +83,13 @@ Positions live in `positions` in the state file, margined from the holder's
 accrued balance. `totalAccrued()` includes locked margin, so the epoch loop
 never hands it out as new fee. Marks are signed by the treasury key
 (`Tendies mark\nmarket: …\nprice: …\nat: …`) and published at `/perps/marks`.
-Losses stay in the treasury and reach every holder as the next epoch's fee.
+
+The house bankroll is `reserveRaw`: 10% of each epoch's new fee is held back
+until the reserve reaches 20% of the fee balance. Wins are paid from it,
+losses, liquidated margin and funding flow into it, and every size limit is a
+fraction of it - so a win never comes out of another holder's accrual. If a
+run of winners empties it, the last win is trimmed to what is there
+(`trimmedUsd` on the closed position) rather than paid from someone else.
 
 Endpoints: `GET /perps`, `GET /perps/marks?symbol=`, `GET /perps/positions?owner=`,
 `POST /perps/open`, `POST /perps/close` (both wallet-signed, see `lib/keeper.ts`).

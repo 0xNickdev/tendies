@@ -20,6 +20,8 @@ import {
 } from "./swap.js";
 import {
   addAccrual,
+  adjustReserve,
+  reserveOf,
   finishEpoch,
   getLastEpochAt,
   markPresent,
@@ -103,22 +105,30 @@ export async function tickEpoch() {
     markPresent(holders.map((h) => h.owner), epoch.id);
 
     // ── 1. accrue ────────────────────────────────────────────────────────
-    // Everything in the treasury beyond what is already owed is new fee.
+    // Everything in the treasury beyond what is already owed - to holders
+    // (ledger + locked margin) and to the perps reserve - is new fee. Perps
+    // only move value between those two, so this difference is genuinely new.
     const balance = await feeBalance();
     const owed = totalAccrued();
-    const newFee = balance > owed ? balance - owed : 0n;
+    const reserve = reserveOf();
+    const spoken = owed + reserve;
+    const newFee = balance > spoken ? balance - spoken : 0n;
 
     if (newFee > 0n) {
+      const { held, toHolders } = splitNewFee(newFee, balance, reserve);
+      if (held > 0n) adjustReserve(held);
+
       let handed = 0n;
       for (const h of holders) {
         // share is a float 0..1; scale through BigInt to keep the cents honest
-        const cut = (newFee * BigInt(Math.round(h.share * 1e9))) / 1_000_000_000n;
+        const cut = (toHolders * BigInt(Math.round(h.share * 1e9))) / 1_000_000_000n;
         addAccrual(h.owner, cut);
         handed += cut;
       }
       saveState();
       log.info(
-        `accrued ${newFee} raw across ${holders.length} holders (${newFee - handed} left as dust)`,
+        `accrued ${toHolders} raw across ${holders.length} holders (${toHolders - handed} left as dust)` +
+          (held > 0n ? ` · ${held} raw to the perps reserve (now ${reserveOf()})` : ""),
       );
     } else {
       log.info("no new fee since last epoch — nothing to accrue");
@@ -207,12 +217,27 @@ export async function tickEpoch() {
   }
 }
 
+// House cut first: a slice of the new fee tops the reserve up until it
+// reaches its cap. Below the cap the house grows, above it holders get
+// everything. Pure, so the split can be tested without a cluster.
+export function splitNewFee(newFee, balance, reserve) {
+  let held = 0n;
+  if (config.perps.enabled && newFee > 0n) {
+    const cap = (balance * BigInt(config.perps.reserveCapPct)) / 100n;
+    const room = cap > reserve ? cap - reserve : 0n;
+    const slice = (newFee * BigInt(config.perps.reserveBps)) / 10_000n;
+    held = slice < room ? slice : room;
+  }
+  return { held, toHolders: newFee - held };
+}
+
 export function ledgerSummary() {
   const { ledger, totals, epochs } = getState();
   const entries = Object.values(ledger);
   return {
     owedAccounts: entries.length,
     owedRaw: totalAccrued().toString(),
+    reserveRaw: reserveOf().toString(),
     paidOutRaw: totals.paidOutRaw,
     epochsRun: totals.epochsRun,
     lastEpoch: epochs[0] ?? null,

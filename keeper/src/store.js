@@ -32,6 +32,11 @@ const empty = () => ({
   // symbol -> { price, at, source }, plus a short history for the chart
   marks: {},
   markHistory: [],
+  // The house bankroll for perps, in raw fee-token units. Filled from a slice
+  // of each epoch's new fee, grown by funding and losers' margin, drawn down by
+  // winners. Never owed to anyone, never distributed - it is what makes a win
+  // payable without taking it out of other holders' accruals.
+  reserveRaw: "0",
   // newest first, capped
   epochs: [],
   totals: { paidOutRaw: "0", epochsRun: 0 },
@@ -103,6 +108,19 @@ export function totalAccrued() {
     0n,
   );
   return ledger + lockedMargin();
+}
+
+export function reserveOf() {
+  return BigInt(state.reserveRaw ?? "0");
+}
+
+// Positive to grow the reserve, negative to spend it. Never below zero: a
+// caller wanting more than is there gets told how much it actually got.
+export function adjustReserve(delta) {
+  const have = reserveOf();
+  const next = have + delta < 0n ? 0n : have + delta;
+  state.reserveRaw = next.toString();
+  return next - have;
 }
 
 export function lockedMargin() {

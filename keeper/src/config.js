@@ -56,18 +56,24 @@ export const config = {
   port: Number(process.env.PORT || 3333),
 
   // ── perps ──────────────────────────────────────────────────────────────
-  // The treasury is the counterparty to every position, so every limit here
-  // is about how much of the reward pool one trader - or all of them - can
-  // put at risk. Margin comes out of a holder's accrued balance, never from
-  // their wallet.
+  // The house is the counterparty to every position, and the house bankroll
+  // is the reserve: a slice of each epoch's fee that is held back instead of
+  // distributed, grown by funding and losing margin, drawn down by winners.
+  // Every limit here is relative to that reserve, so a win can always be
+  // paid from money that was never owed to anyone else. Margin comes out of
+  // a holder's accrued balance, never from their wallet.
   perps: {
     enabled: (process.env.PERPS_ENABLED || "true") !== "false",
     maxLeverage: Number(process.env.PERPS_MAX_LEVERAGE || 10),
     minMarginUsd: Number(process.env.PERPS_MIN_MARGIN_USD || 1),
-    // one position may be at most this share of the treasury's fee balance
-    maxPositionPct: Number(process.env.PERPS_MAX_POSITION_PCT || 10),
-    // all open positions together, at most this share
-    maxOpenInterestPct: Number(process.env.PERPS_MAX_OI_PCT || 50),
+    // share of each epoch's new fee held back into the reserve…
+    reserveBps: Number(process.env.PERPS_RESERVE_BPS || 1000),
+    // …until the reserve reaches this share of the treasury's fee balance
+    reserveCapPct: Number(process.env.PERPS_RESERVE_CAP_PCT || 20),
+    // one position's size may be at most this share of the reserve
+    maxPositionPct: Number(process.env.PERPS_MAX_POSITION_PCT || 50),
+    // all open positions together, at most this share of the reserve
+    maxOpenInterestPct: Number(process.env.PERPS_MAX_OI_PCT || 200),
     // liquidate once losses eat this much of the margin
     liquidationPct: Number(process.env.PERPS_LIQUIDATION_PCT || 95),
     // funding: a flat charge on position size, paid to the treasury every
@@ -76,9 +82,9 @@ export const config = {
     fundingIntervalMs: Number(process.env.PERPS_FUNDING_INTERVAL_MS || 8 * 60 * 60_000),
     // how often marks are refreshed and positions checked for liquidation
     markIntervalMs: Number(process.env.PERPS_MARK_INTERVAL_MS || 5 * 60_000),
-    // With no treasury signer there is no balance to size limits against.
+    // With no treasury signer there is no fee flow to build a reserve from.
     // This stands in for it so the engine can be exercised before launch.
-    dryRunPoolUsd: Number(process.env.PERPS_DRYRUN_POOL_USD || 0),
+    dryRunReserveUsd: Number(process.env.PERPS_DRYRUN_RESERVE_USD || 0),
   },
   // Warn well before the treasury runs dry: opening a token account for a
   // holder who doesn't have one costs ~0.002 SOL of rent, so a wave of new

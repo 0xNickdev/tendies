@@ -51,6 +51,8 @@ export function Perps() {
   const fundingBps = perps?.fundingRateBps ?? 5;
   const fundingHours = perps?.fundingIntervalHours ?? 8;
   const fundingUsd = (size * fundingBps) / 10_000;
+  const maxPosition = perps?.maxPositionUsd ?? null;
+  const overMax = maxPosition != null && size > maxPosition + 1e-9;
 
   // Same formula as liquidationPrice() in keeper/src/perps.js.
   const liq = useMemo(() => {
@@ -74,9 +76,9 @@ export function Perps() {
   };
 
   const requestOpen = () => {
-    if (!FEATURES.perpsLive) return; // preview only - trading unlocks in Phase 02
+    if (!FEATURES.perpsLive) return; // preview only - trading unlocks with the keeper
     if (!wallet.connected) return connect();
-    if (numMargin <= 0 || overBalance || underMin) return;
+    if (numMargin <= 0 || overBalance || underMin || overMax) return;
     if (!ack) {
       setShowRisk(true);
       return;
@@ -128,11 +130,12 @@ export function Perps() {
         <div className="panel mb-6 flex flex-col items-start justify-between gap-3 border-tendie/30 bg-tendie/5 p-5 sm:flex-row sm:items-center">
           <div>
             <div className="font-bold text-tendie">
-              Perps are next on the roadmap - Phase 02
+              Perps go live with the token
             </div>
             <div className="mt-1 text-sm text-mist-300">
               The ticket below is a live preview: play with direction, leverage
-              and liquidation math. Opening positions unlocks at launch.
+              and liquidation math. Opening positions unlocks the moment the
+              keeper is wired up at launch.
             </div>
           </div>
           <a href="/#roadmap" className="chip shrink-0 hover:bg-tendie/15">
@@ -219,6 +222,11 @@ export function Perps() {
             {underMin && (
               <p className="mt-2 text-xs text-short">Minimum margin is {fmtUSD(minMargin)}.</p>
             )}
+            {overMax && (
+              <p className="mt-2 text-xs text-short">
+                Max position right now is {fmtUSD(maxPosition ?? 0)} - the house reserve caps size.
+              </p>
+            )}
           </div>
 
           <div className="mt-5">
@@ -256,6 +264,9 @@ export function Perps() {
               label={`Funding / ${fundingHours}h`}
               value={`${fmtUSD(fundingUsd)} (${(fundingBps / 100).toFixed(2)}%)`}
             />
+            {maxPosition != null && (
+              <Row label="Max position now" value={`${fmtUSD(maxPosition)} · reserve ${fmtUSD(perps?.reserveUsd ?? 0)}`} />
+            )}
           </div>
           <p className="mt-2 text-xs text-mist-500">
             Funding is a flat {(fundingBps / 100).toFixed(2)}% of position size every {fundingHours}h,
@@ -283,7 +294,7 @@ export function Perps() {
               !FEATURES.perpsLive ||
               pending ||
               (perps ? !perps.enabled : false) ||
-              (wallet.connected && (numMargin <= 0 || overBalance || underMin))
+              (wallet.connected && (numMargin <= 0 || overBalance || underMin || overMax))
             }
             className={`mt-4 w-full rounded-xl py-4 text-base font-semibold transition-all active:scale-[0.98] disabled:opacity-40 ${
               !FEATURES.perpsLive
@@ -294,7 +305,7 @@ export function Perps() {
             }`}
           >
             {!FEATURES.perpsLive
-              ? "Coming Soon - Phase 02"
+              ? "Live at launch"
               : !wallet.connected
                 ? "Connect Wallet"
                 : pending

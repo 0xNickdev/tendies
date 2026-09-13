@@ -170,7 +170,7 @@ export default function DocsPage() {
                 {[
                   ["Trade fee → treasury", "TENDIE itself is untaxed. Its pool on stonkfun charges 2% per trade, of which 1.5% is routed to the treasury and 0.5% kept by the launchpad."],
                   ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks - not farm tokens - once they clear a small floor, so network fees never cost more than the payout itself."],
-                  ["Stocks → your wallet", "There is no claim button. You pick your payout stock by signing a message; the treasury swaps and sends automatically once your balance clears the floor. Or let it keep accruing and use it as perps margin (Phase 02)."],
+                  ["Stocks → your wallet", "There is no claim button. You pick your payout stock by signing a message; the treasury swaps and sends automatically once your balance clears the floor. Or let it keep accruing and use it as perps margin."],
                 ].map(([t, b], i) => (
                   <li key={t} className="panel flex gap-4 p-5">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-tendie/40 bg-tendie/5 font-mono text-sm font-black text-tendie">
@@ -292,15 +292,20 @@ export default function DocsPage() {
                 <Row k="Funding" v="0.05% of position size every 8h, charged to margin, kept by the treasury" />
                 <Row k="Liquidation" v="When losses reach 95% of margin - the remainder stays with the treasury" />
                 <Row k="Expiry" v="None - funding is what makes holding leverage cost something" />
-                <Row k="Counterparty" v="The treasury - losses go back to all holders as next epoch's fee" />
-                <Row k="Limits" v="One position ≤ 10% of the treasury, all open interest ≤ 50%" />
+                <Row k="Counterparty" v="The house reserve - 10% of each epoch's fee held back, up to 20% of the treasury" />
+                <Row k="Limits" v="One position ≤ 50% of the reserve, all open interest ≤ 200%" />
               </div>
               <p className="text-sm text-mist-300">
-                Because the treasury is the other side of every trade, the
-                limits above are what keep one lucky trader from draining the
-                reward pool. Every mark is signed, so a settlement price can be
-                checked against the treasury&apos;s public key. Perps go live
-                together with the token - the terminal shows a preview until then.
+                The reserve is the other side of every trade: wins are paid
+                from it, losses, liquidations and funding flow into it, and
+                the limits above are fractions of it - so a win never comes out
+                of another holder&apos;s accrued rewards. If a run of winners
+                empties it, the last win is trimmed to what is there rather
+                than taken from anyone else. Every mark is signed, so a
+                settlement price can be checked against the treasury&apos;s
+                public key. Perps go live together with the token - the
+                terminal shows a preview until then, and the reserve needs a
+                few epochs of fees before the first position can open.
               </p>
             </Section>
 
@@ -371,7 +376,7 @@ export default function DocsPage() {
                 ["Where do rewards come from?", "Purely from the 1.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (OPENAI). You can change your payout stock any time in the Treasury tab."],
                 ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
-                ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch - the mint address will appear here and on the dashboard."],
+                ["Is this live?", "Token, treasury and perps are built and tested; the terminal runs in preview until the token launches. Trading unlocks at launch - the mint address will appear here and on the dashboard."],
               ].map(([q, a]) => (
                 <details key={q} className="panel group px-5 py-1 [&_summary]:list-none">
                   <summary className="flex cursor-pointer items-center justify-between py-4 font-bold text-mist-50">
