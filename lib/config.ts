@@ -15,6 +15,12 @@ export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/";
 // xStocks. ⟵ PASTE THE TREASURY PUBKEY HERE at launch.
 export const TREASURY_WALLET = "";
 
+// Bump whenever the kitchen card's artwork changes. X caches link previews by
+// URL for about a week, so a redesigned card would otherwise keep showing the
+// old picture to everyone who shared before. The version rides in the shared
+// URL and in og:image, giving the crawler a fresh address to fetch.
+export const CARD_VERSION = 2;
+
 // The keeper service (accrual ledger + payout choices). Set
 // NEXT_PUBLIC_KEEPER_URL to the Railway URL; blank disables the payout-choice
 // UI instead of letting it pretend to work.

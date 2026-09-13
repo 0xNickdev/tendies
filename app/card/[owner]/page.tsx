@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CARD_VERSION } from "@/lib/config";
 
 // The page a Chef Card link points at. Its only real job is to carry the
 // OpenGraph tags, so X renders the card image inside the tweet.
@@ -12,7 +13,7 @@ export async function generateMetadata({
   params: Promise<{ owner: string }>;
 }): Promise<Metadata> {
   const { owner } = await params;
-  const image = `${SITE}/api/card?owner=${encodeURIComponent(owner)}`;
+  const image = `${SITE}/api/card?owner=${encodeURIComponent(owner)}&v=${CARD_VERSION}`;
   const title = "My Tendies kitchen card";
   const description =
     "Holding $TENDIE and getting paid in real tokenized stocks every 30 minutes.";
@@ -34,7 +35,7 @@ export default async function CardPage({
     <main className="mx-auto flex min-h-[100svh] max-w-4xl flex-col items-center justify-center gap-8 px-5 py-16">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`/api/card?owner=${encodeURIComponent(owner)}`}
+        src={`/api/card?owner=${encodeURIComponent(owner)}&v=${CARD_VERSION}`}
         alt="Tendies kitchen card"
         className="w-full rounded-xl border border-tendie/15"
       />

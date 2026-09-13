@@ -7,6 +7,7 @@ import { PAYOUT_STOCKS, DEFAULT_STOCK, DISTRIBUTION_MINUTES, feedLabel, type Sto
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
 import { solscanTx } from "@/lib/keeper";
+import { CARD_VERSION } from "@/lib/config";
 import { fmtUSD, fmtNum, fmtUSDCompact } from "@/lib/format";
 import { CandleChart } from "@/components/CandleChart";
 import { Stat, ViewHeader, LiveFeedChip } from "../ui";
@@ -234,7 +235,7 @@ export function Treasury() {
                   streak > 0
                     ? `${streak} epochs in the kitchen. paid in real tokenized stock, every 30 minutes.\n\nI'm cooking.`
                     : "holding $TENDIE. paid in real tokenized stock every 30 minutes.\n\nI'm cooking.",
-                )}&url=${encodeURIComponent(`https://gettendies.vercel.app/card/${wallet.address}`)}`}
+                )}&url=${encodeURIComponent(`https://gettendies.vercel.app/card/${wallet.address}?v=${CARD_VERSION}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-ghost mt-3 w-full !py-2.5 text-xs"
