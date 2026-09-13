@@ -51,6 +51,10 @@ export function Perps() {
   const fundingBps = perps?.fundingRateBps ?? 5;
   const fundingHours = perps?.fundingIntervalHours ?? 8;
   const fundingUsd = (size * fundingBps) / 10_000;
+  // Rewards accrue in the quote token; the position is dollar-denominated so
+  // it is one bet, not two. Show what the dollars are in that token anyway.
+  const quotePx = perps?.marks?.[DEFAULT_STOCK.symbol]?.price ?? quotePrice(quotes, DEFAULT_STOCK.symbol);
+  const marginInQuote = quotePx > 0 ? numMargin / quotePx : 0;
   const maxPosition = perps?.maxPositionUsd ?? null;
   const overMax = maxPosition != null && size > maxPosition + 1e-9;
 
@@ -213,9 +217,13 @@ export function Perps() {
                 className="num w-full bg-transparent text-2xl font-semibold text-white outline-none placeholder:text-mist-500"
               />
               <span className="shrink-0 rounded-lg bg-tendie/10 px-3 py-1.5 text-sm font-semibold text-tendie">
-                USD
+                USD value
               </span>
             </div>
+            <p className="mt-2 font-mono text-[11px] text-mist-500">
+              ≈ {marginInQuote.toLocaleString("en-US", { maximumFractionDigits: 5 })} {DEFAULT_STOCK.token} of your
+              accrued rewards · locked in dollars while the position is open
+            </p>
             {overBalance && (
               <p className="mt-2 text-xs text-short">Exceeds your accrued balance.</p>
             )}
