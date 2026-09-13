@@ -34,11 +34,11 @@ export function About() {
           <p className="mt-6 text-pretty leading-relaxed text-mist-300">
             Stocks used to be gated behind brokers, borders, and market hours.
             Tokenized equities put them on Solana - Tendies turns them into a
-            reward. Hold PTNDS and the treasury pays you tokenized OpenAI,
+            reward. Hold PERPTENDIES and the treasury pays you tokenized OpenAI,
             Tesla, NVIDIA or SpaceX every 30 minutes, straight to your wallet.
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-mist-300">
-            The token itself grants no equity. PTNDS carries no transfer tax at
+            The token itself grants no equity. PERPTENDIES carries no transfer tax at
             all - the pool it trades in charges 1.25% per trade, and 0.5% of that
             feeds the treasury, which distributes real tokenized stocks pro-rata
             to holders - no emissions, no inflation - and unlocks a speculative
@@ -74,7 +74,7 @@ export function About() {
             ))}
           </ul>
           <div className="mt-2 border-t border-tendie/15 pt-4 font-mono text-sm text-mist-300">
-            Hold PTNDS → the treasury pays you these real tokenized stocks,
+            Hold PERPTENDIES → the treasury pays you these real tokenized stocks,
             pro-rata, straight to your wallet. Your pick.
           </div>
         </Reveal>
@@ -282,7 +282,7 @@ export function FAQ() {
   const faqs = [
     {
       q: "Do I own real shares?",
-      a: "The rewards are tokenized equities on Solana, held in your own wallet. TSLAx, NVDAx and SPCXx are xStocks - 1:1-collateralised equity tokens. OPENAI is a PreStocks token: pre-IPO exposure via an SPV that holds the shares, not a share itself. PTNDS confers no equity or shareholder rights. Not affiliated with the underlying companies.",
+      a: "The rewards are tokenized equities on Solana, held in your own wallet. TSLAx, NVDAx and SPCXx are xStocks - 1:1-collateralised equity tokens. OPENAI is a PreStocks token: pre-IPO exposure via an SPV that holds the shares, not a share itself. PERPTENDIES confers no equity or shareholder rights. Not affiliated with the underlying companies.",
     },
     {
       q: "Where does the price data come from?",
@@ -302,7 +302,7 @@ export function FAQ() {
     },
     {
       q: "What chain is this on?",
-      a: "Solana. PTNDS launches on the stonkfun launchpad - connect Phantom or Solflare and you're in. No network to add, no bridge.",
+      a: "Solana. PERPTENDIES launches on the stonkfun launchpad - connect Phantom or Solflare and you're in. No network to add, no bridge.",
     },
   ];
   return (
@@ -384,7 +384,7 @@ export function Footer() {
         <div className="max-w-xs">
           <Wordmark />
           <p className="mt-4 text-sm leading-relaxed text-mist-400">
-            Hold PTNDS, get paid in real tokenized stocks every 30 minutes. Not
+            Hold PERPTENDIES, get paid in real tokenized stocks every 30 minutes. Not
             affiliated with the underlying companies.
           </p>
         </div>

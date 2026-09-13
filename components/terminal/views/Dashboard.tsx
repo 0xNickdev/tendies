@@ -46,7 +46,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
           <div>
             <div className="font-medium text-tendie">Wallet not connected</div>
             <div className="text-sm text-mist-300">
-              Connect to load your PTNDS balance straight from the chain.
+              Connect to load your PERPTENDIES balance straight from the chain.
             </div>
           </div>
           <span className="chip">Phantom · Solflare</span>

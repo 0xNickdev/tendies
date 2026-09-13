@@ -15,7 +15,7 @@ export type Account = {
   // null when the fee token could not be priced this request.
   accruedUsd: number | null;
   minPayoutUsd: number;
-  balance: number; // PTNDS held at the last epoch snapshot
+  balance: number; // PERPTENDIES held at the last epoch snapshot
   shareBps: number; // share of circulating supply, basis points
   snapshotAt: string | null;
   // measured by the keeper, never assigned
@@ -46,7 +46,7 @@ export type KeeperStatus = {
   treasury: {
     pendingFee: number; // fee-token units
     pendingFeeUsd: number | null; // the same in dollars, null if unpriced
-    buybackReserve: number; // PTNDS held back for buybacks
+    buybackReserve: number; // PERPTENDIES held back for buybacks
     holders: number;
     payoutStocks: string[];
   };

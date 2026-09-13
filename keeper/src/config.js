@@ -5,7 +5,7 @@
 export const config = {
   rpcUrl: process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com",
 
-  // PTNDS SPL mint — set after the stonkfun launch.
+  // PERPTENDIES SPL mint — set after the stonkfun launch.
   mint: process.env.TENDIE_MINT || "",
 
   // Treasury keypair (base58 secret key) that holds the accrued fee and signs
