@@ -16,7 +16,7 @@ export async function generateMetadata({
   const image = `${SITE}/api/card?owner=${encodeURIComponent(owner)}&v=${CARD_VERSION}`;
   const title = "My Tendies kitchen card";
   const description =
-    "Holding $TENDIE and getting paid in real tokenized stocks every 30 minutes.";
+    "Holding $PTNDS and getting paid in real tokenized stocks every 30 minutes.";
   return {
     title,
     description,

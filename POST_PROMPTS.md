@@ -189,7 +189,7 @@ soon. on solana.
 ### 2 · Первое проявление → визуал «один тендер»
 
 ```
-$TENDIE
+$PTNDS
 
 hold the bag. get the tendies.
 ```
@@ -232,7 +232,7 @@ fees never cost more than the payout.
 
 the pair is the thesis: a coin priced in tesla that pays you in stock.
 
-$TENDIE — hold the bag, get the tendies.
+$PTNDS — hold the bag, get the tendies.
 
 gettendies.vercel.app
 ```
@@ -287,7 +287,7 @@ diversified portfolio:
 ```
 live.
 
-$TENDIE is on stonkfun.
+$PTNDS is on stonkfun.
 
 hold it → the treasury pays you in real tokenized stocks every 30 minutes.
 

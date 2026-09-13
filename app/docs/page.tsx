@@ -6,7 +6,7 @@ import { TENDIE_MINT, TREASURY_WALLET, explorerAccount } from "@/lib/config";
 export const metadata: Metadata = {
   title: "Tendies Docs - How it works",
   description:
-    "Full documentation for Tendies: the TENDIE token on Solana, the 0.5% treasury fee, 30-minute tokenized-stock rewards (OpenAI · TSLA · NVDA · SPCX), perps, the keeper, and security.",
+    "Full documentation for Tendies: the PTNDS (PERPTENDIES) token on Solana, the 0.5% treasury fee, 30-minute tokenized-stock rewards (OpenAI · TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
 
 // xStock mints get pasted in from the official xStocks list at launch — see
@@ -140,7 +140,7 @@ export default function DocsPage() {
                 <b className="text-white">Tendies</b> is a DeFi protocol on
                 Solana that turns trading activity into{" "}
                 <b className="text-tendie">real tokenized stocks</b>. Hold the{" "}
-                <b className="text-white">TENDIE</b> token and the treasury pays
+                <b className="text-white">PTNDS</b> token and the treasury pays
                 you tokenized OpenAI, Tesla, NVIDIA or SpaceX - your pick - every{" "}
                 <b className="text-white">30 minutes</b>, straight to your
                 wallet.
@@ -152,7 +152,7 @@ export default function DocsPage() {
               </p>
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  ["Hold", "Buy & hold TENDIE"],
+                  ["Hold", "Buy & hold PTNDS"],
                   ["Earn", "Tokenized stocks every 30 min"],
                   ["Pick", "OPENAI · TSLA · NVDA · SPCX"],
                 ].map(([h, b]) => (
@@ -168,7 +168,7 @@ export default function DocsPage() {
               <p>The whole loop is three steps:</p>
               <ol className="ml-1 space-y-3">
                 {[
-                  ["Trade fee → treasury", "TENDIE itself is untaxed. Its pool on stonkfun charges 1.25% per trade, of which 0.5% is routed to the treasury and the rest kept by the launchpad."],
+                  ["Trade fee → treasury", "PTNDS itself is untaxed. Its pool on stonkfun charges 1.25% per trade, of which 0.5% is routed to the treasury and the rest kept by the launchpad."],
                   ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks - not farm tokens - once they clear a small floor, so network fees never cost more than the payout itself."],
                   ["Stocks → your wallet", "There is no claim button. You pick your payout stock by signing a message; the treasury swaps and sends automatically once your balance clears the floor. Or let it keep accruing and use it as perps margin."],
                 ].map(([t, b], i) => (
@@ -185,7 +185,7 @@ export default function DocsPage() {
               </ol>
               <p className="rounded-lg border border-tendie/20 bg-tendie/5 p-4 text-sm text-mist-200">
                 <b className="text-tendie">Under the hood:</b> the fee arrives
-                in the token TENDIE is paired against - OPENAI - so that is what
+                in the token PTNDS is paired against - OPENAI - so that is what
                 the ledger counts until payout. Your balance is therefore held
                 in OpenAI, not in dollars, and moves with it; the payout floor is
                 converted from dollars at the live rate each epoch. If a stock&apos;s
@@ -196,7 +196,7 @@ export default function DocsPage() {
 
             <Section id="tokenomics" n="03" title="Tokenomics">
               <div className="panel p-6">
-                <Row k="Token" v="TENDIE" />
+                <Row k="Token" v="PERPTENDIES (PTNDS)" />
                 <Row k="Total supply" v="1,000,000,000 (fixed, no mint)" />
                 <Row k="Quote pair" v="OPENAI (PreStocks) - permanent, set at launch" />
                 <Row k="Pool fee" v="1.25% per trade" />
@@ -218,7 +218,7 @@ export default function DocsPage() {
                 <Row k="Reward assets" v="OPENAI · TSLAx · NVDAx · SPCXx" />
                 <Row k="Backing" v="xStocks 1:1-backed · OPENAI via PreStocks SPV" />
                 <Row k="Accrual" v="Every 30 minutes, automatic" />
-                <Row k="Eligibility" v="Pro-rata to every TENDIE holder" />
+                <Row k="Eligibility" v="Pro-rata to every PTNDS holder" />
                 <Row k="Sent when" v="Your balance passes the payout floor" />
                 <Row k="Custody" v="Straight to your own wallet" />
                 <Row k="Default payout" v="OpenAI (OPENAI) if you never pick" />
@@ -332,7 +332,7 @@ export default function DocsPage() {
               <p>Two moving parts run the whole thing:</p>
               <ul className="space-y-2 text-sm">
                 <li className="panel p-4">
-                  <b className="text-white">TENDIE</b> - the token. Fixed 1B
+                  <b className="text-white">PTNDS</b> - the token. Fixed 1B
                   supply, no transfer tax, no mint authority after launch - the
                   mint is created by the launchpad, not by us.
                 </li>
@@ -350,7 +350,7 @@ export default function DocsPage() {
               </p>
               <div className="panel p-5 text-sm">
                 <div className="flex flex-col gap-2">
-                  <AddrLink label="TENDIE mint" address={TENDIE_MINT} />
+                  <AddrLink label="PTNDS mint" address={TENDIE_MINT} />
                   <AddrLink label="Treasury" address={TREASURY_WALLET} />
                 </div>
                 <p className="mt-3 text-xs text-mist-400">
@@ -375,10 +375,10 @@ export default function DocsPage() {
 
             <Section id="faq" n="09" title="FAQ">
               {[
-                ["Do I own real shares?", "No. Rewards are tokenized stocks (xStocks 1:1-backed; OPENAI is SPV-backed pre-IPO exposure) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
+                ["Do I own real shares?", "No. Rewards are tokenized stocks (xStocks 1:1-backed; OPENAI is SPV-backed pre-IPO exposure) held in your wallet; PTNDS itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
                 ["Where do rewards come from?", "Purely from the 0.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (OPENAI). You can change your payout stock any time in the Treasury tab."],
-                ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
+                ["Can the team rug the fee?", "PTNDS launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
                 ["Is this live?", "Token, treasury and perps are built and tested; the terminal runs in preview until the token launches. Trading unlocks at launch - the mint address will appear here and on the dashboard."],
               ].map(([q, a]) => (
                 <details key={q} className="panel group px-5 py-1 [&_summary]:list-none">

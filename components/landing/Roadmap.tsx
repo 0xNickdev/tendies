@@ -88,7 +88,7 @@ const PHASES: Phase[] = [
     statusLabel: "Shipped · Live",
     title: "Token & Treasury",
     points: [
-      "TENDIE paired with OPENAI - 0.5% of every trade tithes to the treasury",
+      "PTNDS paired with OPENAI - 0.5% of every trade tithes to the treasury",
       "Rewards in tokenized stocks - OPENAI, TSLAx, NVDAx or SPCXx, your pick",
       "Distribution every 30 minutes + live Nasdaq & DEX price feeds",
     ],

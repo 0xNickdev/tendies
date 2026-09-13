@@ -6,7 +6,7 @@ import { KEEPER_URL } from "./config";
 
 // Feature flags — what's live vs. on the roadmap (see landing Roadmap section)
 export const FEATURES = {
-  tradeLive: false, // unlocks with the TENDIE token launch (see lib/config.ts)
+  tradeLive: false, // unlocks with the PTNDS token launch (see lib/config.ts)
   // Perps run inside the keeper, so they are live exactly when it is wired
   // up. Until NEXT_PUBLIC_KEEPER_URL is set the terminal shows a preview.
   perpsLive: Boolean(KEEPER_URL),
@@ -23,10 +23,10 @@ export const TREASURY = {
   // slice of it, which is the entire reward budget. stonkfun keeps the rest.
   poolFeeBps: 125, // LaunchLab's fixed trading fee
   treasuryFeeBps: 50, // → treasury (the creator's share)
-  // TENDIE is priced against this, not against a stablecoin.
+  // PTNDS is priced against this, not against a stablecoin.
   quoteSymbol: "OPENAI",
   tokenPriceUsd: 0,
-  tokenSymbol: "TENDIE",
+  tokenSymbol: "PTNDS",
   // Where the 0.5% comes from: the stonkfun launchpad's creator fee share on
   // trading volume. The mint itself carries no transfer fee — a standard
   // stonkfun launch provably has none — so wallet↔wallet moves are free.
@@ -38,7 +38,7 @@ export const TREASURY = {
 
 export type Direction = "long" | "short";
 
-// Solana mainnet-beta — TENDIE launches on the stonkfun launchpad.
+// Solana mainnet-beta — PTNDS launches on the stonkfun launchpad.
 export const NETWORK = {
   name: "Solana",
   cluster: "mainnet-beta",

@@ -2,7 +2,7 @@
 
 The server-side of Tendies on **Solana**. One always-on Node service that:
 
-1. **Snapshots holders** — enumerates every TENDIE token account straight from
+1. **Snapshots holders** — enumerates every PTNDS token account straight from
    the cluster (`getProgramAccounts` on the mint), sums per owner, and drops
    the excluded accounts (launchpad curve/pool, treasury, LPs, CEX wallets).
 2. **Accrues** — credits the fee that arrived since the last epoch to every
@@ -23,7 +23,7 @@ The server-side of Tendies on **Solana**. One always-on Node service that:
    for the frontend to read real treasury numbers, and for holders to set
    their payout stock with a wallet signature.
 
-No custom on-chain program is involved: TENDIE is minted by the **stonkfun**
+No custom on-chain program is involved: PTNDS is minted by the **stonkfun**
 launchpad, and distribution is plain SPL transfers signed by the treasury
 keypair. That key can move treasury funds and nothing else — it is not a mint
 authority, and it cannot touch holder wallets.
@@ -159,7 +159,7 @@ curl localhost:3333/status
 
 - Fund the treasury wallet with SOL (~0.1) — it pays transaction fees and the
   rent for holder ATAs it has to create.
-- Verify every mint you paste (TENDIE, the xStocks, `FEE_MINT`) on solscan.io.
+- Verify every mint you paste (PTNDS, the xStocks, `FEE_MINT`) on solscan.io.
   These are funds-bearing addresses; a typo sends real money to a stranger.
 - Fill `EXCLUDE_ACCOUNTS` before the first epoch. The launchpad pool holds a
   large slice of supply and is a program, not a person: rewards sent there are

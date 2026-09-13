@@ -9,7 +9,7 @@
 // any other accrual.
 //
 // Losses stay in the treasury. The epoch loop sees them as new fee and hands
-// them to every holder pro-rata, so the pool of TENDIE holders collectively
+// them to every holder pro-rata, so the pool of PTNDS holders collectively
 // takes the other side of every trade. That is why the limits in config are
 // fractions of the treasury: no single trade may put more than a slice of
 // everyone's rewards at risk.
