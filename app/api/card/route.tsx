@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { KEEPER_URL } from "@/lib/config";
+import { DEFAULT_STOCK } from "@/lib/stocks";
 
 // The shareable artifact: a card a holder posts to X. Every figure on it is
 // measured by the keeper - nothing here is a badge we made up.
@@ -117,7 +118,8 @@ export async function GET(req: Request) {
             {[
               ["EPOCH STREAK", String(streak), WHITE],
               ["PAID OUT", `$${totalPaid.toFixed(2)}`, MINT],
-              ["COOKING", choice ?? "—", LIGHT],
+              // never picked → the keeper pays the default, so say that
+              ["COOKING", choice ?? DEFAULT_STOCK.token, LIGHT],
             ].map(([label, value, colour]) => (
               <div key={label} style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", color: MUTED, fontSize: 18, letterSpacing: 3 }}>
