@@ -2,10 +2,14 @@
 // No mock market data — live prices come from /api/prices, balances from the
 // connected wallet, and positions from the chain once perps go live.
 
+import { KEEPER_URL } from "./config";
+
 // Feature flags — what's live vs. on the roadmap (see landing Roadmap section)
 export const FEATURES = {
   tradeLive: false, // unlocks with the TENDIE token launch (see lib/config.ts)
-  perpsLive: false, // Phase 02 - terminal shows a preview, trading is "Soon"
+  // Perps run inside the keeper, so they are live exactly when it is wired
+  // up. Until NEXT_PUBLIC_KEEPER_URL is set the terminal shows a preview.
+  perpsLive: Boolean(KEEPER_URL),
   autoTradingLive: false, // Phase 03 - strategy vaults / auto-trading
 };
 
@@ -33,33 +37,6 @@ export const TREASURY = {
 };
 
 export type Direction = "long" | "short";
-
-export type Position = {
-  id: string;
-  direction: Direction;
-  leverage: number;
-  marginUsdc: number;
-  entryPrice: number;
-  sizeUsd: number;
-  liqPrice: number;
-  openedAt: string;
-};
-
-// Positions come from the chain once perps are live (Phase 02).
-export const OPEN_POSITIONS: Position[] = [];
-
-export type ClosedPosition = {
-  id: string;
-  direction: Direction;
-  leverage: number;
-  marginUsdc: number;
-  entryPrice: number;
-  exitPrice: number;
-  pnlUsd: number;
-  settledAt: string;
-};
-
-export const CLOSED_POSITIONS: ClosedPosition[] = [];
 
 // Solana mainnet-beta — TENDIE launches on the stonkfun launchpad.
 export const NETWORK = {

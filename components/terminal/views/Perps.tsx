@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { FEATURES } from "@/lib/mock";
 import { PAYOUT_STOCKS, DEFAULT_STOCK, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
-import { fmtUSD, fmtNum, fmtPct } from "@/lib/format";
+import { fmtUSD, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { Segmented, ViewHeader, EmptyState } from "../ui";
 import { CandleChart } from "@/components/CandleChart";
 import { IconPerps } from "../icons";
@@ -18,12 +18,16 @@ export function Perps() {
   const {
     wallet,
     connect,
-    claimUsd,
+    accruedUsd,
     positions,
+    perps,
     openPosition,
     closePosition,
   } = useStore();
   const { push } = useToast();
+  // Margin is the accrued balance - the keeper is the counterparty, so the
+  // stake never leaves the treasury until it is paid out as stock.
+  const claimUsd = accruedUsd;
 
   const [market, setMarket] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const [dir, setDir] = useState<Direction>("long");
@@ -34,22 +38,45 @@ export function Perps() {
   const [pending, setPending] = useState(false);
 
   const quotes = useQuotes();
-  const entry = quotePrice(quotes, market);
+  // Positions open and settle on the keeper's mark, not the site quote; the
+  // quote is only the preview while no keeper is wired up.
+  const keeperMark = perps?.marks?.[market];
+  const entry = keeperMark?.price ?? quotePrice(quotes, market);
   const numMargin = parseFloat(margin) || 0;
   const size = numMargin * lev;
   const overBalance = numMargin > claimUsd + 1e-9;
+  const minMargin = perps?.minMarginUsd ?? 1;
+  const underMin = numMargin > 0 && numMargin < minMargin;
+  const liquidationPct = perps?.liquidationPct ?? 95;
+  const fundingBps = perps?.fundingRateBps ?? 5;
+  const fundingHours = perps?.fundingIntervalHours ?? 8;
+  const fundingUsd = (size * fundingBps) / 10_000;
 
+  // Same formula as liquidationPrice() in keeper/src/perps.js.
   const liq = useMemo(() => {
-    const move = entry / lev;
-    return dir === "long" ? entry - move * 0.95 : entry + move * 0.95;
-  }, [entry, lev, dir]);
+    const move = (liquidationPct / 100) / lev;
+    return dir === "long" ? entry * (1 - move) : entry * (1 + move);
+  }, [entry, lev, dir, liquidationPct]);
 
   const liqPct = ((liq - entry) / entry) * 100;
+
+  const closeOne = async (p: (typeof positions)[number]) => {
+    setPending(true);
+    push("Sign in your wallet to close…", "pending");
+    const r = await closePosition(p.id);
+    setPending(false);
+    if (r.ok && r.position) {
+      const pnl = r.position.pnlUsd;
+      push(`Closed ${p.symbol} · ${pnl >= 0 ? "+" : ""}${fmtUSD(pnl)} · ${fmtUSD(r.position.returnedUsd)} back to accrued`, pnl >= 0 ? "success" : "error");
+    } else {
+      push(r.error ?? "Could not close", "error");
+    }
+  };
 
   const requestOpen = () => {
     if (!FEATURES.perpsLive) return; // preview only - trading unlocks in Phase 02
     if (!wallet.connected) return connect();
-    if (numMargin <= 0 || overBalance) return;
+    if (numMargin <= 0 || overBalance || underMin) return;
     if (!ack) {
       setShowRisk(true);
       return;
@@ -57,26 +84,33 @@ export function Perps() {
     doOpen();
   };
 
-  const doOpen = () => {
+  const doOpen = async () => {
     setShowRisk(false);
     setPending(true);
-    push("Confirm position in wallet…", "pending");
-    setTimeout(() => {
-      openPosition({ direction: dir, leverage: lev, marginUsdc: numMargin, entryPrice: entry });
-      push(`Opened ${lev}× ${dir.toUpperCase()} · ${fmtUSD(size)}`, "success");
+    push("Sign the position in your wallet…", "pending");
+    const r = await openPosition({ market, direction: dir, leverage: lev, marginUsd: numMargin });
+    setPending(false);
+    if (r.ok && r.position) {
+      push(`Opened ${lev}× ${dir.toUpperCase()} ${market} · ${fmtUSD(r.position.sizeUsd)} @ ${fmtUSD(r.position.entry)}`, "success");
       setMargin("");
-      setPending(false);
-    }, 1100);
+    } else {
+      push(r.error ?? "Could not open", "error");
+    }
   };
 
   return (
     <div>
       <ViewHeader
         title="Perps"
-        subtitle="Pick a market, then speculate on its next oracle mark using your treasury claim as margin."
+        subtitle="Pick a market, then speculate on its next oracle mark using your accrued rewards as margin."
         right={
           <span className="flex items-center gap-2">
-            <span className="chip">Mark: {fmtUSD(entry)}</span>
+            <span className="chip" title={keeperMark?.at ? `Keeper mark · ${fmtDate(keeperMark.at)}` : "Site quote - keeper mark once live"}>
+              Mark: {fmtUSD(entry)}
+            </span>
+            {FEATURES.perpsLive && perps && !perps.enabled && (
+              <span className="chip !border-warn/50 !text-warn">Paused</span>
+            )}
             {!FEATURES.perpsLive && (
               <span className="chip !border-tendie !bg-tendie !text-ink-950">
                 <span className="relative flex h-1.5 w-1.5">
@@ -155,7 +189,7 @@ export function Perps() {
 
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between">
-              <span className="label">Margin (from claim)</span>
+              <span className="label">Margin (from accrued)</span>
               <button
                 onClick={() => setMargin(String(Math.floor(claimUsd)))}
                 className="text-xs text-tendie hover:underline"
@@ -180,7 +214,10 @@ export function Perps() {
               </span>
             </div>
             {overBalance && (
-              <p className="mt-2 text-xs text-short">Exceeds available claim.</p>
+              <p className="mt-2 text-xs text-short">Exceeds your accrued balance.</p>
+            )}
+            {underMin && (
+              <p className="mt-2 text-xs text-short">Minimum margin is {fmtUSD(minMargin)}.</p>
             )}
           </div>
 
@@ -215,7 +252,16 @@ export function Perps() {
               value={`${fmtUSD(liq)} (${fmtPct(liqPct, 1)})`}
               accent="short"
             />
+            <Row
+              label={`Funding / ${fundingHours}h`}
+              value={`${fmtUSD(fundingUsd)} (${(fundingBps / 100).toFixed(2)}%)`}
+            />
           </div>
+          <p className="mt-2 text-xs text-mist-500">
+            Funding is a flat {(fundingBps / 100).toFixed(2)}% of position size every {fundingHours}h,
+            charged to your margin and kept by the treasury. Positions have no expiry -
+            funding is what makes holding leverage cost something.
+          </p>
 
           {/* acknowledgement */}
           <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-mist-300">
@@ -236,7 +282,8 @@ export function Perps() {
             disabled={
               !FEATURES.perpsLive ||
               pending ||
-              (wallet.connected && (numMargin <= 0 || overBalance))
+              (perps ? !perps.enabled : false) ||
+              (wallet.connected && (numMargin <= 0 || overBalance || underMin))
             }
             className={`mt-4 w-full rounded-xl py-4 text-base font-semibold transition-all active:scale-[0.98] disabled:opacity-40 ${
               !FEATURES.perpsLive
@@ -275,20 +322,17 @@ export function Perps() {
               title="No open positions"
               body={
                 FEATURES.perpsLive
-                  ? "Set your direction, margin, and leverage on the left to open your first position on the next mark."
-                  : "Perps are in preview - positions unlock when trading goes live in Phase 02. Meanwhile, rehearse your setup on the left."
+                  ? "Set your direction, margin, and leverage on the left to open your first position on the current mark."
+                  : "Perps are in preview - positions unlock when trading goes live. Meanwhile, rehearse your setup on the left."
               }
             />
           ) : (
             <div className="space-y-3">
               {positions.map((p) => {
-                const dirUp = p.direction === "long";
-                // unrealized PnL at current mark (entry == mark at open ⇒ ~0)
-                const pnl =
-                  ((entry - p.entryPrice) / p.entryPrice) *
-                  p.sizeUsd *
-                  (dirUp ? 1 : -1);
-                const pnlPct = (pnl / p.marginUsdc) * 100;
+                const dirUp = p.side === "long";
+                // Marked by the keeper against its last published mark.
+                const pnl = p.pnlUsd;
+                const pnlPct = (pnl / p.marginUsd) * 100;
                 return (
                   <div key={p.id} className="panel p-5">
                     <div className="flex items-center justify-between">
@@ -298,7 +342,7 @@ export function Perps() {
                             dirUp ? "bg-long/15 text-long" : "bg-short/15 text-short"
                           }`}
                         >
-                          {dirUp ? "LONG" : "SHORT"} {p.leverage}×
+                          {dirUp ? "LONG" : "SHORT"} {p.leverage}× {p.symbol}
                         </span>
                         <span className="text-xs text-mist-400">#{p.id}</span>
                       </div>
@@ -309,19 +353,21 @@ export function Perps() {
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                      <Cell label="Margin" value={fmtUSD(p.marginUsdc)} />
+                      <Cell label="Margin" value={fmtUSD(p.marginUsd)} />
                       <Cell label="Size" value={fmtUSD(p.sizeUsd)} />
-                      <Cell label="Entry" value={fmtUSD(p.entryPrice)} />
+                      <Cell label="Entry → Mark" value={`${fmtUSD(p.entry)} → ${fmtUSD(p.mark)}`} />
                       <Cell label="Liq." value={fmtUSD(p.liqPrice)} accent="short" />
                     </div>
+                    <div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-[11px] text-mist-500">
+                      <span>Equity {fmtUSD(p.equityUsd)} · funding paid {fmtUSD(p.fundingPaidUsd)}</span>
+                      <span>Next funding {fmtDate(p.nextFundingAt)}</span>
+                    </div>
                     <button
-                      onClick={() => {
-                        closePosition(p.id);
-                        push(`Closed #${p.id} · ${pnl >= 0 ? "+" : ""}${fmtUSD(pnl)}`, pnl >= 0 ? "success" : "error");
-                      }}
-                      className="btn-ghost mt-4 w-full"
+                      onClick={() => void closeOne(p)}
+                      disabled={pending}
+                      className="btn-ghost mt-4 w-full disabled:opacity-40"
                     >
-                      Close position
+                      Close at mark {fmtUSD(p.mark)}
                     </button>
                   </div>
                 );
@@ -369,7 +415,9 @@ function RiskModal({
           {[
             "Leverage amplifies both gains and losses.",
             "Your position can be fully liquidated, losing 100% of margin.",
-            "Oracle marks print on a schedule and can gap sharply.",
+            "Marks print every few minutes and can gap sharply between them.",
+            "Funding is charged on position size every 8 hours while it stays open.",
+            "The treasury is the counterparty - your margin is your accrued rewards.",
             "This is synthetic exposure - not direct share ownership.",
           ].map((t) => (
             <li key={t} className="flex gap-2.5">

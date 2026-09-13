@@ -154,3 +154,163 @@ export async function submitChoice(
     return { ok: false, error: "Payout service unreachable" };
   }
 }
+
+// ── perps ─────────────────────────────────────────────────────────────────
+// Positions live in the keeper, margined from the accrued balance. Every
+// figure below is computed there against its last mark; the UI only shows.
+
+export type PerpPosition = {
+  id: string;
+  owner: string;
+  symbol: string; // market, e.g. "OPENAI"
+  side: "long" | "short";
+  leverage: number;
+  marginUsd: number;
+  sizeUsd: number;
+  entry: number;
+  mark: number;
+  markAt: string | null;
+  pnlUsd: number;
+  equityUsd: number;
+  fundingPaidUsd: number;
+  liqPrice: number;
+  openedAt: string;
+  nextFundingAt: string;
+};
+
+export type ClosedPerp = {
+  id: string;
+  symbol: string;
+  side: "long" | "short";
+  leverage: number;
+  marginUsd: number;
+  sizeUsd: number;
+  entry: number;
+  exit: number;
+  reason: "closed" | "liquidated";
+  pnlUsd: number;
+  fundingPaidUsd: number;
+  returnedUsd: number;
+  openedAt: string;
+  closedAt: string;
+};
+
+export type PerpMark = {
+  symbol: string;
+  price: number;
+  at: string;
+  source: "nasdaq" | "dex" | string;
+  signature: string | null;
+};
+
+export type PerpsInfo = {
+  enabled: boolean;
+  openPositions: number;
+  openInterestUsd: number;
+  maxLeverage: number;
+  minMarginUsd: number;
+  fundingRateBps: number;
+  fundingIntervalHours: number;
+  liquidationPct: number;
+  maxPositionPct: number;
+  maxOpenInterestPct: number;
+  markets: string[];
+  marks: Record<string, PerpMark>;
+};
+
+export async function fetchPerps(): Promise<PerpsInfo | null> {
+  if (!KEEPER_URL) return null;
+  try {
+    const res = await fetch(`${KEEPER_URL}/perps`);
+    const json = await res.json();
+    return json?.ok ? (json as PerpsInfo) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPositions(
+  owner: string,
+): Promise<{ open: PerpPosition[]; history: ClosedPerp[] } | null> {
+  if (!KEEPER_URL) return null;
+  try {
+    const res = await fetch(`${KEEPER_URL}/perps/positions?owner=${encodeURIComponent(owner)}`);
+    const json = await res.json();
+    return json?.ok ? { open: json.open ?? [], history: json.history ?? [] } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Must match openMessage() / closeMessage() in keeper/src/perps.js, byte for byte.
+export function perpOpenMessage(p: {
+  market: string;
+  side: "long" | "short";
+  leverage: number;
+  marginUsd: number;
+  ts: number;
+}) {
+  return (
+    `Tendies perp open\nmarket: ${p.market}\nside: ${p.side}\n` +
+    `leverage: ${p.leverage}\nmargin: ${p.marginUsd.toFixed(2)}\nts: ${p.ts}`
+  );
+}
+
+export function perpCloseMessage(id: string, ts: number) {
+  return `Tendies perp close\nposition: ${id}\nts: ${ts}`;
+}
+
+async function signed(
+  signMessage: SignMessage,
+  message: string,
+): Promise<string | null> {
+  try {
+    const { signature } = await signMessage(new TextEncoder().encode(message), "utf8");
+    return toBase58(signature);
+  } catch {
+    return null;
+  }
+}
+
+async function post<T>(path: string, body: unknown): Promise<{ ok: boolean; error?: string; data?: T }> {
+  try {
+    const res = await fetch(`${KEEPER_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    return json?.ok ? { ok: true, data: json as T } : { ok: false, error: json?.error ?? "Rejected" };
+  } catch {
+    return { ok: false, error: "Perps service unreachable" };
+  }
+}
+
+export async function openPerp(
+  owner: string,
+  p: { market: string; side: "long" | "short"; leverage: number; marginUsd: number },
+  signMessage: SignMessage,
+): Promise<{ ok: boolean; error?: string; position?: PerpPosition }> {
+  if (!KEEPER_URL) return { ok: false, error: "Perps service is not configured yet" };
+  const marginUsd = Math.round(p.marginUsd * 100) / 100;
+  const ts = Date.now();
+  const signature = await signed(signMessage, perpOpenMessage({ ...p, marginUsd, ts }));
+  if (!signature) return { ok: false, error: "Signature rejected in the wallet" };
+  const r = await post<{ position: PerpPosition }>("/perps/open", {
+    owner, ...p, marginUsd, ts, signature,
+  });
+  return r.ok ? { ok: true, position: r.data?.position } : r;
+}
+
+export async function closePerp(
+  owner: string,
+  id: string,
+  signMessage: SignMessage,
+): Promise<{ ok: boolean; error?: string; position?: ClosedPerp }> {
+  if (!KEEPER_URL) return { ok: false, error: "Perps service is not configured yet" };
+  const ts = Date.now();
+  const signature = await signed(signMessage, perpCloseMessage(id, ts));
+  if (!signature) return { ok: false, error: "Signature rejected in the wallet" };
+  const r = await post<{ position: ClosedPerp }>("/perps/close", { owner, id, ts, signature });
+  return r.ok ? { ok: true, position: r.data?.position } : r;
+}

@@ -298,7 +298,7 @@ export function FAQ() {
     },
     {
       q: "What are the perps?",
-      a: "A perpetual-futures market on the reward stocks (OPENAI, TSLA, NVDA, SPCX). You post your treasury claim as margin, pick long or short with leverage, and settle against the next published oracle mark. Liquidation applies if the mark moves far enough against you.",
+      a: "A perpetual-futures market on the reward stocks (OPENAI, TSLA, NVDA, SPCX), run by the keeper with the treasury as counterparty. You post part of your accrued rewards as margin - nothing leaves your wallet - pick long or short with up to 10× leverage, and the position is marked every 5 minutes. Funding of 0.05% of size is charged every 8 hours; liquidation hits when losses reach 95% of margin.",
     },
     {
       q: "What chain is this on?",

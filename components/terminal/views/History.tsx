@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { FEATURES } from "@/lib/mock";
 import { fmtUSD, fmtPct, fmtDate } from "@/lib/format";
 import { ViewHeader, EmptyState, Stat } from "../ui";
 import { IconHistory } from "../icons";
@@ -24,10 +25,14 @@ export function History({ go }: { go: (v: View) => void }) {
         <EmptyState
           icon={<IconHistory className="h-6 w-6" />}
           title="No settled positions yet"
-          body="Perps are in preview - once trading goes live in Phase 02 and a position settles, it'll appear here."
+          body={
+            FEATURES.perpsLive
+              ? "Close a position - or get liquidated - and it settles here with its PnL and funding."
+              : "Perps are in preview - once trading goes live and a position settles, it'll appear here."
+          }
           action={
             <button onClick={() => go("perps")} className="btn-tendie">
-              Preview perps
+              {FEATURES.perpsLive ? "Open a position" : "Preview perps"}
             </button>
           }
         />
@@ -51,14 +56,15 @@ export function History({ go }: { go: (v: View) => void }) {
                     <th className="px-5 py-3 font-medium">Position</th>
                     <th className="px-5 py-3 font-medium">Entry → Exit</th>
                     <th className="px-5 py-3 font-medium">Margin</th>
+                    <th className="px-5 py-3 font-medium">Funding</th>
                     <th className="px-5 py-3 font-medium">Settled</th>
                     <th className="px-5 py-3 text-right font-medium">PnL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-tendie/5">
                   {history.map((p) => {
-                    const dirUp = p.direction === "long";
-                    const pct = (p.pnlUsd / p.marginUsdc) * 100;
+                    const dirUp = p.side === "long";
+                    const pct = (p.pnlUsd / p.marginUsd) * 100;
                     return (
                       <tr key={p.id} className="hover:bg-tendie/5">
                         <td className="px-5 py-4">
@@ -67,15 +73,23 @@ export function History({ go }: { go: (v: View) => void }) {
                               dirUp ? "bg-long/15 text-long" : "bg-short/15 text-short"
                             }`}
                           >
-                            {dirUp ? "LONG" : "SHORT"} {p.leverage}×
+                            {dirUp ? "LONG" : "SHORT"} {p.leverage}× {p.symbol}
                           </span>
-                          <div className="mt-1 text-xs text-mist-500">#{p.id}</div>
+                          <div className="mt-1 text-xs text-mist-500">
+                            #{p.id}
+                            {p.reason === "liquidated" && (
+                              <span className="ml-2 rounded bg-short/15 px-1.5 py-0.5 font-semibold uppercase text-short">
+                                Liquidated
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="num px-5 py-4 text-mist-200">
-                          ${p.entryPrice}B → ${p.exitPrice}B
+                          {fmtUSD(p.entry)} → {fmtUSD(p.exit)}
                         </td>
-                        <td className="num px-5 py-4 text-mist-200">{fmtUSD(p.marginUsdc)}</td>
-                        <td className="px-5 py-4 text-mist-300">{fmtDate(p.settledAt)}</td>
+                        <td className="num px-5 py-4 text-mist-200">{fmtUSD(p.marginUsd)}</td>
+                        <td className="num px-5 py-4 text-mist-300">−{fmtUSD(p.fundingPaidUsd)}</td>
+                        <td className="px-5 py-4 text-mist-300">{fmtDate(p.closedAt)}</td>
                         <td className={`num px-5 py-4 text-right font-semibold ${p.pnlUsd >= 0 ? "text-long" : "text-short"}`}>
                           {p.pnlUsd >= 0 ? "+" : ""}
                           {fmtUSD(p.pnlUsd)}

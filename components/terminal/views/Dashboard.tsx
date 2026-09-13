@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TREASURY } from "@/lib/mock";
 import { PAYOUT_STOCKS, DEFAULT_STOCK, feedLabel, type StockSym } from "@/lib/stocks";
+import { FEATURES } from "@/lib/mock";
 import { BUY_TENDIE_URL } from "@/lib/config";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
@@ -81,7 +82,7 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
         <Stat
           label="Open Positions"
           value={positions.length}
-          sub={positions.length ? "Tap Perps to manage" : "Perps in preview - soon"}
+          sub={positions.length ? "Tap Perps to manage" : FEATURES.perpsLive ? "Open one in Perps" : "Perps in preview - soon"}
         />
       </div>
 
@@ -141,10 +142,12 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
             </a>
             <button onClick={() => go("perps")} className="btn-ghost w-full justify-between">
               <span className="flex items-center gap-2">
-                Preview Perps
-                <span className="rounded border border-tendie/50 bg-tendie/10 px-1.5 py-0.5 font-mono text-[9px] font-black tracking-wider text-tendie">
-                  SOON
-                </span>
+                {FEATURES.perpsLive ? "Trade Perps" : "Preview Perps"}
+                {!FEATURES.perpsLive && (
+                  <span className="rounded border border-tendie/50 bg-tendie/10 px-1.5 py-0.5 font-mono text-[9px] font-black tracking-wider text-tendie">
+                    SOON
+                  </span>
+                )}
               </span>
               <Arrow />
             </button>

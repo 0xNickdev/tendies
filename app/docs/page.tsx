@@ -273,17 +273,34 @@ export default function DocsPage() {
               </p>
             </Section>
 
-            <Section id="perps" n="06" title="Perps (Phase 02)">
+            <Section id="perps" n="06" title="Perps">
               <p>
-                A perpetual-futures layer on the reward stocks. You post your
-                accrued treasury claim as margin, go long or short with 1-10×
-                leverage, and settle against the next published oracle mark. A
-                mandatory risk disclosure gates every position.
+                A perpetual-futures layer on the reward stocks, run by the same
+                keeper that pays you. You post part of your{" "}
+                <b className="text-white">accrued rewards</b> as margin - nothing
+                leaves your wallet, nothing is deposited - go long or short with
+                1-10× leverage, and the position is marked against the keeper&apos;s
+                published price every few minutes. Close whenever you like;
+                whatever is left of the margin plus PnL goes back to your accrued
+                balance and is paid out in stock like everything else.
               </p>
+              <div className="panel p-6">
+                <Row k="Markets" v="OPENAI · TSLA · NVDA · SPCX" />
+                <Row k="Margin" v="Your accrued rewards (min $1)" />
+                <Row k="Leverage" v="1× - 10×" />
+                <Row k="Mark" v="Every 5 min - exchange quote, or the on-chain pool for OpenAI - signed by the treasury key" />
+                <Row k="Funding" v="0.05% of position size every 8h, charged to margin, kept by the treasury" />
+                <Row k="Liquidation" v="When losses reach 95% of margin - the remainder stays with the treasury" />
+                <Row k="Expiry" v="None - funding is what makes holding leverage cost something" />
+                <Row k="Counterparty" v="The treasury - losses go back to all holders as next epoch's fee" />
+                <Row k="Limits" v="One position ≤ 10% of the treasury, all open interest ≤ 50%" />
+              </div>
               <p className="text-sm text-mist-300">
-                Perps are currently a live preview in the terminal - you can
-                explore the order ticket and charts. Opening real positions
-                unlocks with Phase 02.
+                Because the treasury is the other side of every trade, the
+                limits above are what keep one lucky trader from draining the
+                reward pool. Every mark is signed, so a settlement price can be
+                checked against the treasury&apos;s public key. Perps go live
+                together with the token - the terminal shows a preview until then.
               </p>
             </Section>
 

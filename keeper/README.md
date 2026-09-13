@@ -55,7 +55,7 @@ keeper/
 | --- | --- | --- | --- |
 | `TENDIE_MINT` | ✅ | — | SPL mint from the stonkfun launch |
 | `TREASURY_SECRET_KEY` | ✅ | — | base58 secret key of the treasury wallet (signs swaps + payouts) |
-| `PAYOUT_MINTS` | ✅ | — | `TSLAx:<mint>,NVDAx:<mint>,SPCXx:<mint>` — xStock mints, pasted from the official list |
+| `PAYOUT_MINTS` | ✅ | — | `OPENAI:<mint>,TSLAx:<mint>,NVDAx:<mint>,SPCXx:<mint>` — the first is the quote pair and default payout |
 | `SOLANA_RPC` | — | public mainnet RPC | use Helius/QuickNode/Triton in production; the public endpoint is rate-limited |
 | `FEE_MINT` | — | USDC | what the fee accrues in before the swap |
 | `EXCLUDE_ACCOUNTS` | — | — | comma-separated pubkeys that must never earn - the launchpad pool above all |
@@ -64,6 +64,28 @@ keeper/
 | `ALLOW_ORIGIN` | — | `*` | set to the site origin so only it can POST choices |
 | `SLIPPAGE_BPS` | — | `100` | Jupiter slippage tolerance on the first try |
 | `SWAP_ATTEMPTS` | — | `3` | route attempts before paying that group in the fee token |
+| `PERPS_ENABLED` | — | `true` | `false` pauses opening; existing positions still mark, fund and close |
+| `PERPS_MAX_LEVERAGE` | — | `10` | |
+| `PERPS_MIN_MARGIN_USD` | — | `1` | |
+| `PERPS_MAX_POSITION_PCT` | — | `10` | one position's size, as % of the treasury fee balance |
+| `PERPS_MAX_OI_PCT` | — | `50` | all open positions together, as % of the fee balance |
+| `PERPS_LIQUIDATION_PCT` | — | `95` | liquidate once losses reach this % of margin |
+| `PERPS_FUNDING_BPS` | — | `5` | funding per interval, in bps of position size (5 = 0.05%) |
+| `PERPS_FUNDING_INTERVAL_MS` | — | 8h | |
+| `PERPS_MARK_INTERVAL_MS` | — | 5 min | mark refresh + funding/liquidation check |
+| `PERPS_DRYRUN_POOL_USD` | — | `0` | stands in for the treasury balance when there is no signer, so perps can be tried before launch |
+
+### Perps
+
+Positions live in `positions` in the state file, margined from the holder's
+accrued balance. `totalAccrued()` includes locked margin, so the epoch loop
+never hands it out as new fee. Marks are signed by the treasury key
+(`Tendies mark\nmarket: …\nprice: …\nat: …`) and published at `/perps/marks`.
+Losses stay in the treasury and reach every holder as the next epoch's fee.
+
+Endpoints: `GET /perps`, `GET /perps/marks?symbol=`, `GET /perps/positions?owner=`,
+`POST /perps/open`, `POST /perps/close` (both wallet-signed, see `lib/keeper.ts`).
+Tests: `node test/perps.test.js` (engine) and `test/e2e-perps.mjs` (HTTP).
 | `CHOICE_TTL_MS` | — | `600000` | how long a signed choice message stays valid |
 | `EPOCH_MINUTES` | — | `30` | accrual cadence |
 | `CHECK_INTERVAL_MS` | — | `60000` | how often the loop checks whether an epoch is due |

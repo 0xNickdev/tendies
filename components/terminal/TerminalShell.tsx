@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Wordmark, LogoMark } from "@/components/Logo";
 import { useStore } from "@/lib/store";
 import { useKeeperStatus } from "@/lib/useKeeperStatus";
-import { NETWORK } from "@/lib/mock";
+import { NETWORK, FEATURES } from "@/lib/mock";
 import { shortAddr } from "@/lib/format";
 import { useToast } from "./Toast";
 import {
@@ -27,9 +27,9 @@ export type View = "dashboard" | "trade" | "treasury" | "perps" | "history";
 
 const NAV: { view: View; label: string; soon?: boolean; Icon: (p: IconProps) => React.ReactNode }[] = [
   { view: "dashboard", label: "Dashboard", Icon: IconDashboard },
-  { view: "trade", label: "Trade", soon: true, Icon: IconTrade },
+  { view: "trade", label: "Trade", soon: !FEATURES.tradeLive, Icon: IconTrade },
   { view: "treasury", label: "Treasury", Icon: IconTreasury },
-  { view: "perps", label: "Perps", soon: true, Icon: IconPerps },
+  { view: "perps", label: "Perps", soon: !FEATURES.perpsLive, Icon: IconPerps },
   { view: "history", label: "History", Icon: IconHistory },
 ];
 

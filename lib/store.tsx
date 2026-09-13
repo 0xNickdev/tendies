@@ -8,14 +8,21 @@ import {
   useMemo,
   useState,
 } from "react";
+import { TREASURY, type Direction } from "./mock";
+import { TENDIE_MINT, SOLANA, KEEPER_URL } from "./config";
 import {
-  TREASURY,
-  type ClosedPosition,
-  type Direction,
-  type Position,
-} from "./mock";
-import { TENDIE_MINT, SOLANA } from "./config";
-import { fetchAccount, submitChoice, symbolForToken, type Payout } from "./keeper";
+  fetchAccount,
+  fetchPerps,
+  fetchPositions,
+  openPerp,
+  closePerp,
+  submitChoice,
+  symbolForToken,
+  type ClosedPerp,
+  type Payout,
+  type PerpPosition,
+  type PerpsInfo,
+} from "./keeper";
 import type { StockSym } from "./stocks";
 
 // Real Solana wallet connection — Phantom, Solflare and any provider that
@@ -61,8 +68,10 @@ type Store = {
   claimUsd: number; // the accrued claim in dollars, not in any stablecoin
   walletQuote: number; // balance of the quote asset (OPENAI)
   shareBps: number;
-  positions: Position[];
-  history: ClosedPosition[];
+  // perps, served by the keeper
+  positions: PerpPosition[];
+  history: ClosedPerp[];
+  perps: PerpsInfo | null;
   // payout account, served by the keeper
   payoutChoice: StockSym | null;
   accruedUsd: number;
@@ -77,18 +86,15 @@ type Store = {
   buyToken: (usdc: number) => void;
   sellToken: (tendie: number) => void;
   openPosition: (p: {
+    market: string;
     direction: Direction;
     leverage: number;
-    marginUsdc: number;
-    entryPrice: number;
-  }) => void;
-  closePosition: (id: string) => void;
+    marginUsd: number;
+  }) => Promise<{ ok: boolean; error?: string; position?: PerpPosition }>;
+  closePosition: (id: string) => Promise<{ ok: boolean; error?: string; position?: ClosedPerp }>;
 };
 
 const StoreCtx = createContext<Store | null>(null);
-
-let idCounter = 9000;
-const nextId = () => `pos_${idCounter++}`;
 
 // SPL balance via a plain getTokenAccountsByOwner RPC call — no SDK needed.
 // An owner can hold the same mint across several token accounts, so sum them.
@@ -135,8 +141,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [claimUsd, setClaim] = useState(0);
   const [walletQuote, setWalletQuote] = useState(0);
   const [shareBps, setShareBps] = useState(0);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [history, setHistory] = useState<ClosedPosition[]>([]);
+  const [positions, setPositions] = useState<PerpPosition[]>([]);
+  const [history, setHistory] = useState<ClosedPerp[]>([]);
+  const [perps, setPerps] = useState<PerpsInfo | null>(null);
   const [payoutChoice, setChoice] = useState<StockSym | null>(null);
   const [accruedUsd, setAccrued] = useState(0);
   const [minPayoutUsd, setMinPayout] = useState(0);
@@ -144,13 +151,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [streak, setStreak] = useState(0);
   const [payouts, setPayouts] = useState<Payout[]>([]);
 
-  const adopt = useCallback(async (address: string) => {
-    setWallet({ connected: true, address });
-    setWalletMissing(false);
-    setTendie(await fetchTendieBalance(address));
-
-    // what the keeper has accrued for this wallet, and its payout pick
-    const account = await fetchAccount(address);
+  // Reload the accrued balance and positions - both move on every open,
+  // close, funding tick or liquidation, and margin is one side of the other.
+  const syncKeeper = useCallback(async (address: string) => {
+    const [account, pos] = await Promise.all([fetchAccount(address), fetchPositions(address)]);
+    if (pos) {
+      setPositions(pos.open);
+      setHistory(pos.history);
+    }
     if (account) {
       setChoice(symbolForToken(account.choice));
       // accrued is in fee-token units; accruedUsd is the same thing in money.
@@ -162,6 +170,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setPayouts(account.payouts ?? []);
     }
   }, []);
+
+  const adopt = useCallback(
+    async (address: string) => {
+      setWallet({ connected: true, address });
+      setWalletMissing(false);
+      setTendie(await fetchTendieBalance(address));
+      await syncKeeper(address);
+    },
+    [syncKeeper],
+  );
+
+  // Marks, limits and funding terms - public, refreshed on the mark cadence.
+  useEffect(() => {
+    if (!KEEPER_URL) return;
+    let cancelled = false;
+    const load = async () => {
+      const info = await fetchPerps();
+      if (!cancelled && info) setPerps(info);
+    };
+    void load();
+    const t = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
+  // Positions are marked every few minutes on the keeper; follow along.
+  useEffect(() => {
+    if (!KEEPER_URL || !wallet.address) return;
+    const t = setInterval(() => void syncKeeper(wallet.address), 60_000);
+    return () => clearInterval(t);
+  }, [wallet.address, syncKeeper]);
 
   // Ask the wallet to sign the choice, then hand it to the keeper. Signing is
   // free — it is not a transaction.
@@ -207,6 +248,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setTotalPaid(0);
     setStreak(0);
     setPayouts([]);
+    setPositions([]);
+    setHistory([]);
   }, []);
 
   // Silently restore a previously approved connection, then follow account
@@ -261,67 +304,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setWalletQuote((b) => b + net);
   }, []);
 
+  // Both go through the wallet's signMessage - free, not a transaction - and
+  // the keeper answers with the position as it now stands. The accrued
+  // balance moved too, so resync rather than guess at it.
   const openPosition = useCallback(
-    (p: {
-      direction: Direction;
-      leverage: number;
-      marginUsdc: number;
-      entryPrice: number;
-    }) => {
-      const sizeUsd = p.marginUsdc * p.leverage;
-      const entry = p.entryPrice; // live oracle price from the caller
-      // liquidation when loss ≈ margin: move of (1/leverage) against you
-      const move = entry / p.leverage;
-      const liq =
-        p.direction === "long" ? entry - move * 0.95 : entry + move * 0.95;
-      setClaim((c) => Math.max(0, c - p.marginUsdc));
-      setPositions((list) => [
-        {
-          id: nextId(),
-          direction: p.direction,
-          leverage: p.leverage,
-          marginUsdc: p.marginUsdc,
-          entryPrice: entry,
-          sizeUsd,
-          liqPrice: Math.round(liq * 10) / 10,
-          openedAt: new Date().toISOString(),
-        },
-        ...list,
-      ]);
+    async (p: { market: string; direction: Direction; leverage: number; marginUsd: number }) => {
+      const provider = getProvider();
+      if (!provider?.signMessage || !wallet.address) {
+        return { ok: false, error: "Connect a wallet that can sign messages" };
+      }
+      const result = await openPerp(
+        wallet.address,
+        { market: p.market, side: p.direction, leverage: p.leverage, marginUsd: p.marginUsd },
+        provider.signMessage.bind(provider),
+      );
+      if (result.ok) void syncKeeper(wallet.address);
+      return result;
     },
-    [],
+    [wallet.address, syncKeeper],
   );
 
   const closePosition = useCallback(
-    (id: string) => {
-      setPositions((list) => {
-        const pos = list.find((p) => p.id === id);
-        if (pos) {
-          // real settlement price comes from the oracle at launch; the
-          // preview settles flat (entry == exit) so no fabricated PnL
-          const mark = pos.entryPrice;
-          const dir = pos.direction === "long" ? 1 : -1;
-          const pnl =
-            ((mark - pos.entryPrice) / pos.entryPrice) * pos.sizeUsd * dir;
-          setClaim((c) => c + pos.marginUsdc + pnl);
-          setHistory((h) => [
-            {
-              id: pos.id,
-              direction: pos.direction,
-              leverage: pos.leverage,
-              marginUsdc: pos.marginUsdc,
-              entryPrice: pos.entryPrice,
-              exitPrice: mark,
-              pnlUsd: pnl,
-              settledAt: new Date().toISOString(),
-            },
-            ...h,
-          ]);
-        }
-        return list.filter((p) => p.id !== id);
-      });
+    async (id: string) => {
+      const provider = getProvider();
+      if (!provider?.signMessage || !wallet.address) {
+        return { ok: false, error: "Connect a wallet that can sign messages" };
+      }
+      const result = await closePerp(wallet.address, id, provider.signMessage.bind(provider));
+      if (result.ok) void syncKeeper(wallet.address);
+      return result;
     },
-    [],
+    [wallet.address, syncKeeper],
   );
 
   const value = useMemo<Store>(
@@ -334,6 +347,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       shareBps,
       positions,
       history,
+      perps,
       payoutChoice,
       accruedUsd,
       minPayoutUsd,
@@ -357,6 +371,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       shareBps,
       positions,
       history,
+      perps,
       payoutChoice,
       accruedUsd,
       minPayoutUsd,
