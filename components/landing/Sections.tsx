@@ -39,7 +39,7 @@ export function About() {
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-mist-300">
             The token itself grants no equity. TENDIE carries no transfer tax at
-            all - the pool it trades in charges 2% per trade, and 1.5% of that
+            all - the pool it trades in charges 1.25% per trade, and 0.5% of that
             feeds the treasury, which distributes real tokenized stocks pro-rata
             to holders - no emissions, no inflation - and unlocks a speculative
             perps layer on top.
@@ -294,7 +294,7 @@ export function FAQ() {
     },
     {
       q: "How does the treasury make money?",
-      a: "The token itself is untaxed. Its pool on stonkfun charges 2% per trade, of which 1.5% is routed to the treasury and 0.5% kept by the launchpad. Every 30 minutes the treasury converts and distributes rewards in the tokenized stock each holder selected.",
+      a: "The token itself is untaxed. Its pool on stonkfun charges 1.25% per trade, of which 0.5% is routed to the treasury and the rest kept by the launchpad. Every 30 minutes the treasury converts and distributes rewards in the tokenized stock each holder selected.",
     },
     {
       q: "What are the perps?",

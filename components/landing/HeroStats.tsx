@@ -6,7 +6,7 @@ export function HeroStats() {
   const stats = [
     { value: "OpenAI · TSLA · NVDA · SPCX", label: "Reward Stocks" },
     { value: "30 min", label: "Payout Cycle" },
-    { value: "1.5%", label: "To Treasury" },
+    { value: "0.5%", label: "To Treasury" },
     { value: "1B", label: "Supply" },
     { value: "Solana", label: "Network" },
   ];

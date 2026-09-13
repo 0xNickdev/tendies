@@ -21,13 +21,13 @@ export const TREASURY = {
   // Two different numbers, and conflating them is how the site ended up
   // promising 4%. poolFeeBps is what the trader pays; treasuryFeeBps is our
   // slice of it, which is the entire reward budget. stonkfun keeps the rest.
-  poolFeeBps: 200, // the 2% fee tier, chosen once at launch
-  treasuryFeeBps: 150, // → treasury
+  poolFeeBps: 125, // LaunchLab's fixed trading fee
+  treasuryFeeBps: 50, // → treasury (the creator's share)
   // TENDIE is priced against this, not against a stablecoin.
   quoteSymbol: "OPENAI",
   tokenPriceUsd: 0,
   tokenSymbol: "TENDIE",
-  // Where the 1.5% comes from: the stonkfun launchpad's creator fee share on
+  // Where the 0.5% comes from: the stonkfun launchpad's creator fee share on
   // trading volume. The mint itself carries no transfer fee — a standard
   // stonkfun launch provably has none — so wallet↔wallet moves are free.
   feeSource: "stonkfun creator fee",

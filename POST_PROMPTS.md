@@ -207,7 +207,7 @@ not points. not a farm token. not an IOU.
 TSLAx, NVDAx or SPCXx — you pick.
 ```
 ```
-2/ where it comes from: every trade pays a 2% fee. 1.5% of it lands in the
+2/ where it comes from: every trade pays a 1.25% fee. 0.5% of it lands in the
 treasury, the launchpad keeps the rest.
 
 no emissions, no inflation, nothing minted to pay you.

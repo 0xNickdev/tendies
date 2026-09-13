@@ -6,7 +6,7 @@ import { TENDIE_MINT, TREASURY_WALLET, explorerAccount } from "@/lib/config";
 export const metadata: Metadata = {
   title: "Tendies Docs - How it works",
   description:
-    "Full documentation for Tendies: the TENDIE token on Solana, the 1.5% treasury fee, 30-minute tokenized-stock rewards (OpenAI · TSLA · NVDA · SPCX), perps, the keeper, and security.",
+    "Full documentation for Tendies: the TENDIE token on Solana, the 0.5% treasury fee, 30-minute tokenized-stock rewards (OpenAI · TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
 
 // xStock mints get pasted in from the official xStocks list at launch — see
@@ -168,7 +168,7 @@ export default function DocsPage() {
               <p>The whole loop is three steps:</p>
               <ol className="ml-1 space-y-3">
                 {[
-                  ["Trade fee → treasury", "TENDIE itself is untaxed. Its pool on stonkfun charges 2% per trade, of which 1.5% is routed to the treasury and 0.5% kept by the launchpad."],
+                  ["Trade fee → treasury", "TENDIE itself is untaxed. Its pool on stonkfun charges 1.25% per trade, of which 0.5% is routed to the treasury and the rest kept by the launchpad."],
                   ["Treasury → stocks", "Every 30 minutes a keeper credits every holder pro-rata. Balances are sent out in tokenized stocks - not farm tokens - once they clear a small floor, so network fees never cost more than the payout itself."],
                   ["Stocks → your wallet", "There is no claim button. You pick your payout stock by signing a message; the treasury swaps and sends automatically once your balance clears the floor. Or let it keep accruing and use it as perps margin."],
                 ].map(([t, b], i) => (
@@ -199,9 +199,9 @@ export default function DocsPage() {
                 <Row k="Token" v="TENDIE" />
                 <Row k="Total supply" v="1,000,000,000 (fixed, no mint)" />
                 <Row k="Quote pair" v="OPENAI (PreStocks) - permanent, set at launch" />
-                <Row k="Pool fee" v="2% per trade" />
-                <Row k="→ Treasury" v="1.5% of every trade" />
-                <Row k="→ Launchpad" v="0.5% of every trade" />
+                <Row k="Pool fee" v="1.25% per trade" />
+                <Row k="→ Treasury" v="0.5% of every trade" />
+                <Row k="→ Launchpad" v="0.75% of every trade" />
                 <Row k="Token transfer tax" v="None - the mint carries no fee extension" />
                 <Row k="Wallet ↔ wallet" v="0% (free transfers)" />
                 <Row k="Emissions" v="None - rewards come only from volume" />
@@ -376,7 +376,7 @@ export default function DocsPage() {
             <Section id="faq" n="09" title="FAQ">
               {[
                 ["Do I own real shares?", "No. Rewards are tokenized stocks (xStocks 1:1-backed; OPENAI is SPV-backed pre-IPO exposure) held in your wallet; TENDIE itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
-                ["Where do rewards come from?", "Purely from the 1.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
+                ["Where do rewards come from?", "Purely from the 0.5% of every trade the launchpad routes to the treasury. No emissions, no inflation - if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (OPENAI). You can change your payout stock any time in the Treasury tab."],
                 ["Can the team rug the fee?", "TENDIE launches on the stonkfun launchpad, so the mint and the bonding curve are the launchpad's, not ours - mint authority is not ours to abuse. The treasury wallet that receives the fee is published and its payouts are visible on Solscan."],
                 ["Is this live?", "Token, treasury and perps are built and tested; the terminal runs in preview until the token launches. Trading unlocks at launch - the mint address will appear here and on the dashboard."],
