@@ -21,6 +21,9 @@ export const TREASURY_WALLET = "";
 // URL and in og:image, giving the crawler a fresh address to fetch.
 export const CARD_VERSION = 2;
 
+// Canonical public origin - what share links and OG images point at.
+export const SITE_URL = "https://tendiesonstonk.com";
+
 // The keeper service (accrual ledger + payout choices). Set
 // NEXT_PUBLIC_KEEPER_URL to the Railway URL; blank disables the payout-choice
 // UI instead of letting it pretend to work.

@@ -61,7 +61,7 @@ keeper/
 | `EXCLUDE_ACCOUNTS` | — | — | comma-separated pubkeys that must never earn - the launchpad pool above all |
 | `STATE_DIR` | — | `./data` | **mount a Railway Volume here** — see below |
 | `MIN_PAYOUT_USD` | — | `1` | balances under this keep accruing instead of being sent |
-| `ALLOW_ORIGIN` | — | `*` | set to the site origin so only it can POST choices |
+| `ALLOW_ORIGIN` | — | `*` | comma-separated site origins allowed to call the keeper |
 | `SLIPPAGE_BPS` | — | `100` | Jupiter slippage tolerance on the first try |
 | `SWAP_ATTEMPTS` | — | `3` | route attempts before paying that group in the fee token |
 | `PERPS_ENABLED` | — | `true` | `false` pauses opening; existing positions still mark, fund and close |

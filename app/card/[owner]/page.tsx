@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CARD_VERSION } from "@/lib/config";
+import { CARD_VERSION, SITE_URL } from "@/lib/config";
 
 // The page a Chef Card link points at. Its only real job is to carry the
 // OpenGraph tags, so X renders the card image inside the tweet.
 
-const SITE = "https://gettendies.vercel.app";
+const SITE = SITE_URL;
 
 export async function generateMetadata({
   params,

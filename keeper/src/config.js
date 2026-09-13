@@ -34,8 +34,12 @@ export const config = {
   // MUST be a mounted Volume — the container disk is wiped on every redeploy.
   stateDir: process.env.STATE_DIR || "./data",
 
-  // Public origin allowed to POST payout choices (the site).
-  allowOrigin: process.env.ALLOW_ORIGIN || "*",
+  // Public origins allowed to call the keeper (the site). Comma-separated;
+  // the request's Origin is echoed back when it is on the list.
+  allowOrigins: (process.env.ALLOW_ORIGIN || "*")
+    .split(",")
+    .map((s) => s.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
 
   slippageBps: Number(process.env.SLIPPAGE_BPS || 100),
   // How many times to look for a swap route before paying that group in the

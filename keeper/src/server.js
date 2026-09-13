@@ -12,10 +12,21 @@ import { accruedOf, choiceOf, profileOf, allMarks, markHistoryOf, positionHistor
 import { openPosition, closePosition, positionsOf, view, summary as perpsSummary } from "./perps.js";
 import { markets } from "./oracle.js";
 
-function json(res, code, body) {
+// The origin to echo for this request: "*" if anything goes, the request's
+// own origin if it is on the list, else the first listed one - which the
+// browser will then refuse, which is the point.
+function corsOrigin(req) {
+  const list = config.allowOrigins;
+  if (list.includes("*")) return "*";
+  const origin = (req.headers.origin || "").replace(/\/+$/, "");
+  return list.includes(origin) ? origin : list[0];
+}
+
+function json(res, code, body, req) {
   res.writeHead(code, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": config.allowOrigin,
+    "Access-Control-Allow-Origin": corsOrigin(req),
+    Vary: "Origin",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Cache-Control": "no-store",
@@ -125,7 +136,8 @@ export function startServer() {
 
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
-        "Access-Control-Allow-Origin": config.allowOrigin,
+        "Access-Control-Allow-Origin": corsOrigin(req),
+        Vary: "Origin",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       });
@@ -133,21 +145,21 @@ export function startServer() {
     }
 
     if (path === "/health" || path === "/") {
-      return json(res, 200, { ok: true, service: "tendies-keeper" });
+      return json(res, 200, { ok: true, service: "tendies-keeper" }, req);
     }
 
     if (path === "/status") {
       try {
-        return json(res, 200, await buildStatus());
+        return json(res, 200, await buildStatus(), req);
       } catch (e) {
-        return json(res, 500, { ok: false, error: e.message });
+        return json(res, 500, { ok: false, error: e.message }, req);
       }
     }
 
     // What one wallet is owed and which stock it is set to receive.
     if (path === "/account") {
       const owner = url.searchParams.get("owner") ?? "";
-      if (!owner) return json(res, 400, { ok: false, error: "owner required" });
+      if (!owner) return json(res, 400, { ok: false, error: "owner required" }, req);
       const decimals = await feeDecimals().catch(() => 6);
       // The ledger counts fee-token units. Once the fee accrues in a stock
       // those are nothing like dollars, and the site labels this field as
@@ -179,7 +191,7 @@ export function startServer() {
           valueUsd: perDollar ? Number(BigInt(x.paidRaw)) / Number(perDollar) : null,
           signature: x.signature,
         })),
-      });
+      }, req);
     }
 
     // Set the payout stock — body carries the wallet's signature.
@@ -187,9 +199,9 @@ export function startServer() {
       try {
         const body = await readBody(req);
         const result = applyChoice(body);
-        return json(res, result.ok ? 200 : 400, result);
+        return json(res, result.ok ? 200 : 400, result, req);
       } catch (e) {
-        return json(res, 400, { ok: false, error: e.message });
+        return json(res, 400, { ok: false, error: e.message }, req);
       }
     }
 
@@ -200,46 +212,46 @@ export function startServer() {
         ...(await perpsSummary()),
         markets: markets().map((m) => m.market),
         marks: allMarks(),
-      });
+      }, req);
     }
 
     if (path === "/perps/marks") {
       const symbol = url.searchParams.get("symbol") ?? "";
       const limit = Math.min(2000, Number(url.searchParams.get("limit") || 288));
-      if (!symbol) return json(res, 400, { ok: false, error: "symbol required" });
-      return json(res, 200, { ok: true, symbol, marks: markHistoryOf(symbol, limit) });
+      if (!symbol) return json(res, 400, { ok: false, error: "symbol required" }, req);
+      return json(res, 200, { ok: true, symbol, marks: markHistoryOf(symbol, limit) }, req);
     }
 
     if (path === "/perps/positions") {
       const owner = url.searchParams.get("owner") ?? "";
-      if (!owner) return json(res, 400, { ok: false, error: "owner required" });
+      if (!owner) return json(res, 400, { ok: false, error: "owner required" }, req);
       return json(res, 200, {
         ok: true,
         owner,
         open: positionsOf(owner).map(view),
         history: positionHistoryOf(owner),
-      });
+      }, req);
     }
 
     if (path === "/perps/open" && req.method === "POST") {
       try {
         const result = await openPosition(await readBody(req));
-        return json(res, result.ok ? 200 : 400, result);
+        return json(res, result.ok ? 200 : 400, result, req);
       } catch (e) {
-        return json(res, 400, { ok: false, error: e.message });
+        return json(res, 400, { ok: false, error: e.message }, req);
       }
     }
 
     if (path === "/perps/close" && req.method === "POST") {
       try {
         const result = await closePosition(await readBody(req));
-        return json(res, result.ok ? 200 : 400, result);
+        return json(res, result.ok ? 200 : 400, result, req);
       } catch (e) {
-        return json(res, 400, { ok: false, error: e.message });
+        return json(res, 400, { ok: false, error: e.message }, req);
       }
     }
 
-    return json(res, 404, { ok: false, error: "not found" });
+    return json(res, 404, { ok: false, error: "not found" }, req);
   });
 
   server.listen(config.port, () => {
