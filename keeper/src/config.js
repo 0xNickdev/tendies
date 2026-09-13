@@ -54,6 +54,32 @@ export const config = {
   // transfers per transaction; Solana caps what fits in 1232 bytes
   transfersPerTx: Number(process.env.TRANSFERS_PER_TX || 8),
   port: Number(process.env.PORT || 3333),
+
+  // ── perps ──────────────────────────────────────────────────────────────
+  // The treasury is the counterparty to every position, so every limit here
+  // is about how much of the reward pool one trader - or all of them - can
+  // put at risk. Margin comes out of a holder's accrued balance, never from
+  // their wallet.
+  perps: {
+    enabled: (process.env.PERPS_ENABLED || "true") !== "false",
+    maxLeverage: Number(process.env.PERPS_MAX_LEVERAGE || 10),
+    minMarginUsd: Number(process.env.PERPS_MIN_MARGIN_USD || 1),
+    // one position may be at most this share of the treasury's fee balance
+    maxPositionPct: Number(process.env.PERPS_MAX_POSITION_PCT || 10),
+    // all open positions together, at most this share
+    maxOpenInterestPct: Number(process.env.PERPS_MAX_OI_PCT || 50),
+    // liquidate once losses eat this much of the margin
+    liquidationPct: Number(process.env.PERPS_LIQUIDATION_PCT || 95),
+    // funding: a flat charge on position size, paid to the treasury every
+    // interval. It is what makes holding leverage indefinitely cost something.
+    fundingRateBps: Number(process.env.PERPS_FUNDING_BPS || 5),
+    fundingIntervalMs: Number(process.env.PERPS_FUNDING_INTERVAL_MS || 8 * 60 * 60_000),
+    // how often marks are refreshed and positions checked for liquidation
+    markIntervalMs: Number(process.env.PERPS_MARK_INTERVAL_MS || 5 * 60_000),
+    // With no treasury signer there is no balance to size limits against.
+    // This stands in for it so the engine can be exercised before launch.
+    dryRunPoolUsd: Number(process.env.PERPS_DRYRUN_POOL_USD || 0),
+  },
   // Warn well before the treasury runs dry: opening a token account for a
   // holder who doesn't have one costs ~0.002 SOL of rent, so a wave of new
   // recipients drains a small balance fast.

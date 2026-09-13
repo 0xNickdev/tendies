@@ -24,6 +24,14 @@ const empty = () => ({
   profiles: {},
   // owner -> { symbol, ts }
   choices: {},
+  // id -> position (see perps.js). Margin locked here is still owed to the
+  // holder and must count as such wherever the ledger is totalled.
+  positions: {},
+  // closed positions, newest first, capped
+  positionHistory: [],
+  // symbol -> { price, at, source }, plus a short history for the chart
+  marks: {},
+  markHistory: [],
   // newest first, capped
   epochs: [],
   totals: { paidOutRaw: "0", epochsRun: 0 },
@@ -86,11 +94,33 @@ export function accruedOf(owner) {
   return BigInt(state.ledger[owner]?.accrued ?? "0");
 }
 
+// Everything the treasury owes holders: unpaid accruals plus margin locked in
+// open positions. The epoch loop treats balance minus this as new fee, so if
+// locked margin were left out it would be handed out a second time.
 export function totalAccrued() {
-  return Object.values(state.ledger).reduce(
+  const ledger = Object.values(state.ledger).reduce(
     (sum, e) => sum + BigInt(e.accrued ?? "0"),
     0n,
   );
+  return ledger + lockedMargin();
+}
+
+export function lockedMargin() {
+  return Object.values(state.positions).reduce(
+    (sum, p) => sum + BigInt(p.marginRaw ?? "0"),
+    0n,
+  );
+}
+
+// Move margin out of the ledger into a position, or back. Debit refuses to
+// go negative rather than trusting the caller's arithmetic.
+export function debitAccrual(owner, amount) {
+  const have = accruedOf(owner);
+  if (amount > have) return false;
+  const next = have - amount;
+  if (next === 0n) delete state.ledger[owner];
+  else state.ledger[owner] = { accrued: next.toString(), updatedAt: Date.now() };
+  return true;
 }
 
 export function addAccrual(owner, amount) {
@@ -169,6 +199,64 @@ export function setChoice(owner, symbol, ts) {
 
 export function choiceTs(owner) {
   return state.choices[owner]?.ts ?? 0;
+}
+
+// ── perps ─────────────────────────────────────────────────────────────────
+
+const POSITION_HISTORY_CAP = 500;
+const MARK_HISTORY_CAP = 2000; // ~1 week of 5-minute marks across 4 markets
+
+export function positionsOf(owner) {
+  return Object.values(state.positions).filter((p) => p.owner === owner);
+}
+
+export function allPositions() {
+  return Object.values(state.positions);
+}
+
+export function positionById(id) {
+  return state.positions[id] ?? null;
+}
+
+export function putPosition(pos) {
+  state.positions[pos.id] = pos;
+  saveState();
+}
+
+export function closePositionRecord(id, patch) {
+  const pos = state.positions[id];
+  if (!pos) return null;
+  delete state.positions[id];
+  const closed = { ...pos, ...patch };
+  state.positionHistory.unshift(closed);
+  state.positionHistory = state.positionHistory.slice(0, POSITION_HISTORY_CAP);
+  saveState();
+  return closed;
+}
+
+export function positionHistoryOf(owner, limit = 50) {
+  return state.positionHistory.filter((p) => p.owner === owner).slice(0, limit);
+}
+
+export function markOf(symbol) {
+  return state.marks[symbol] ?? null;
+}
+
+export function allMarks() {
+  return state.marks;
+}
+
+export function setMarks(marks) {
+  for (const m of marks) {
+    state.marks[m.symbol] = m;
+    state.markHistory.unshift(m);
+  }
+  state.markHistory = state.markHistory.slice(0, MARK_HISTORY_CAP);
+  saveState();
+}
+
+export function markHistoryOf(symbol, limit = 288) {
+  return state.markHistory.filter((m) => m.symbol === symbol).slice(0, limit);
 }
 
 // ── epoch journal ─────────────────────────────────────────────────────────

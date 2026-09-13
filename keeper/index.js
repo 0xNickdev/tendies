@@ -12,6 +12,8 @@ import { logIdentity, solBalance, treasury } from "./src/solana.js";
 import { state, tickEpoch } from "./src/keeper.js";
 import { loadState } from "./src/store.js";
 import { startServer } from "./src/server.js";
+import { refreshMarks } from "./src/oracle.js";
+import { tickPositions } from "./src/perps.js";
 
 async function main() {
   log.info("Tendies keeper starting…");
@@ -32,9 +34,29 @@ async function main() {
   await tickEpoch();
   const timer = setInterval(tickEpoch, config.checkIntervalMs);
 
+  // Marks run on their own clock, independent of the epoch: positions are
+  // funded and checked for liquidation every few minutes, not every half hour.
+  let marking = false;
+  const tickMarks = async () => {
+    if (marking) return;
+    marking = true;
+    try {
+      const marks = await refreshMarks();
+      if (marks.length) log.info(`marks · ${marks.map((m) => `${m.symbol} ${m.price}`).join(" · ")}`);
+      await tickPositions();
+    } catch (e) {
+      log.error("mark tick error:", e.message);
+    } finally {
+      marking = false;
+    }
+  };
+  await tickMarks();
+  const markTimer = setInterval(tickMarks, config.perps.markIntervalMs);
+
   const shutdown = (sig) => {
     log.info(`${sig} received — shutting down`);
     clearInterval(timer);
+    clearInterval(markTimer);
     process.exit(0);
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));

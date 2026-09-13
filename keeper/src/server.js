@@ -8,7 +8,9 @@ import { snapshotHolders, solBalance } from "./solana.js";
 import { feeBalance, feeDecimals, buybackReserve, feeUnitsPerDollar } from "./swap.js";
 import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice } from "./choice.js";
-import { accruedOf, choiceOf, profileOf } from "./store.js";
+import { accruedOf, choiceOf, profileOf, allMarks, markHistoryOf, positionHistoryOf } from "./store.js";
+import { openPosition, closePosition, positionsOf, view, summary as perpsSummary } from "./perps.js";
+import { markets } from "./oracle.js";
 
 function json(res, code, body) {
   res.writeHead(code, {
@@ -95,6 +97,7 @@ async function buildStatus() {
       lastEpochAt: state.lastEpochAt,
       secondsUntilNext: lastEpoch ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : 0,
     },
+    perps: { ...perpsSummary(), marks: allMarks() },
     // Host only — config.rpcUrl carries a paid API key in its query string,
     // and /status is public.
     cluster: rpcHost(),
@@ -187,11 +190,57 @@ export function startServer() {
       }
     }
 
+    // ── perps ────────────────────────────────────────────────────────────
+    if (path === "/perps") {
+      return json(res, 200, {
+        ok: true,
+        ...perpsSummary(),
+        markets: markets().map((m) => m.market),
+        marks: allMarks(),
+      });
+    }
+
+    if (path === "/perps/marks") {
+      const symbol = url.searchParams.get("symbol") ?? "";
+      const limit = Math.min(2000, Number(url.searchParams.get("limit") || 288));
+      if (!symbol) return json(res, 400, { ok: false, error: "symbol required" });
+      return json(res, 200, { ok: true, symbol, marks: markHistoryOf(symbol, limit) });
+    }
+
+    if (path === "/perps/positions") {
+      const owner = url.searchParams.get("owner") ?? "";
+      if (!owner) return json(res, 400, { ok: false, error: "owner required" });
+      return json(res, 200, {
+        ok: true,
+        owner,
+        open: positionsOf(owner).map(view),
+        history: positionHistoryOf(owner),
+      });
+    }
+
+    if (path === "/perps/open" && req.method === "POST") {
+      try {
+        const result = await openPosition(await readBody(req));
+        return json(res, result.ok ? 200 : 400, result);
+      } catch (e) {
+        return json(res, 400, { ok: false, error: e.message });
+      }
+    }
+
+    if (path === "/perps/close" && req.method === "POST") {
+      try {
+        const result = await closePosition(await readBody(req));
+        return json(res, result.ok ? 200 : 400, result);
+      } catch (e) {
+        return json(res, 400, { ok: false, error: e.message });
+      }
+    }
+
     return json(res, 404, { ok: false, error: "not found" });
   });
 
   server.listen(config.port, () => {
-    log.info(`http server on :${config.port} (/health, /status, /account, /choice)`);
+    log.info(`http server on :${config.port} (/health, /status, /account, /choice, /perps/*)`);
   });
   return server;
 }
