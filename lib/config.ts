@@ -4,16 +4,16 @@
 
 // TENDIEPERP SPL mint on Solana.
 // ⟵ PASTE THE MINT ADDRESS HERE after the stonkfun launch (enables balance reads)
-export const TENDIE_MINT = "";
+export const TENDIE_MINT = "vMTmvXKesQX8hTuikEr7j19H6k4oXwVCPxkVNbESHfY";
 
 // TENDIEPERP is launched on the stonkfun launchpad — coins paired with real
 // assets. ⟵ PASTE THE COIN PAGE URL HERE once it exists, e.g.
 //    https://www.stonkfun.xyz/coin/<mint>
-export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/";
+export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/token/vMTmvXKesQX8hTuikEr7j19H6k4oXwVCPxkVNbESHfY";
 
 // Treasury wallet that accumulates the trade fee and pays holders out in
 // xStocks. ⟵ PASTE THE TREASURY PUBKEY HERE at launch.
-export const TREASURY_WALLET = "";
+export const TREASURY_WALLET = "58HkY764t9XNyzeVapVm5SqpN5TUoEGrp6mfXJer7Hf7";
 
 // Bump whenever the kitchen card's artwork changes. X caches link previews by
 // URL for about a week, so a redesigned card would otherwise keep showing the
