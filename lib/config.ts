@@ -2,11 +2,11 @@
 // Fill these in when the token goes live. Everything that depends on them
 // shows a "TBA / Soon" state until they're set.
 
-// PERPTENDIE SPL mint on Solana.
+// TENDIEPERP SPL mint on Solana.
 // ⟵ PASTE THE MINT ADDRESS HERE after the stonkfun launch (enables balance reads)
 export const TENDIE_MINT = "";
 
-// PERPTENDIE is launched on the stonkfun launchpad — coins paired with real
+// TENDIEPERP is launched on the stonkfun launchpad — coins paired with real
 // assets. ⟵ PASTE THE COIN PAGE URL HERE once it exists, e.g.
 //    https://www.stonkfun.xyz/coin/<mint>
 export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/";

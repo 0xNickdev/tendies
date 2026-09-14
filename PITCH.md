@@ -14,7 +14,7 @@ xStocks put real, 1:1-collateralised equities on Solana, and stonkfun made it
 trivial to launch a coin paired with them. **Tendies is the degen layer on top
 of that rail:**
 
-- Hold **$PERPTENDIE** → earn rewards in **1:1-backed tokenized stocks**
+- Hold **$TENDIEPERP** → earn rewards in **1:1-backed tokenized stocks**
 - No brokerage account, no borders, no market hours — 24/7, self-custody
 - Live Nasdaq price feed straight in the app
 
@@ -24,7 +24,7 @@ every 30 minutes.
 ## ⚙️ Mechanics (30 seconds)
 
 ```
-   BUY / SELL $PERPTENDIE  (pool charges 2%)
+   BUY / SELL $TENDIEPERP  (pool charges 2%)
         │  0.5%
         ▼
     🏦 TREASURY ──── every 30 min ────▶  📈 STOCK REWARDS
@@ -34,7 +34,7 @@ every 30 minutes.
     margin = your accrued claim
 ```
 
-1. **Trade fee → treasury.** PERPTENDIE itself is untaxed. Its pool on stonkfun
+1. **Trade fee → treasury.** TENDIEPERP itself is untaxed. Its pool on stonkfun
    charges 1.25% per trade: 0.5% goes to the treasury, the rest to the launchpad.
 2. **Treasury → stocks.** Every **30 minutes** the treasury distributes
    rewards pro-rata to holders — **in tokenized stocks, not farm tokens**.
@@ -49,12 +49,12 @@ every 30 minutes.
 | Reward asset     | Tokenized stocks: **TSLAx · NVDAx · SPCXx**  |
 | Backing          | 1:1-collateralised xStocks on Solana         |
 | Payout frequency | **Every 30 minutes**, automatic              |
-| Eligibility      | Pro-rata to every PERPTENDIE holder                |
+| Eligibility      | Pro-rata to every TENDIEPERP holder                |
 | Custody          | Straight to your own wallet                  |
 | Quote pair       | **TSLAx** — permanent, set at launch          |
 | Pool fee         | 1.25% per trade → 0.5% treasury, rest launchpad |
 | Token transfer tax | None — the mint carries no fee extension   |
-| Total supply     | 1,000,000,000 PERPTENDIE                         |
+| Total supply     | 1,000,000,000 TENDIEPERP                         |
 
 No emissions. No inflation. Rewards are funded purely by trading volume.
 
@@ -75,7 +75,7 @@ live on Solana mainnet.
 
 | Phase | Status | What |
 | ----- | ------ | ---- |
-| **01 · Token & Treasury** | 🟢 Shipped | PERPTENDIE/OPENAI on stonkfun + 0.5% creator fee, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
+| **01 · Token & Treasury** | 🟢 Shipped | TENDIEPERP/OPENAI on stonkfun + 0.5% creator fee, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
 | **02 · Stock Perps** | 🔥 In the fryer | Long/short TSLA, NVDA & SPCX oracle marks, 1–10× leverage, claim-as-margin, risk gating. Preview already live in the terminal |
 | **03 · Auto-Trading** | 🧊 Still frozen | Strategy vaults (auto-DCA the marks), copy-trade the top cooks, signal bots on oracle prints |
 
@@ -101,7 +101,7 @@ live on Solana mainnet.
 
 ---
 
-*Tendies is a synthetic/DeFi protocol. PERPTENDIE and stock-token rewards confer
+*Tendies is a synthetic/DeFi protocol. TENDIEPERP and stock-token rewards confer
 price exposure, not equity, dividends or shareholder rights. Not affiliated
 with Tesla, Inc., NVIDIA Corp., SpaceX, Backed Finance or stonkfun. Nothing
 here is investment advice — DeFi carries risk of total loss.*

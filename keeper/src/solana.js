@@ -1,6 +1,6 @@
 // Solana wiring: connection, treasury signer, and the holder snapshot.
 // The distribution model needs no custom program — the treasury simply reads
-// who holds PERPTENDIE and sends xStocks out pro-rata.
+// who holds TENDIEPERP and sends xStocks out pro-rata.
 
 import {
   Connection,
@@ -39,7 +39,7 @@ export async function snapshotHolders() {
   if (!config.mint) return [];
   const mint = new PublicKey(config.mint);
   const excluded = new Set(config.exclude);
-  // The treasury holds the PERPTENDIE half of the creator fee as the buyback
+  // The treasury holds the TENDIEPERP half of the creator fee as the buyback
   // reserve. Left in the snapshot it would pay itself a share of every epoch,
   // so it is excluded whether or not the operator remembered to list it.
   if (treasury) excluded.add(treasury.publicKey.toBase58());

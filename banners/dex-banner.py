@@ -45,7 +45,7 @@ wm=Image.open('public/wordmark.webp').convert('RGBA'); wm=wm.resize((int(720*0.6
 img.alpha_composite(wm,(70,118))
 fh=ImageFont.truetype('/Library/Fonts/Inter_18pt-ExtraBold.ttf',46)
 fs=ImageFont.truetype('/Library/Fonts/Inter_18pt-Medium.ttf',22)
-d.text((72,262),"Hold $PERPTENDIE.",fill=(255,255,255),font=fh)
+d.text((72,262),"Hold $TENDIEPERP.",fill=(255,255,255),font=fh)
 d.text((72,314),"Get paid in stocks.",fill=LIGHT,font=fh)
 d.text((74,392),"OpenAI · TSLA · NVDA · SPCX  —  every 30 minutes  —  on Solana",fill=DEEP,font=fs)
 # small chips row

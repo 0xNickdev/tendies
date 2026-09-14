@@ -1,7 +1,7 @@
 # Tendies
 
 Tokenized-stock exposure (OpenAI · TSLA · NVDA · SPCX) on **Solana** — a mobile-first
-DeFi app. $PERPTENDIE launches on the **stonkfun** launchpad; hold it and the
+DeFi app. $TENDIEPERP launches on the **stonkfun** launchpad; hold it and the
 treasury pays you **real xStocks** of your choice every **30 minutes**, then
 speculate on the next oracle mark with on-chain perps.
 

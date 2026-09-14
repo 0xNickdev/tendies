@@ -26,7 +26,7 @@ import {
 import type { StockSym } from "./stocks";
 
 // Real Solana wallet connection — Phantom, Solflare and any provider that
-// injects the same interface. The PERPTENDIE balance is read straight from the
+// injects the same interface. The TENDIEPERP balance is read straight from the
 // cluster; until TENDIE_MINT is set in lib/config.ts it stays 0.
 
 type SolanaProvider = {
