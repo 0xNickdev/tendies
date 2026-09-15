@@ -45,13 +45,13 @@ Checked live against the public RPC (all contracts confirmed deployed):
 | Explorer | https://robinhoodchain.blockscout.com |
 | Deployment | Permissionless — anyone can deploy |
 | Stable (rewards) | **USDG** `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` — 6 decimals; pass as the `usdc_` constructor arg |
-| Uniswap **V2** Router02 | `0x89e5db8b5aa49aa85ac63f691524311aeb649eba` (factory `0x8bceaa40…937f` verified via `router.factory()`) — our V2 interface works as-is |
+| Uniswap **v3** SwapRouter02 | `0xCaf681a66D020601342297493863E78C959E5cb2` (factory `0x1f7d…2EfA`, verified via `router.factory()`); QuoterV2 `0x33e885eD…A9E7`. v2 pairs for the stocks are empty — depth is on v3: TSLA/USDG 0.3% ~$700k, NVDA/USDG 0.05% ~$1.8M, SPCX/USDG 0.3% ~$340k, WETH/USDG 0.01% ~$9.6M (2026-09-15) |
 | WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` |
 | TSLA stock token | `0x322F0929c4625eD5bAd873c95208D54E1c003b2d` — canonical, verified on-chain |
 | NVDA stock token | `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC` — canonical, verified on-chain |
 | SPCX stock token | `0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa` — "SpaceX • Robinhood Token", verified on-chain |
 | HOOD / TTWO | **Not tokenized** on Robinhood Chain (not in the canonical 20). Beware copycats: a "Take-Two • Robinhood Token" at `0x5e81…9786` is fake. Add real ones later via `setAllowedRewardToken` if Robinhood issues them |
-| Stock tokens | Standard ERC-20, freely transferable & composable (per docs). Trade via RFQ at launch — check a USDG pair exists on Uniswap v2 before enabling a stock as payout, otherwise start with USDG payouts |
+| Stock tokens | Standard ERC-20, 18 decimals. Each is enabled with the fee tier of its USDG v3 pool (`setAllowedRewardToken(token, true, fee)`); `test/Fork.t.sol` quotes all three against the live chain (`forge test --match-contract ForkTest --fork-url <rpc>`) |
 | Keeper | Chainlink listed for price feeds; Automation support unconfirmed — fallback: leave `keeper = 0` and run a cron bot calling `distribute()` |
 
 ## Deploy & wire (in this order)

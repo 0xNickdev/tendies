@@ -167,7 +167,13 @@ RewardDistributor: 0x..........
 1. `setMarketPair` → вставь `АДРЕС_ПАРЫ`, вторым полем `true` → Write.
 2. Проверь, что `setRewardExempt` для роутера уже стоит (деплой-скрипт это
    сделал). Если сомневаешься — вызови `setRewardExempt` с адресом роутера
-   `0x89e5DB8B5aA49aA85AC63f691524311AEB649eba` и `true`.
+   Uniswap v3 SwapRouter02 `0xCaf681a66D020601342297493863E78C959E5cb2` и `true`.
+
+> **Uniswap v3, не v2.** Пул ROBX/WETH создавай на **v3** (app.uniswap.org →
+> Pool → New position → fee 0.3%). На v2 пары акций пустые, вся глубина по
+> TSLA/NVDA/SPCX на v3 — контракт свапает через v3 (`RewardDistributor` берёт
+> котировку у QuoterV2 и шлёт `exactInput` в SwapRouter02). `АДРЕС_ПАРЫ` для
+> `setMarketPair` — адрес v3-пула ROBX/WETH 0.3%.
 
 ### 2.8. Контрольная покупка
 🌐 С ЛЮБОГО другого кошелька купи ROBX на $5–10 на Uniswap.

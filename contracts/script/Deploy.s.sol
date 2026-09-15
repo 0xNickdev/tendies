@@ -18,7 +18,10 @@ import {RewardDistributor} from "../src/RewardDistributor.sol";
 contract Deploy is Script {
     // ── Robinhood Chain mainnet (chain id 4663), verified on-chain 2026-07-09 ──
     address constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168; // 6 dec
-    address constant ROUTER = 0x89e5DB8B5aA49aA85AC63f691524311AEB649eba; // Uni v2
+    // Uniswap v3 on Robinhood Chain (developers.uniswap.org deployments page,
+    // both verified on-chain: router.factory() == 0x1f7d…2EfA, router.WETH9() == WETH)
+    address constant ROUTER = 0xCaf681a66D020601342297493863E78C959E5cb2; // SwapRouter02
+    address constant QUOTER = 0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7; // QuoterV2
     address constant WETH = 0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73;
 
     // Canonical Robinhood Stock Tokens (payout options)
@@ -36,11 +39,10 @@ contract Deploy is Script {
         // 2. Distributor. Trading pair is ROBX/WETH (buyers pay with ETH, no
         //    USDG needed), but rewards are accounted in USDG for stable value
         //    and 1-hop stock swaps. Tax therefore routes ROBX -> WETH -> USDG.
-        address[] memory path = new address[](3);
-        path[0] = address(robx);
-        path[1] = WETH;
-        path[2] = USDG;
-        RewardDistributor dist = new RewardDistributor(address(robx), USDG, ROUTER, path);
+        // v3 packed path: ROBX -(0.3%)-> WETH -(0.01%)-> USDG. The ROBX/WETH
+        // pool is the one we seed; WETH/USDG 0.01% is the deepest on chain.
+        bytes memory path = abi.encodePacked(address(robx), uint24(3000), WETH, uint24(100), USDG);
+        RewardDistributor dist = new RewardDistributor(address(robx), USDG, ROUTER, QUOTER, path);
         console2.log("RewardDistributor:", address(dist));
 
         // 3. Wire them (auto-exempts the distributor).
@@ -54,9 +56,10 @@ contract Deploy is Script {
         //    only pays out once a USDG pair exists on the router — until then
         //    holders receive USDG automatically (AUDIT L-1 fallback).
         // Payouts are strictly tokenized stocks — no USDG/WETH to holders.
-        dist.setAllowedRewardToken(TSLA, true);
-        dist.setAllowedRewardToken(NVDA, true);
-        dist.setAllowedRewardToken(SPCX, true);
+        // fee tiers of the USDG pools with real depth (verified 2026-09-15)
+        dist.setAllowedRewardToken(TSLA, true, 3000); // TSLA/USDG 0.3%  ~$700k
+        dist.setAllowedRewardToken(NVDA, true, 500); // NVDA/USDG 0.05% ~$1.8M
+        dist.setAllowedRewardToken(SPCX, true, 3000); // SPCX/USDG 0.3%  ~$340k
         // Holders who never pick a stock get this one by default.
         dist.setDefaultRewardToken(TSLA);
 

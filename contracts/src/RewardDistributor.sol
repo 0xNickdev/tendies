@@ -10,27 +10,34 @@ interface IROBXToken {
     function isRewardExempt(address account) external view returns (bool);
 }
 
-interface IUniswapV2Router {
-    function getAmountsOut(
-        uint256 amountIn,
-        address[] calldata path
-    ) external view returns (uint256[] memory amounts);
+/// @dev Uniswap v3 SwapRouter02 — the venue where Robinhood Chain's tokenized
+///      stocks actually have depth (v2 pairs are empty). Paths are the v3
+///      packed form: token(20) fee(3) token(20) [fee(3) token(20) …].
+interface ISwapRouter02 {
+    struct ExactInputParams {
+        bytes path;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+    }
 
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
+    function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);
+}
 
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
+/// @dev QuoterV2 simulates the swap and reverts internally to read the
+///      result — it is not a view, but it is callable from a transaction.
+interface IQuoterV2 {
+    function quoteExactInput(
+        bytes memory path,
+        uint256 amountIn
+    )
+        external
+        returns (
+            uint256 amountOut,
+            uint160[] memory sqrtPriceX96AfterList,
+            uint32[] memory initializedTicksCrossedList,
+            uint256 gasEstimate
+        );
 }
 
 /// @title RewardDistributor — RobinX treasury & stock rewards
@@ -48,7 +55,8 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
 
     IERC20 public immutable robx;
     IERC20 public immutable usdc;
-    IUniswapV2Router public router;
+    ISwapRouter02 public router;
+    IQuoterV2 public quoter;
 
     // ── epochs ──
     uint256 public epochInterval = 30 minutes;
@@ -77,7 +85,9 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
     address[] public allowedRewardTokens;
 
     // ── swap config ──
-    address[] public taxSwapPath; // ROBX → … → USDC
+    bytes public taxSwapPath; // v3 packed path ROBX → … → USDC
+    /// @notice v3 fee tier of each stock's USDC pool, used to build the claim path.
+    mapping(address => uint24) public rewardPoolFee;
     uint256 public slippageBps = 300; // 3% max slippage on swaps
     uint256 public minTaxSwapAmount = 1e18; // don't waste gas on dust
 
@@ -99,20 +109,33 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
         address robx_,
         address usdc_,
         address router_,
-        address[] memory taxSwapPath_
+        address quoter_,
+        bytes memory taxSwapPath_
     ) Ownable(msg.sender) {
-        require(robx_ != address(0) && usdc_ != address(0) && router_ != address(0), "zero addr");
         require(
-            taxSwapPath_.length >= 2 &&
-                taxSwapPath_[0] == robx_ &&
-                taxSwapPath_[taxSwapPath_.length - 1] == usdc_,
-            "bad path"
+            robx_ != address(0) && usdc_ != address(0) && router_ != address(0) && quoter_ != address(0),
+            "zero addr"
         );
+        _requirePath(taxSwapPath_, robx_, usdc_);
         robx = IERC20(robx_);
         usdc = IERC20(usdc_);
-        router = IUniswapV2Router(router_);
+        router = ISwapRouter02(router_);
+        quoter = IQuoterV2(quoter_);
         taxSwapPath = taxSwapPath_;
         lastDistribution = block.timestamp;
+    }
+
+    /// @dev A packed v3 path is 20 + n*(3 + 20) bytes and must run from
+    ///      `first` to `last`.
+    function _requirePath(bytes memory path, address first, address last) private pure {
+        require(path.length >= 43 && (path.length - 20) % 23 == 0, "bad path");
+        require(_pathToken(path, 0) == first && _pathToken(path, path.length - 20) == last, "bad path");
+    }
+
+    function _pathToken(bytes memory path, uint256 offset) private pure returns (address token) {
+        assembly {
+            token := shr(96, mload(add(add(path, 32), offset)))
+        }
     }
 
     // ─── share ledger (called by the ROBX token on every transfer) ───────
@@ -249,9 +272,7 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
             usdc.safeTransfer(msg.sender, amount);
             emit Claimed(msg.sender, address(0), amount, amount);
         } else {
-            address[] memory path = new address[](2);
-            path[0] = address(usdc);
-            path[1] = choice;
+            bytes memory path = abi.encodePacked(address(usdc), rewardPoolFee[choice], choice);
             uint256 balBefore = IERC20(choice).balanceOf(msg.sender);
             _swap(path, amount, msg.sender);
             uint256 received = IERC20(choice).balanceOf(msg.sender) - balBefore;
@@ -263,25 +284,31 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
 
     /// @dev Slippage-guarded swap. minOut comes from the current pool quote
     ///      minus `slippageBps`; a sandwiched or drained pool reverts.
-    function _swap(address[] memory path, uint256 amountIn, address to) private {
-        uint256[] memory quote = router.getAmountsOut(amountIn, path);
-        uint256 minOut = (quote[quote.length - 1] * (10_000 - slippageBps)) / 10_000;
-        IERC20(path[0]).forceApprove(address(router), amountIn);
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            amountIn,
-            minOut,
-            path,
-            to,
-            block.timestamp
+    function _swap(bytes memory path, uint256 amountIn, address to) private {
+        (uint256 quoted, , , ) = quoter.quoteExactInput(path, amountIn);
+        uint256 minOut = (quoted * (10_000 - slippageBps)) / 10_000;
+        IERC20(_pathToken(path, 0)).forceApprove(address(router), amountIn);
+        router.exactInput(
+            ISwapRouter02.ExactInputParams({
+                path: path,
+                recipient: to,
+                amountIn: amountIn,
+                amountOutMinimum: minOut
+            })
         );
     }
 
     // ─── owner config ────────────────────────────────────────────────────
 
-    /// @notice Add a tokenized stock as a payout option (tHOOD, tTSLA, tTTWO…).
-    ///         Requires a liquid USDC pair on the router's DEX.
-    function setAllowedRewardToken(address token, bool allowed) external onlyOwner {
+    /// @notice Add a tokenized stock as a payout option (tTSLA, tNVDA, tSPCX…)
+    ///         with the fee tier of its USDC pool on Uniswap v3 - the pool
+    ///         with real depth, e.g. 3000 for TSLA/USDG 0.3%, 500 for NVDA.
+    function setAllowedRewardToken(address token, bool allowed, uint24 poolFee) external onlyOwner {
         require(token != address(0) && token != address(robx), "bad token");
+        if (allowed) {
+            require(poolFee == 100 || poolFee == 500 || poolFee == 3000 || poolFee == 10000, "bad fee tier");
+            rewardPoolFee[token] = poolFee;
+        }
         if (allowed && !_everListed[token]) {
             _everListed[token] = true;
             allowedRewardTokens.push(token);
@@ -312,19 +339,15 @@ contract RewardDistributor is Ownable, ReentrancyGuard {
         minTaxSwapAmount = amount;
     }
 
-    function setTaxSwapPath(address[] calldata path) external onlyOwner {
-        require(
-            path.length >= 2 &&
-                path[0] == address(robx) &&
-                path[path.length - 1] == address(usdc),
-            "bad path"
-        );
+    function setTaxSwapPath(bytes calldata path) external onlyOwner {
+        _requirePath(path, address(robx), address(usdc));
         taxSwapPath = path;
     }
 
-    function setRouter(address r) external onlyOwner {
-        require(r != address(0), "zero addr");
-        router = IUniswapV2Router(r);
+    function setRouter(address r, address q) external onlyOwner {
+        require(r != address(0) && q != address(0), "zero addr");
+        router = ISwapRouter02(r);
+        quoter = IQuoterV2(q);
     }
 
     /// @notice Rescue tokens sent here by mistake. ROBX and USDC — the
