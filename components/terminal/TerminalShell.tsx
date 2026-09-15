@@ -8,7 +8,6 @@ import { NETWORK } from "@/lib/mock";
 import { shortAddr } from "@/lib/format";
 import {
   IconDashboard,
-  IconTrade,
   IconTreasury,
   IconPerps,
   IconHistory,
@@ -16,16 +15,14 @@ import {
   type IconProps,
 } from "./icons";
 import { Dashboard } from "./views/Dashboard";
-import { Trade } from "./views/Trade";
 import { Treasury } from "./views/Treasury";
 import { Perps } from "./views/Perps";
 import { History } from "./views/History";
 
-export type View = "dashboard" | "trade" | "treasury" | "perps" | "history";
+export type View = "dashboard" | "treasury" | "perps" | "history";
 
 const NAV: { view: View; label: string; soon?: boolean; Icon: (p: IconProps) => React.ReactNode }[] = [
   { view: "dashboard", label: "Dashboard", Icon: IconDashboard },
-  { view: "trade", label: "Trade", soon: true, Icon: IconTrade },
   { view: "treasury", label: "Treasury", Icon: IconTreasury },
   { view: "perps", label: "Perps", soon: true, Icon: IconPerps },
   { view: "history", label: "History", Icon: IconHistory },
@@ -124,7 +121,6 @@ export function TerminalShell() {
         <main className="flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-10">
           <div className="mx-auto max-w-6xl">
             {view === "dashboard" && <Dashboard go={setView} />}
-            {view === "trade" && <Trade />}
             {view === "treasury" && <Treasury />}
             {view === "perps" && <Perps />}
             {view === "history" && <History go={setView} />}
