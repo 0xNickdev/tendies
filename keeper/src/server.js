@@ -1,261 +1,112 @@
-// Tiny HTTP server (no deps): Railway health checks, a public /status the
-// frontend reads for real treasury numbers, and the payout-choice endpoints.
+// Tiny HTTP server (no deps) for Railway health checks and a public /status
+// the frontend can read for real treasury numbers.
 
 import http from "node:http";
+import { ethers } from "ethers";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { snapshotHolders, solBalance } from "./solana.js";
-import { feeBalance, feeDecimals, buybackReserve, feeUnitsPerDollar } from "./swap.js";
-import { state, ledgerSummary, holderInfo } from "./keeper.js";
-import { applyChoice } from "./choice.js";
-import { accruedOf, choiceOf, profileOf, allMarks, markHistoryOf, positionHistoryOf } from "./store.js";
-import { openPosition, closePosition, positionsOf, view, summary as perpsSummary } from "./perps.js";
-import { markets } from "./oracle.js";
+import { distributor, chain, gasBalanceEth } from "./chain.js";
+import { state } from "./keeper.js";
 
-// The origin to echo for this request: "*" if anything goes, the request's
-// own origin if it is on the list, else the first listed one - which the
-// browser will then refuse, which is the point.
-function corsOrigin(req) {
-  const list = config.allowOrigins;
-  if (list.includes("*")) return "*";
-  const origin = (req.headers.origin || "").replace(/\/+$/, "");
-  return list.includes(origin) ? origin : list[0];
-}
-
-function json(res, code, body, req) {
+function json(res, code, body) {
+  const data = JSON.stringify(body, null, 2);
   res.writeHead(code, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": corsOrigin(req),
-    Vary: "Origin",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": "*", // let the Vercel frontend read it
+    "Cache-Control": "public, max-age=15",
   });
-  res.end(JSON.stringify(body, null, 2));
-}
-
-function readBody(req, limit = 4096) {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (chunk) => {
-      data += chunk;
-      if (data.length > limit) reject(new Error("body too large"));
-    });
-    req.on("end", () => {
-      try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch {
-        reject(new Error("invalid JSON"));
-      }
-    });
-    req.on("error", reject);
-  });
+  res.end(data);
 }
 
 async function buildStatus() {
-  const [holders, fee, sol, decimals, reserve, perDollar] = await Promise.all([
-    snapshotHolders().catch(() => []),
-    feeBalance().catch(() => 0n),
-    solBalance().catch(() => 0),
-    feeDecimals().catch(() => 6),
-    buybackReserve().catch(() => 0n),
-    feeUnitsPerDollar().catch(() => null),
+  const [
+    canDist,
+    last,
+    interval,
+    epochCount,
+    totalDistributed,
+    totalShares,
+    robxTax,
+    usdgBal,
+    gas,
+    rewardCount,
+  ] = await Promise.all([
+    distributor.canDistribute().catch(() => false),
+    distributor.lastDistribution().catch(() => 0n),
+    distributor.epochInterval().catch(() => 1800n),
+    distributor.epochCount().catch(() => 0n),
+    distributor.totalDistributedUsdc().catch(() => 0n),
+    distributor.totalShares().catch(() => 0n),
+    chain.robx ? chain.robx.balanceOf(config.distributor).catch(() => 0n) : 0n,
+    chain.usdg ? chain.usdg.balanceOf(config.distributor).catch(() => 0n) : 0n,
+    gasBalanceEth().catch(() => 0),
+    distributor.allowedRewardTokensLength().catch(() => 0n),
   ]);
 
-  const ledger = ledgerSummary();
-  const toUnits = (raw) => Number(BigInt(raw)) / 10 ** decimals;
-  // Every figure below is counted in fee-token units. While that was USDC the
-  // two were the same number; paired against a stock they are not, and the site
-  // renders these as money — so publish the dollar value rather than leave the
-  // UI to multiply by a rate it does not have.
-  const toUsd = (raw) => (perDollar ? Number(BigInt(raw)) / Number(perDollar) : null);
-
-  const lastEpoch = state.lastEpochAt ? new Date(state.lastEpochAt).getTime() : 0;
-  const nextAt = lastEpoch + config.epochMinutes * 60_000;
+  const lastN = Number(last);
+  const intervalN = Number(interval);
+  const nextAt = lastN + intervalN;
+  const secondsUntilNext = Math.max(0, nextAt - Math.floor(Date.now() / 1000));
+  const dec = chain.usdgDecimals;
 
   return {
     ok: true,
-    dryRun: config.dryRun,
     keeper: {
-      treasury: state.treasury,
-      solBalance: sol,
+      address: state.keeper,
+      gasBalanceEth: gas,
       bootedAt: state.bootedAt,
+      distributionsSent: state.distributionsSent,
+      syncsSent: state.syncsSent,
+      lastDistributionTx: state.lastDistributionTx,
       lastError: state.lastError,
     },
     treasury: {
-      mint: config.mint || null,
-      feeMint: config.feeMint,
-      pendingFee: toUnits(fee.toString()),
-      pendingFeeUsd: toUsd(fee.toString()),
-      payoutStocks: config.payoutMints.map((p) => p.symbol),
-      holders: holders.length,
-      // The TENDIEPERP side of the creator fee. Never distributed — it accumulates
-      // as the buyback reserve, in TENDIEPERP's own 6 decimals, not the fee token's.
-      buybackReserve: Number(reserve) / 10 ** 6,
-    },
-    ledger: {
-      owedAccounts: ledger.owedAccounts,
-      owed: toUnits(ledger.owedRaw),
-      owedUsd: toUsd(ledger.owedRaw),
-      paidOut: toUnits(ledger.paidOutRaw),
-      paidOutUsd: toUsd(ledger.paidOutRaw),
-      // the perps house bankroll - held back, never owed to anyone
-      reserve: toUnits(ledger.reserveRaw),
-      reserveUsd: toUsd(ledger.reserveRaw),
-      minPayoutUsd: config.minPayoutUsd,
-      epochsRun: ledger.epochsRun,
-      lastEpoch: ledger.lastEpoch,
+      distributor: config.distributor,
+      pendingTaxRobx: ethers.formatUnits(robxTax, 18),
+      usdgBalance: ethers.formatUnits(usdgBal, dec),
+      totalDistributed: ethers.formatUnits(totalDistributed, dec),
+      totalShares: ethers.formatUnits(totalShares, 18),
+      rewardTokenCount: Number(rewardCount),
     },
     epoch: {
-      intervalMinutes: config.epochMinutes,
-      lastEpochAt: state.lastEpochAt,
-      secondsUntilNext: lastEpoch ? Math.max(0, Math.round((nextAt - Date.now()) / 1000)) : 0,
+      count: Number(epochCount),
+      intervalSeconds: intervalN,
+      lastDistribution: lastN,
+      nextDistributionAt: nextAt,
+      secondsUntilNext,
+      canDistributeNow: canDist,
     },
-    perps: { ...(await perpsSummary()), marks: allMarks() },
-    // Host only — config.rpcUrl carries a paid API key in its query string,
-    // and /status is public.
-    cluster: rpcHost(),
+    chainId: state.chainId,
     updatedAt: new Date().toISOString(),
   };
 }
 
-// The RPC endpoint without credentials: the URL holds a paid API key that
-// must never leave the server, but the host itself is useful in /status.
-function rpcHost() {
-  try {
-    return new URL(config.rpcUrl).host;
-  } catch {
-    return "invalid-rpc-url";
-  }
-}
-
 export function startServer() {
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url || "/", "http://localhost");
-    const path = url.pathname;
+    const url = (req.url || "/").split("?")[0];
 
     if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": corsOrigin(req),
-        Vary: "Origin",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      });
+      res.writeHead(204, { "Access-Control-Allow-Origin": "*" });
       return res.end();
     }
 
-    if (path === "/health" || path === "/") {
-      return json(res, 200, { ok: true, service: "tendies-keeper" }, req);
+    if (url === "/health" || url === "/") {
+      return json(res, 200, { ok: true, service: "robinx-keeper" });
     }
 
-    if (path === "/status") {
+    if (url === "/status") {
       try {
-        return json(res, 200, await buildStatus(), req);
+        return json(res, 200, await buildStatus());
       } catch (e) {
-        return json(res, 500, { ok: false, error: e.message }, req);
+        return json(res, 500, { ok: false, error: e.message });
       }
     }
 
-    // What one wallet is owed and which stock it is set to receive.
-    if (path === "/account") {
-      const owner = url.searchParams.get("owner") ?? "";
-      if (!owner) return json(res, 400, { ok: false, error: "owner required" }, req);
-      const decimals = await feeDecimals().catch(() => 6);
-      // The ledger counts fee-token units. Once the fee accrues in a stock
-      // those are nothing like dollars, and the site labels this field as
-      // money — so convert here rather than letting the UI guess.
-      const perDollar = await feeUnitsPerDollar().catch(() => null);
-      const info = holderInfo(owner);
-      const prof = profileOf(owner);
-      return json(res, 200, {
-        ok: true,
-        owner,
-        choice: choiceOf(owner),
-        accrued: Number(accruedOf(owner)) / 10 ** decimals,
-        accruedUsd: perDollar ? Number(accruedOf(owner)) / Number(perDollar) : null,
-        minPayoutUsd: config.minPayoutUsd,
-        // доля из последнего снимка эпохи, не из живого запроса
-        balance: info.balance,
-        shareBps: Math.round(info.share * 10_000),
-        snapshotAt: info.snapshotAt,
-        // measured, never assigned
-        totalPaid: Number(BigInt(prof.totalPaid)) / 10 ** decimals,
-        totalPaidUsd: perDollar ? Number(BigInt(prof.totalPaid)) / Number(perDollar) : null,
-        streak: prof.streak,
-        epochsHeld: prof.firstEpoch ? prof.lastEpoch - prof.firstEpoch + 1 : 0,
-        payouts: prof.payouts.map((x) => ({
-          epoch: x.epoch,
-          at: x.at,
-          symbol: x.symbol,
-          value: Number(BigInt(x.paidRaw)) / 10 ** decimals,
-          valueUsd: perDollar ? Number(BigInt(x.paidRaw)) / Number(perDollar) : null,
-          signature: x.signature,
-        })),
-      }, req);
-    }
-
-    // Set the payout stock — body carries the wallet's signature.
-    if (path === "/choice" && req.method === "POST") {
-      try {
-        const body = await readBody(req);
-        const result = applyChoice(body);
-        return json(res, result.ok ? 200 : 400, result, req);
-      } catch (e) {
-        return json(res, 400, { ok: false, error: e.message }, req);
-      }
-    }
-
-    // ── perps ────────────────────────────────────────────────────────────
-    if (path === "/perps") {
-      return json(res, 200, {
-        ok: true,
-        ...(await perpsSummary()),
-        markets: markets().map((m) => m.market),
-        marks: allMarks(),
-      }, req);
-    }
-
-    if (path === "/perps/marks") {
-      const symbol = url.searchParams.get("symbol") ?? "";
-      const limit = Math.min(2000, Number(url.searchParams.get("limit") || 288));
-      if (!symbol) return json(res, 400, { ok: false, error: "symbol required" }, req);
-      return json(res, 200, { ok: true, symbol, marks: markHistoryOf(symbol, limit) }, req);
-    }
-
-    if (path === "/perps/positions") {
-      const owner = url.searchParams.get("owner") ?? "";
-      if (!owner) return json(res, 400, { ok: false, error: "owner required" }, req);
-      return json(res, 200, {
-        ok: true,
-        owner,
-        open: positionsOf(owner).map(view),
-        history: positionHistoryOf(owner),
-      }, req);
-    }
-
-    if (path === "/perps/open" && req.method === "POST") {
-      try {
-        const result = await openPosition(await readBody(req));
-        return json(res, result.ok ? 200 : 400, result, req);
-      } catch (e) {
-        return json(res, 400, { ok: false, error: e.message }, req);
-      }
-    }
-
-    if (path === "/perps/close" && req.method === "POST") {
-      try {
-        const result = await closePosition(await readBody(req));
-        return json(res, result.ok ? 200 : 400, result, req);
-      } catch (e) {
-        return json(res, 400, { ok: false, error: e.message }, req);
-      }
-    }
-
-    return json(res, 404, { ok: false, error: "not found" }, req);
+    return json(res, 404, { ok: false, error: "not found" });
   });
 
   server.listen(config.port, () => {
-    log.info(`http server on :${config.port} (/health, /status, /account, /choice, /perps/*)`);
+    log.info(`http server on :${config.port} (/health, /status)`);
   });
   return server;
 }

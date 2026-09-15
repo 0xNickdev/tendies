@@ -23,18 +23,15 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tendies - Hold the bag. Get the tendies.",
+  title: "RobinX — Hold the token. Get paid in stocks.",
   description:
-    "Hold TENDIEPERP and earn rewards in tokenized stocks - OpenAI pre-IPO, TSLA, NVDA or SPCX - paid out every 30 minutes. No brokerage account, 24/7, self-custody. Launched on stonkfun, settled on Solana.",
+    "Hold ROBX and earn rewards in real tokenized stocks — TSLA, NVDA or SPCX — paid out every 30 minutes. No brokerage account, 24/7, self-custody. Built on Robinhood Chain.",
   keywords: [
-    "Tendies",
-    "TENDIEPERP",
-    "Tendies, Perps & Stonks",
+    "RobinX",
+    "ROBX",
     "tokenized stocks",
-    "Solana",
+    "Robinhood Chain",
     "DeFi",
-    "OpenAI",
-    "pre-IPO",
     "TSLA",
     "NVDA",
     "SpaceX",
@@ -42,21 +39,21 @@ export const metadata: Metadata = {
     "treasury",
   ],
   openGraph: {
-    title: "Tendies - Hold the bag. Get the tendies.",
+    title: "RobinX — Hold the token. Get paid in stocks.",
     description:
-      "Earn tokenized stocks (OpenAI · TSLA · NVDA · SPCX) every 30 minutes just by holding TENDIEPERP. On Solana.",
+      "Earn real tokenized stocks (TSLA · NVDA · SPCX) every 30 minutes just by holding ROBX. On Robinhood Chain.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tendies - Hold the bag. Get the tendies.",
+    title: "RobinX — Hold the token. Get paid in stocks.",
     description:
-      "Earn tokenized stocks (OpenAI · TSLA · NVDA · SPCX) every 30 minutes just by holding TENDIEPERP. On Solana.",
+      "Earn real tokenized stocks (TSLA · NVDA · SPCX) every 30 minutes just by holding ROBX. On Robinhood Chain.",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#071013",
+  themeColor: "#0A0B05",
   width: "device-width",
   initialScale: 1,
 };

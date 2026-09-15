@@ -91,8 +91,8 @@ function genCandles(tf: TF, symbol: string, basePrice: number): Candle[] {
   return candles;
 }
 
-const UP = "#3CE3AB";
-const DOWN = "#F23674";
+const UP = "#2FE08C";
+const DOWN = "#FF6B8A";
 
 const VISIBLE_DEFAULT = 72; // candles in the window the reader drags along
 
@@ -105,7 +105,7 @@ function labelFor(t: number, tf: TF): string {
 }
 
 export function CandleChart({
-  symbol = "OPENAI",
+  symbol = "TSLA",
   basePrice,
   height = 320,
 }: {
@@ -253,7 +253,7 @@ export function CandleChart({
           {view && (
             <button
               onClick={resetView}
-              className="mr-1 rounded border border-tendie/30 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-tendie hover:bg-tendie/10"
+              className="mr-1 rounded border border-robin/30 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-robin hover:bg-robin/10"
             >
               Reset
             </button>
@@ -264,7 +264,7 @@ export function CandleChart({
               onClick={() => setTf(t)}
               className={`rounded px-2.5 py-1 font-mono text-[11px] font-bold transition-colors ${
                 tf === t
-                  ? "border border-tendie/50 bg-tendie/15 text-tendie"
+                  ? "border border-robin/50 bg-robin/15 text-robin"
                   : "border border-transparent text-mist-400 hover:text-mist-200"
               }`}
             >
@@ -348,13 +348,13 @@ export function CandleChart({
               x2={plotW}
               y1={py(markPrice)}
               y2={py(markPrice)}
-              stroke="#69AAC1"
+              stroke="#D4FA09"
               strokeWidth="1"
               strokeDasharray="4 4"
               opacity="0.8"
             />
             <g>
-              <rect x={plotW + 2} y={py(markPrice) - 9} width={padR - 4} height={18} rx={3} fill="#69AAC1" />
+              <rect x={plotW + 2} y={py(markPrice) - 9} width={padR - 4} height={18} rx={3} fill="#D4FA09" />
               <text
                 x={plotW + padR / 2}
                 y={py(markPrice) + 3.5}
@@ -362,7 +362,7 @@ export function CandleChart({
                 fontSize="10"
                 fontWeight="700"
                 fontFamily="var(--font-mono)"
-                fill="#071013"
+                fill="#0A0B05"
               >
                 {markPrice.toFixed(2)}
               </text>

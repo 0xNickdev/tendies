@@ -1,16 +1,12 @@
-// Protocol configuration & shared types for the Tendies terminal.
+// Protocol configuration & shared types for the RobinX terminal.
 // No mock market data — live prices come from /api/prices, balances from the
 // connected wallet, and positions from the chain once perps go live.
 
-import { KEEPER_URL } from "./config";
-
 // Feature flags — what's live vs. on the roadmap (see landing Roadmap section)
 export const FEATURES = {
-  tradeLive: false, // unlocks with the TENDIEPERP token launch (see lib/config.ts)
-  // Perps run inside the keeper, so they are live exactly when it is wired
-  // up. Until NEXT_PUBLIC_KEEPER_URL is set the terminal shows a preview.
-  perpsLive: Boolean(KEEPER_URL),
-  autoTradingLive: false, // Phase 03 - strategy vaults / auto-trading
+  tradeLive: false, // unlocks with the ROBX token launch (see lib/config.ts)
+  perpsLive: false, // Phase 02 — preview until the perps engine is ported to Robinhood Chain
+  autoTradingLive: false, // Phase 03 — strategy vaults / auto-trading
 };
 
 // Token economics (design constants). Live figures (treasury size, APR, spot
@@ -18,31 +14,46 @@ export const FEATURES = {
 // is wired in.
 export const TREASURY = {
   totalUsdc: 0,
-  // Two different numbers, and conflating them is how the site ended up
-  // promising 4%. poolFeeBps is what the trader pays; treasuryFeeBps is our
-  // slice of it, which is the entire reward budget. stonkfun keeps the rest.
-  poolFeeBps: 125, // LaunchLab's fixed trading fee
-  treasuryFeeBps: 50, // → treasury (the creator's share)
-  // TENDIEPERP is priced against this, not against a stablecoin.
-  quoteSymbol: "OPENAI",
+  taxRateBps: 400, // 4% buy/sell tax → treasury
   tokenPriceUsd: 0,
-  tokenSymbol: "TENDIEPERP",
-  // Where the 0.5% comes from: the stonkfun launchpad's creator fee share on
-  // trading volume. The mint itself carries no transfer fee — a standard
-  // stonkfun launch provably has none — so wallet↔wallet moves are free.
-  feeSource: "stonkfun creator fee",
-  totalSupply: 1_000_000_000, // stonkfun mints exactly 1B at 6 decimals
-  decimals: 6, // SPL mint decimals
+  tokenSymbol: "ROBX",
+  totalSupply: 100_000_000,
   apr: 0,
 };
 
 export type Direction = "long" | "short";
 
-// Solana mainnet-beta — TENDIEPERP launches on the stonkfun launchpad.
+export type Position = {
+  id: string;
+  direction: Direction;
+  leverage: number;
+  marginUsdc: number;
+  entryPrice: number;
+  sizeUsd: number;
+  liqPrice: number;
+  openedAt: string;
+};
+
+// Positions come from the chain once perps are live (Phase 02).
+export const OPEN_POSITIONS: Position[] = [];
+
+export type ClosedPosition = {
+  id: string;
+  direction: Direction;
+  leverage: number;
+  marginUsdc: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnlUsd: number;
+  settledAt: string;
+};
+
+export const CLOSED_POSITIONS: ClosedPosition[] = [];
+
+// Robinhood Chain mainnet (verified on-chain).
 export const NETWORK = {
-  name: "Solana",
-  cluster: "mainnet-beta",
-  symbol: "SOL",
-  launchpad: "stonkfun",
-  explorer: "https://solscan.io",
+  name: "Robinhood Chain",
+  chainId: 4663,
+  symbol: "ETH",
+  explorer: "https://robinhoodchain.blockscout.com",
 };

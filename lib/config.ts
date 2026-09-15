@@ -2,33 +2,31 @@
 // Fill these in when the token goes live. Everything that depends on them
 // shows a "TBA / Soon" state until they're set.
 
-// TENDIEPERP SPL mint on Solana.
-// ⟵ PASTE THE MINT ADDRESS HERE after the stonkfun launch (enables balance reads)
-export const TENDIE_MINT = "vMTmvXKesQX8hTuikEr7j19H6k4oXwVCPxkVNbESHfY";
+// ROBX ERC-20 contract address on Robinhood Chain.
+// ⟵ PASTE THE TOKEN ADDRESS HERE when deployed (enables wallet balance reads)
+export const ROBX_TOKEN_ADDRESS = "";
 
-// TENDIEPERP is launched on the stonkfun launchpad — coins paired with real
-// assets. ⟵ PASTE THE COIN PAGE URL HERE once it exists, e.g.
-//    https://www.stonkfun.xyz/coin/<mint>
-export const BUY_TENDIE_URL = "https://www.stonkfun.xyz/token/vMTmvXKesQX8hTuikEr7j19H6k4oXwVCPxkVNbESHfY";
+// Where "Buy ROBX" sends people (Uniswap on Robinhood Chain).
+// ⟵ PASTE THE REAL SWAP LINK HERE when the pool is live, e.g.
+//    https://app.uniswap.org/swap?chain=robinhood&outputCurrency=<ROBX_TOKEN_ADDRESS>
+export const BUY_ROBX_URL = "https://app.uniswap.org/swap";
 
-// Treasury wallet that accumulates the trade fee and pays holders out in
-// xStocks. ⟵ PASTE THE TREASURY PUBKEY HERE at launch.
-export const TREASURY_WALLET = "58HkY764t9XNyzeVapVm5SqpN5TUoEGrp6mfXJer7Hf7";
+// ─── Robinhood Chain mainnet (verified on-chain) ──────────────────────────
+export const ROBINHOOD_CHAIN = {
+  chainId: 4663,
+  chainIdHex: "0x1237", // 4663
+  chainName: "Robinhood Chain",
+  rpcUrls: ["https://rpc.mainnet.chain.robinhood.com"],
+  blockExplorerUrls: ["https://robinhoodchain.blockscout.com"],
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+} as const;
 
-// Bump whenever the kitchen card's artwork changes. X caches link previews by
-// URL for about a week, so a redesigned card would otherwise keep showing the
-// old picture to everyone who shared before. The version rides in the shared
-// URL and in og:image, giving the crawler a fresh address to fetch.
-export const CARD_VERSION = 2;
+// RewardDistributor contract — where the 4% tax lands and where holders read
+// their accrued rewards, pick a stock and claim. ⟵ PASTE AFTER DEPLOY.
+export const DISTRIBUTOR_ADDRESS = "";
 
-// Canonical public origin - what share links and OG images point at.
-export const SITE_URL = "https://tendiesonstonk.com";
-
-// The keeper service (accrual ledger + payout choices). Set
-// NEXT_PUBLIC_KEEPER_URL to the Railway URL; blank disables the payout-choice
-// UI instead of letting it pretend to work.
-// Normalised, because a value pasted without a scheme ("host.up.railway.app")
-// would be treated as a relative path by fetch and fail silently.
+// Treasury numbers the site shows come from the keeper's /status. Blank hides
+// them until the keeper is deployed.
 export const KEEPER_URL = (() => {
   const raw = (process.env.NEXT_PUBLIC_KEEPER_URL ?? "").trim();
   if (!raw) return "";
@@ -36,16 +34,8 @@ export const KEEPER_URL = (() => {
   return withScheme.replace(/\/+$/, "");
 })();
 
-// ─── Solana mainnet-beta ─────────────────────────────────────────────────
-// Balance reads go through /api/rpc, which forwards to SOLANA_RPC on the
-// server. The endpoint URL carries a paid API key, so it must NOT be exposed
-// as NEXT_PUBLIC_* — that would inline it into the browser bundle.
-export const SOLANA = {
-  cluster: "mainnet-beta",
-  rpcUrl: "/api/rpc",
-  explorer: "https://solscan.io",
-  nativeCurrency: { name: "Solana", symbol: "SOL", decimals: 9 },
-} as const;
 
 export const explorerAccount = (address: string) =>
-  `${SOLANA.explorer}/account/${address}`;
+  `${ROBINHOOD_CHAIN.blockExplorerUrls[0]}/address/${address}`;
+export const explorerTx = (hash: string) =>
+  `${ROBINHOOD_CHAIN.blockExplorerUrls[0]}/tx/${hash}`;

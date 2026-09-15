@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {TENDIE} from "../src/TENDIE.sol";
+import {ROBX} from "../src/ROBX.sol";
 import {RewardDistributor} from "../src/RewardDistributor.sol";
 
 // ─── mocks ───────────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ contract MockRouter {
 
 // ─── suite ───────────────────────────────────────────────────────────────
 
-contract TendiesTest is Test {
-    TENDIE tendie;
+contract RobinXTest is Test {
+    ROBX robx;
     RewardDistributor dist;
     MockUSDG usdg;
     MockStock tsla;
@@ -92,9 +92,9 @@ contract TendiesTest is Test {
     address bob = makeAddr("bob");
     address keeper = makeAddr("keeper");
 
-    // 1 TENDIE (1e18) → 0.5 USDG (5e5 units)
-    uint256 constant TENDIE_USDG_NUM = 5e5;
-    uint256 constant TENDIE_USDG_DEN = 1e18;
+    // 1 ROBX (1e18) → 0.5 USDG (5e5 units)
+    uint256 constant ROBX_USDG_NUM = 5e5;
+    uint256 constant ROBX_USDG_DEN = 1e18;
     // 1 USDG (1e6) → 0.005 TSLA (5e15 units)
     uint256 constant USDG_TSLA_NUM = 5e15;
     uint256 constant USDG_TSLA_DEN = 1e6;
@@ -103,39 +103,39 @@ contract TendiesTest is Test {
         usdg = new MockUSDG();
         tsla = new MockStock("tTSLA");
         router = new MockRouter();
-        tendie = new TENDIE();
+        robx = new ROBX();
 
         address[] memory path = new address[](2);
-        path[0] = address(tendie);
+        path[0] = address(robx);
         path[1] = address(usdg);
-        dist = new RewardDistributor(address(tendie), address(usdg), address(router), path);
+        dist = new RewardDistributor(address(robx), address(usdg), address(router), path);
 
-        tendie.setDistributor(address(dist));
-        tendie.setMarketPair(pair, true);
+        robx.setDistributor(address(dist));
+        robx.setMarketPair(pair, true);
         // routers/pools must never accrue holder rewards (mirrors prod wiring)
-        tendie.setRewardExempt(address(router), true);
+        robx.setRewardExempt(address(router), true);
         dist.setAllowedRewardToken(address(tsla), true);
 
         // fund the fake AMM
-        router.setRate(address(tendie), address(usdg), TENDIE_USDG_NUM, TENDIE_USDG_DEN);
+        router.setRate(address(robx), address(usdg), ROBX_USDG_NUM, ROBX_USDG_DEN);
         router.setRate(address(usdg), address(tsla), USDG_TSLA_NUM, USDG_TSLA_DEN);
         usdg.mint(address(router), 1_000_000e6);
         tsla.mint(address(router), 1_000_000e18);
 
         // seed the "pair" with inventory to sell from
-        tendie.transfer(pair, 10_000_000e18);
+        robx.transfer(pair, 10_000_000e18);
     }
 
     // ─── helpers ──
 
     function _buy(address who, uint256 amount) internal {
         vm.prank(pair);
-        tendie.transfer(who, amount); // pair → user = buy
+        robx.transfer(who, amount); // pair → user = buy
     }
 
     function _sell(address who, uint256 amount) internal {
         vm.prank(who);
-        tendie.transfer(pair, amount); // user → pair = sell
+        robx.transfer(pair, amount); // user → pair = sell
     }
 
     function _distribute() internal {
@@ -147,44 +147,44 @@ contract TendiesTest is Test {
 
     function test_BuyTakes4PercentTax() public {
         _buy(alice, 1000e18);
-        assertEq(tendie.balanceOf(alice), 960e18, "alice gets 96%");
-        assertEq(tendie.balanceOf(address(dist)), 40e18, "distributor gets 4%");
+        assertEq(robx.balanceOf(alice), 960e18, "alice gets 96%");
+        assertEq(robx.balanceOf(address(dist)), 40e18, "distributor gets 4%");
     }
 
     function test_SellTakes4PercentTax() public {
         _buy(alice, 1000e18);
-        uint256 pairBefore = tendie.balanceOf(pair);
+        uint256 pairBefore = robx.balanceOf(pair);
         _sell(alice, 500e18);
-        assertEq(tendie.balanceOf(pair), pairBefore + 480e18, "pair gets 96%");
-        assertEq(tendie.balanceOf(address(dist)), 40e18 + 20e18, "4% taxed on sell");
+        assertEq(robx.balanceOf(pair), pairBefore + 480e18, "pair gets 96%");
+        assertEq(robx.balanceOf(address(dist)), 40e18 + 20e18, "4% taxed on sell");
     }
 
     function test_WalletToWalletIsTaxFree() public {
         _buy(alice, 1000e18);
-        uint256 distBefore = tendie.balanceOf(address(dist));
+        uint256 distBefore = robx.balanceOf(address(dist));
         vm.prank(alice);
-        tendie.transfer(bob, 100e18);
-        assertEq(tendie.balanceOf(bob), 100e18, "no tax between wallets");
-        assertEq(tendie.balanceOf(address(dist)), distBefore, "no new tax");
+        robx.transfer(bob, 100e18);
+        assertEq(robx.balanceOf(bob), 100e18, "no tax between wallets");
+        assertEq(robx.balanceOf(address(dist)), distBefore, "no new tax");
     }
 
     function test_TaxExemptBuyerPaysNoTax() public {
-        tendie.setTaxExempt(alice, true);
+        robx.setTaxExempt(alice, true);
         _buy(alice, 1000e18);
-        assertEq(tendie.balanceOf(alice), 1000e18);
+        assertEq(robx.balanceOf(alice), 1000e18);
     }
 
     function test_TaxCapEnforced() public {
-        vm.expectRevert("TENDIE: tax above cap");
-        tendie.setTaxBps(501);
-        tendie.setTaxBps(500); // at cap is fine
-        assertEq(tendie.taxBps(), 500);
+        vm.expectRevert("ROBX: tax above cap");
+        robx.setTaxBps(501);
+        robx.setTaxBps(500); // at cap is fine
+        assertEq(robx.taxBps(), 500);
     }
 
     function test_OnlyOwnerConfiguresToken() public {
         vm.prank(alice);
         vm.expectRevert();
-        tendie.setTaxBps(100);
+        robx.setTaxBps(100);
     }
 
     // ─── token → distributor share sync ──
@@ -193,7 +193,7 @@ contract TendiesTest is Test {
         _buy(alice, 1000e18);
         assertEq(dist.shares(alice), 960e18);
         vm.prank(alice);
-        tendie.transfer(bob, 460e18);
+        robx.transfer(bob, 460e18);
         assertEq(dist.shares(alice), 500e18);
         assertEq(dist.shares(bob), 460e18);
         assertEq(dist.totalShares(), 960e18);
@@ -219,9 +219,9 @@ contract TendiesTest is Test {
     }
 
     function test_DistributeConvertsTaxToUsdg() public {
-        _buy(alice, 1000e18); // 40 TENDIE tax
+        _buy(alice, 1000e18); // 40 ROBX tax
         _distribute();
-        // 40 TENDIE * 0.5 = 20 USDG
+        // 40 ROBX * 0.5 = 20 USDG
         assertEq(usdg.balanceOf(address(dist)), 20e6);
         assertEq(dist.epochCount(), 1);
         // alice is the only holder → owed everything
@@ -231,7 +231,7 @@ contract TendiesTest is Test {
     function test_ProRataSplit_60_40() public {
         _buy(alice, 600e18); // 576 shares
         _buy(bob, 400e18); // 384 shares
-        _distribute(); // tax = 40 TENDIE → 20 USDG
+        _distribute(); // tax = 40 ROBX → 20 USDG
         // 576/960 = 60%, 384/960 = 40%
         assertApproxEqAbs(dist.pendingUsdc(alice), 12e6, 2);
         assertApproxEqAbs(dist.pendingUsdc(bob), 8e6, 2);
@@ -242,13 +242,13 @@ contract TendiesTest is Test {
         _distribute(); // alice earns 20 USDG
         // alice sends everything away — already-earned rewards must survive
         vm.prank(alice);
-        tendie.transfer(bob, 960e18);
+        robx.transfer(bob, 960e18);
         assertApproxEqAbs(dist.pendingUsdc(alice), 20e6, 2, "earned rewards survive transfer");
         // next epoch goes to bob only
-        _buy(alice, 100e18); // fresh 4 TENDIE tax → 2 USDG
-        uint256 aliceBal = tendie.balanceOf(alice); // read BEFORE prank — a
+        _buy(alice, 100e18); // fresh 4 ROBX tax → 2 USDG
+        uint256 aliceBal = robx.balanceOf(alice); // read BEFORE prank — a
         vm.prank(alice); //          balanceOf in the args would eat the prank
-        tendie.transfer(bob, aliceBal); // alice zeroes out again
+        robx.transfer(bob, aliceBal); // alice zeroes out again
         _distribute();
         assertApproxEqAbs(dist.pendingUsdc(alice), 20e6, 2, "no new rewards for zero balance");
         assertGt(dist.pendingUsdc(bob), 0, "bob earns the new epoch");
@@ -352,7 +352,7 @@ contract TendiesTest is Test {
 
     function test_RescueProtectsHolderFunds() public {
         vm.expectRevert("protected");
-        dist.rescue(address(tendie), 1, deployer);
+        dist.rescue(address(robx), 1, deployer);
         vm.expectRevert("protected");
         dist.rescue(address(usdg), 1, deployer);
         // random token is rescuable
@@ -380,7 +380,7 @@ contract TendiesTest is Test {
         _distribute(); // alice earns ~20 USDG
         // simulate a desync: alice becomes reward-exempt, token stops
         // notifying, but her 960 stale shares keep earning
-        tendie.setRewardExempt(alice, true);
+        robx.setRewardExempt(alice, true);
         assertEq(dist.shares(alice), 960e18, "stale shares before sync");
         // anyone can heal the ledger
         vm.prank(bob);
@@ -390,7 +390,7 @@ contract TendiesTest is Test {
         // sync of a healthy account is a no-op
         _buy(bob, 100e18);
         dist.syncShare(bob);
-        assertEq(dist.shares(bob), tendie.balanceOf(bob));
+        assertEq(dist.shares(bob), robx.balanceOf(bob));
     }
 
     function test_ClaimFallsBackToUsdgWhenStockDisallowed() public {

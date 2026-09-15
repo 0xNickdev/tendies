@@ -2,7 +2,6 @@ import { Header } from "@/components/landing/Header";
 import { Roadmap } from "@/components/landing/Roadmap";
 import { LiveTicker } from "@/components/landing/LiveTicker";
 import { Hero } from "@/components/landing/Hero";
-import { Markets } from "@/components/landing/Markets";
 import {
   About,
   FAQ,
@@ -19,7 +18,6 @@ export default function LandingPage() {
       <Header />
       <Hero />
       <LiveTicker />
-      <Markets />
       <About />
       <Mission />
       <Mechanics />

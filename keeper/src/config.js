@@ -1,113 +1,24 @@
-// Environment config + validation. The keeper boots in DRY-RUN whenever the
-// launch addresses aren't set yet, so it can run (and be watched) before the
-// token exists instead of crash-looping.
+// Environment config + validation. Fails fast on boot if something's missing.
+
+function required(name) {
+  const v = process.env[name];
+  if (!v) {
+    console.error(`[config] Missing required env var: ${name}`);
+    process.exit(1);
+  }
+  return v;
+}
 
 export const config = {
-  rpcUrl: process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com",
-
-  // TENDIEPERP SPL mint — set after the stonkfun launch.
-  mint: process.env.TENDIE_MINT || "",
-
-  // Treasury keypair (base58 secret key) that holds the accrued fee and signs
-  // the payouts. Without it the keeper still snapshots and computes, but
-  // sends nothing.
-  treasurySecret: process.env.TREASURY_SECRET_KEY || "",
-
-  // xStock mints the treasury can pay out in, as SYMBOL:MINT pairs, e.g.
-  //   PAYOUT_MINTS="TSLAx:Xs3...,NVDAx:Xs7...,SPCXx:Xs9..."
-  payoutMints: parsePairs(process.env.PAYOUT_MINTS || ""),
-
-  // What the fee accrues in before it is swapped (USDC by default).
-  // ⚠ VERIFY this mint against solscan.io before funding anything — it is the
-  // widely published Solana USDC mint, but confirm it yourself.
-  feeMint:
-    process.env.FEE_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-
-  // Accounts that must never receive rewards: the launchpad pool/curve, the
-  // treasury itself, any CEX or LP account. Comma-separated pubkeys.
-  exclude: (process.env.EXCLUDE_ACCOUNTS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-
-  // Durable state (accrual ledger, choices, epoch journal). On Railway this
-  // MUST be a mounted Volume — the container disk is wiped on every redeploy.
-  stateDir: process.env.STATE_DIR || "./data",
-
-  // Public origins allowed to call the keeper (the site). Comma-separated;
-  // the request's Origin is echoed back when it is on the list.
-  allowOrigins: (process.env.ALLOW_ORIGIN || "*")
-    .split(",")
-    .map((s) => s.trim().replace(/\/+$/, ""))
-    .filter(Boolean),
-
-  slippageBps: Number(process.env.SLIPPAGE_BPS || 100),
-  // How many times to look for a swap route before paying that group in the
-  // fee token instead. Tolerance widens with each attempt.
-  swapAttempts: Number(process.env.SWAP_ATTEMPTS || 3),
-
-  epochMinutes: Number(process.env.EPOCH_MINUTES || 30),
+  rpcUrl: process.env.RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
+  distributor: required("DISTRIBUTOR"),
+  keeperKey: required("KEEPER_PRIVATE_KEY"),
+  // polling cadence for the distribute check (ms)
   checkIntervalMs: Number(process.env.CHECK_INTERVAL_MS || 60_000),
-  // Payout floor in DOLLARS, not tokens. Creating a holder's token account
-  // costs the treasury ~0.002 SOL of rent, so paying out a few cents burns
-  // more than it delivers — anything under this keeps accruing instead.
-  minPayoutUsd: Number(process.env.MIN_PAYOUT_USD || 1),
-
-  // A signed choice message older than this is rejected (replay protection).
-  choiceTtlMs: Number(process.env.CHOICE_TTL_MS || 10 * 60_000),
-  // transfers per transaction; Solana caps what fits in 1232 bytes
-  transfersPerTx: Number(process.env.TRANSFERS_PER_TX || 8),
+  // how often the syncShare sweep runs (ms)
+  sweepIntervalMs: Number(process.env.SWEEP_INTERVAL_MS || 5 * 60_000),
+  // HTTP server port (Railway sets PORT automatically)
   port: Number(process.env.PORT || 3333),
-
-  // ── perps ──────────────────────────────────────────────────────────────
-  // The house is the counterparty to every position, and the house bankroll
-  // is the reserve: a slice of each epoch's fee that is held back instead of
-  // distributed, grown by funding and losing margin, drawn down by winners.
-  // Every limit here is relative to that reserve, so a win can always be
-  // paid from money that was never owed to anyone else. Margin comes out of
-  // a holder's accrued balance, never from their wallet.
-  perps: {
-    enabled: (process.env.PERPS_ENABLED || "true") !== "false",
-    maxLeverage: Number(process.env.PERPS_MAX_LEVERAGE || 10),
-    minMarginUsd: Number(process.env.PERPS_MIN_MARGIN_USD || 1),
-    // share of each epoch's new fee held back into the reserve…
-    reserveBps: Number(process.env.PERPS_RESERVE_BPS || 1000),
-    // …until the reserve reaches this share of the treasury's fee balance
-    reserveCapPct: Number(process.env.PERPS_RESERVE_CAP_PCT || 20),
-    // one position's size may be at most this share of the reserve
-    maxPositionPct: Number(process.env.PERPS_MAX_POSITION_PCT || 50),
-    // all open positions together, at most this share of the reserve
-    maxOpenInterestPct: Number(process.env.PERPS_MAX_OI_PCT || 200),
-    // liquidate once losses eat this much of the margin
-    liquidationPct: Number(process.env.PERPS_LIQUIDATION_PCT || 95),
-    // funding: a flat charge on position size, paid to the treasury every
-    // interval. It is what makes holding leverage indefinitely cost something.
-    fundingRateBps: Number(process.env.PERPS_FUNDING_BPS || 5),
-    fundingIntervalMs: Number(process.env.PERPS_FUNDING_INTERVAL_MS || 8 * 60 * 60_000),
-    // how often marks are refreshed and positions checked for liquidation
-    markIntervalMs: Number(process.env.PERPS_MARK_INTERVAL_MS || 5 * 60_000),
-    // With no treasury signer there is no fee flow to build a reserve from.
-    // This stands in for it so the engine can be exercised before launch.
-    dryRunReserveUsd: Number(process.env.PERPS_DRYRUN_RESERVE_USD || 0),
-  },
-  // Warn well before the treasury runs dry: opening a token account for a
-  // holder who doesn't have one costs ~0.002 SOL of rent, so a wave of new
-  // recipients drains a small balance fast.
-  minSolWarn: Number(process.env.MIN_SOL_WARN || 0.25),
+  // warn if keeper gas balance drops below this (ETH)
+  minGasWarn: Number(process.env.MIN_GAS_WARN || 0.002),
 };
-
-// A keeper with no mint or no signer can compute but must not claim to pay.
-config.dryRun =
-  !config.mint || !config.treasurySecret || config.payoutMints.length === 0;
-
-function parsePairs(raw) {
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((pair) => {
-      const [symbol, mint] = pair.split(":").map((x) => x.trim());
-      return symbol && mint ? { symbol, mint } : null;
-    })
-    .filter(Boolean);
-}

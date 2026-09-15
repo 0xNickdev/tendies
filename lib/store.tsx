@@ -8,126 +8,164 @@ import {
   useMemo,
   useState,
 } from "react";
-import { TREASURY, type Direction } from "./mock";
-import { TENDIE_MINT, SOLANA, KEEPER_URL } from "./config";
 import {
-  fetchAccount,
-  fetchPerps,
-  fetchPositions,
-  openPerp,
-  closePerp,
-  submitChoice,
-  symbolForToken,
-  type ClosedPerp,
-  type Payout,
-  type PerpPosition,
-  type PerpsInfo,
-} from "./keeper";
-import type { StockSym } from "./stocks";
+  TREASURY,
+  type ClosedPosition,
+  type Direction,
+  type Position,
+} from "./mock";
+import { ROBX_TOKEN_ADDRESS, DISTRIBUTOR_ADDRESS, ROBINHOOD_CHAIN } from "./config";
+import { PAYOUT_STOCKS, type StockSym } from "./stocks";
 
-// Real Solana wallet connection — Phantom, Solflare and any provider that
-// injects the same interface. The TENDIEPERP balance is read straight from the
-// cluster; until TENDIE_MINT is set in lib/config.ts it stays 0.
+// Real EIP-1193 wallet connection — works with MetaMask, Rabby, and any
+// injected EVM wallet. Balances are read from the chain; until the ROBX
+// contract address is set in lib/config.ts the token balance is 0.
 
-type SolanaProvider = {
-  isPhantom?: boolean;
-  isSolflare?: boolean;
-  publicKey?: { toString(): string } | null;
-  connect(opts?: { onlyIfTrusted?: boolean }): Promise<{
-    publicKey: { toString(): string };
-  }>;
-  disconnect(): Promise<void>;
-  signMessage?(message: Uint8Array, encoding?: string): Promise<{ signature: Uint8Array }>;
+type Eip1193 = {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
   on?(event: string, cb: (payload: unknown) => void): void;
-  off?(event: string, cb: (payload: unknown) => void): void;
   removeListener?(event: string, cb: (payload: unknown) => void): void;
 };
 
 declare global {
   interface Window {
-    solana?: SolanaProvider;
-    solflare?: SolanaProvider;
-    phantom?: { solana?: SolanaProvider };
+    ethereum?: Eip1193;
   }
-}
-
-function getProvider(): SolanaProvider | undefined {
-  if (typeof window === "undefined") return undefined;
-  return window.phantom?.solana ?? window.solana ?? window.solflare;
 }
 
 type WalletState = {
   connected: boolean;
   address: string;
+  chainId: number; // 0 until known
 };
 
 type Store = {
   wallet: WalletState;
-  walletMissing: boolean; // no Solana wallet injected in this browser
-  tendieBalance: number;
-  claimUsd: number; // the accrued claim in dollars, not in any stablecoin
-  walletQuote: number; // balance of the quote asset (OPENAI)
+  wrongNetwork: boolean; // connected but not on Robinhood Chain
+  robxBalance: number;
+  claimUsdc: number; // pendingUsdc(owner) on the RewardDistributor, in dollars
+  payoutChoice: StockSym | null; // rewardChoice(owner) mapped to a symbol; null = default
+  txPending: boolean;
+  walletUsdc: number;
   shareBps: number;
-  // perps, served by the keeper
-  positions: PerpPosition[];
-  history: ClosedPerp[];
-  perps: PerpsInfo | null;
-  // payout account, served by the keeper
-  payoutChoice: StockSym | null;
-  accruedUsd: number;
-  minPayoutUsd: number;
-  totalPaid: number;
-  streak: number;
-  payouts: Payout[];
+  positions: Position[];
+  history: ClosedPosition[];
   // actions
   connect: () => void;
+  switchNetwork: () => Promise<void>;
   disconnect: () => void;
-  setPayoutChoice: (symbol: StockSym) => Promise<{ ok: boolean; error?: string }>;
+  refresh: () => Promise<void>;
+  setPayoutChoice: (symbol: StockSym) => Promise<{ ok: boolean; error?: string; hash?: string }>;
+  claim: () => Promise<{ ok: boolean; error?: string; hash?: string }>;
   buyToken: (usdc: number) => void;
-  sellToken: (tendie: number) => void;
+  sellToken: (robx: number) => void;
   openPosition: (p: {
-    market: string;
     direction: Direction;
     leverage: number;
-    marginUsd: number;
-  }) => Promise<{ ok: boolean; error?: string; position?: PerpPosition }>;
-  closePosition: (id: string) => Promise<{ ok: boolean; error?: string; position?: ClosedPerp }>;
+    marginUsdc: number;
+    entryPrice: number;
+  }) => void;
+  closePosition: (id: string) => void;
 };
 
 const StoreCtx = createContext<Store | null>(null);
 
-// SPL balance via a plain getTokenAccountsByOwner RPC call — no SDK needed.
-// An owner can hold the same mint across several token accounts, so sum them.
-async function fetchTendieBalance(owner: string): Promise<number> {
-  if (!TENDIE_MINT) return 0; // token not launched yet
+let idCounter = 9000;
+const nextId = () => `pos_${idCounter++}`;
+
+// ERC-20 balanceOf(address) via raw eth_call — no SDK dependency.
+async function fetchRobxBalance(
+  eth: Eip1193,
+  address: string,
+): Promise<number> {
+  if (!ROBX_TOKEN_ADDRESS) return 0; // token not deployed yet
   try {
-    const res = await fetch(SOLANA.rpcUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getTokenAccountsByOwner",
-        params: [
-          owner,
-          { mint: TENDIE_MINT },
-          { encoding: "jsonParsed", commitment: "confirmed" },
-        ],
-      }),
-    });
-    const json = await res.json();
-    const accounts = json?.result?.value;
-    if (!Array.isArray(accounts)) return 0;
-    return accounts.reduce((sum: number, acc: unknown) => {
-      const amount = (acc as {
-        account?: {
-          data?: { parsed?: { info?: { tokenAmount?: { uiAmount?: number } } } };
-        };
-      })?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
-      return sum + (typeof amount === "number" ? amount : 0);
-    }, 0);
+    const data =
+      "0x70a08231" +
+      address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+    const res = (await eth.request({
+      method: "eth_call",
+      params: [{ to: ROBX_TOKEN_ADDRESS, data }, "latest"],
+    })) as string;
+    if (!res || res === "0x") return 0;
+    return Number(BigInt(res)) / 1e18;
   } catch {
     return 0;
+  }
+}
+
+// Ask the wallet to switch to Robinhood Chain, adding it first if unknown.
+// ── RewardDistributor reads/writes, raw ABI-encoded so no SDK is needed ──
+const pad = (hex: string) => hex.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+// keccak256 selectors, generated with ethers.id() in keeper/ - see README.
+const SEL = {
+  pendingUsdc: "0x5def5f5e", // pendingUsdc(address)
+  rewardChoice: "0xf2568897", // rewardChoice(address)
+  setRewardChoice: "0xe430823e", // setRewardChoice(address)
+  claim: "0x4e71d92d", // claim()
+};
+
+async function call(eth: Eip1193, to: string, data: string): Promise<string> {
+  const res = (await eth.request({ method: "eth_call", params: [{ to, data }, "latest"] })) as string;
+  return res ?? "0x";
+}
+
+// USDG has 6 decimals - pendingUsdc is in those units.
+async function fetchPending(eth: Eip1193, address: string): Promise<number> {
+  if (!DISTRIBUTOR_ADDRESS) return 0;
+  try {
+    const res = await call(eth, DISTRIBUTOR_ADDRESS, SEL.pendingUsdc + pad(address));
+    return res === "0x" ? 0 : Number(BigInt(res)) / 1e6;
+  } catch {
+    return 0;
+  }
+}
+
+async function fetchChoice(eth: Eip1193, address: string): Promise<StockSym | null> {
+  if (!DISTRIBUTOR_ADDRESS) return null;
+  try {
+    const res = await call(eth, DISTRIBUTOR_ADDRESS, SEL.rewardChoice + pad(address));
+    if (res === "0x" || res.length < 66) return null;
+    const token = ("0x" + res.slice(-40)).toLowerCase();
+    if (/^0x0+$/.test(token)) return null;
+    return PAYOUT_STOCKS.find((s) => s.address.toLowerCase() === token)?.symbol ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendTx(eth: Eip1193, from: string, to: string, data: string): Promise<string> {
+  return (await eth.request({
+    method: "eth_sendTransaction",
+    params: [{ from, to, data }],
+  })) as string;
+}
+
+async function ensureNetwork(eth: Eip1193): Promise<void> {
+  try {
+    await eth.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ROBINHOOD_CHAIN.chainIdHex }],
+    });
+  } catch (err) {
+    // 4902 = chain not added to the wallet yet → add it, which also switches
+    const code = (err as { code?: number })?.code;
+    if (code === 4902 || code === -32603) {
+      await eth.request({
+        method: "wallet_addEthereumChain",
+        params: [
+          {
+            chainId: ROBINHOOD_CHAIN.chainIdHex,
+            chainName: ROBINHOOD_CHAIN.chainName,
+            rpcUrls: ROBINHOOD_CHAIN.rpcUrls,
+            blockExplorerUrls: ROBINHOOD_CHAIN.blockExplorerUrls,
+            nativeCurrency: ROBINHOOD_CHAIN.nativeCurrency,
+          },
+        ],
+      });
+    } else {
+      throw err;
+    }
   }
 }
 
@@ -135,228 +173,261 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>({
     connected: false,
     address: "",
+    chainId: 0,
   });
-  const [walletMissing, setWalletMissing] = useState(false);
-  const [tendieBalance, setTendie] = useState(0);
-  const [claimUsd, setClaim] = useState(0);
-  const [walletQuote, setWalletQuote] = useState(0);
-  const [shareBps, setShareBps] = useState(0);
-  const [positions, setPositions] = useState<PerpPosition[]>([]);
-  const [history, setHistory] = useState<ClosedPerp[]>([]);
-  const [perps, setPerps] = useState<PerpsInfo | null>(null);
+  const [robxBalance, setRobx] = useState(0);
+  const [claimUsdc, setClaim] = useState(0);
   const [payoutChoice, setChoice] = useState<StockSym | null>(null);
-  const [accruedUsd, setAccrued] = useState(0);
-  const [minPayoutUsd, setMinPayout] = useState(0);
-  const [totalPaid, setTotalPaid] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [txPending, setTxPending] = useState(false);
+  const [walletUsdc, setWalletUsdc] = useState(0);
+  const [shareBps] = useState(0);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [history, setHistory] = useState<ClosedPosition[]>([]);
 
-  // Reload the accrued balance and positions - both move on every open,
-  // close, funding tick or liquidation, and margin is one side of the other.
-  const syncKeeper = useCallback(async (address: string) => {
-    const [account, pos] = await Promise.all([fetchAccount(address), fetchPositions(address)]);
-    if (pos) {
-      setPositions(pos.open);
-      setHistory(pos.history);
-    }
-    if (account) {
-      setChoice(symbolForToken(account.choice));
-      // accrued is in fee-token units; accruedUsd is the same thing in money.
-      setAccrued(account.accruedUsd ?? account.accrued);
-      setMinPayout(account.minPayoutUsd);
-      setShareBps(account.shareBps ?? 0);
-      setTotalPaid(account.totalPaidUsd ?? account.totalPaid ?? 0);
-      setStreak(account.streak ?? 0);
-      setPayouts(account.payouts ?? []);
+  const readChainId = useCallback(async (eth: Eip1193): Promise<number> => {
+    try {
+      const hex = (await eth.request({ method: "eth_chainId" })) as string;
+      return parseInt(hex, 16);
+    } catch {
+      return 0;
     }
   }, []);
 
-  const adopt = useCallback(
-    async (address: string) => {
-      setWallet({ connected: true, address });
-      setWalletMissing(false);
-      setTendie(await fetchTendieBalance(address));
-      await syncKeeper(address);
-    },
-    [syncKeeper],
-  );
+  const connect = useCallback(async () => {
+    const eth = window.ethereum;
+    if (!eth) {
+      window.alert(
+        "No EVM wallet detected. Install MetaMask or Rabby, then try again.",
+      );
+      return;
+    }
+    try {
+      const accounts = (await eth.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      const address = accounts?.[0];
+      if (!address) return;
 
-  // Marks, limits and funding terms - public, refreshed on the mark cadence.
-  useEffect(() => {
-    if (!KEEPER_URL) return;
-    let cancelled = false;
-    const load = async () => {
-      const info = await fetchPerps();
-      if (!cancelled && info) setPerps(info);
-    };
-    void load();
-    const t = setInterval(load, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, []);
+      // put the wallet on Robinhood Chain before reading anything
+      let chainId = await readChainId(eth);
+      if (chainId !== ROBINHOOD_CHAIN.chainId) {
+        try {
+          await ensureNetwork(eth);
+          chainId = await readChainId(eth);
+        } catch {
+          /* user declined the switch — connect anyway, show Wrong network */
+        }
+      }
 
-  // Positions are marked every few minutes on the keeper; follow along.
+      setWallet({ connected: true, address, chainId });
+      setRobx(await fetchRobxBalance(eth, address));
+      setClaim(await fetchPending(eth, address));
+      setChoice(await fetchChoice(eth, address));
+    } catch {
+      /* user rejected the request */
+    }
+  }, [readChainId]);
+
+  // Re-read balance, pending rewards and choice - after a tx, and on a timer
+  // while connected so the Treasury tab follows each epoch.
+  const refresh = useCallback(async () => {
+    const eth = window.ethereum;
+    if (!eth || !wallet.address) return;
+    setRobx(await fetchRobxBalance(eth, wallet.address));
+    setClaim(await fetchPending(eth, wallet.address));
+    setChoice(await fetchChoice(eth, wallet.address));
+  }, [wallet.address]);
+
   useEffect(() => {
-    if (!KEEPER_URL || !wallet.address) return;
-    const t = setInterval(() => void syncKeeper(wallet.address), 60_000);
+    if (!wallet.connected) return;
+    const t = setInterval(() => void refresh(), 60_000);
     return () => clearInterval(t);
-  }, [wallet.address, syncKeeper]);
+  }, [wallet.connected, refresh]);
 
-  // Ask the wallet to sign the choice, then hand it to the keeper. Signing is
-  // free — it is not a transaction.
+  // setRewardChoice(token) - one wallet transaction; address(0) means default.
   const setPayoutChoice = useCallback(
     async (symbol: StockSym) => {
-      const provider = getProvider();
-      if (!provider?.signMessage || !wallet.address) {
-        return { ok: false, error: "Connect a wallet that can sign messages" };
+      const eth = window.ethereum;
+      if (!eth || !wallet.address) return { ok: false, error: "Connect a wallet first" };
+      if (!DISTRIBUTOR_ADDRESS) return { ok: false, error: "Treasury contract is not deployed yet" };
+      const stock = PAYOUT_STOCKS.find((s) => s.symbol === symbol);
+      if (!stock) return { ok: false, error: "Unknown stock" };
+      setTxPending(true);
+      try {
+        const hash = await sendTx(eth, wallet.address, DISTRIBUTOR_ADDRESS, SEL.setRewardChoice + pad(stock.address));
+        setChoice(symbol);
+        return { ok: true, hash };
+      } catch (e) {
+        return { ok: false, error: (e as { message?: string })?.message?.split("\n")[0] ?? "Rejected in wallet" };
+      } finally {
+        setTxPending(false);
       }
-      const result = await submitChoice(
-        wallet.address,
-        symbol,
-        provider.signMessage.bind(provider),
-      );
-      if (result.ok) setChoice(symbol);
-      return result;
     },
     [wallet.address],
   );
 
-  const connect = useCallback(async () => {
-    const provider = getProvider();
-    if (!provider) {
-      setWalletMissing(true);
-      return;
-    }
+  // claim() - swaps your pending USDG into the chosen stock and sends it.
+  const claim = useCallback(async () => {
+    const eth = window.ethereum;
+    if (!eth || !wallet.address) return { ok: false, error: "Connect a wallet first" };
+    if (!DISTRIBUTOR_ADDRESS) return { ok: false, error: "Treasury contract is not deployed yet" };
+    setTxPending(true);
     try {
-      const { publicKey } = await provider.connect();
-      const address = publicKey?.toString();
-      if (address) await adopt(address);
-    } catch {
-      /* user rejected the request */
+      const hash = await sendTx(eth, wallet.address, DISTRIBUTOR_ADDRESS, SEL.claim);
+      setClaim(0);
+      return { ok: true, hash };
+    } catch (e) {
+      return { ok: false, error: (e as { message?: string })?.message?.split("\n")[0] ?? "Rejected in wallet" };
+    } finally {
+      setTxPending(false);
     }
-  }, [adopt]);
+  }, [wallet.address]);
+
+  const switchNetwork = useCallback(async () => {
+    const eth = window.ethereum;
+    if (!eth) return;
+    try {
+      await ensureNetwork(eth);
+      const chainId = await readChainId(eth);
+      setWallet((w) => ({ ...w, chainId }));
+    } catch {
+      /* user declined */
+    }
+  }, [readChainId]);
 
   const disconnect = useCallback(() => {
-    void getProvider()?.disconnect().catch(() => {});
-    setWallet({ connected: false, address: "" });
-    setTendie(0);
-    setChoice(null);
-    setAccrued(0);
-    setShareBps(0);
-    setTotalPaid(0);
-    setStreak(0);
-    setPayouts([]);
-    setPositions([]);
-    setHistory([]);
+    setWallet({ connected: false, address: "", chainId: 0 });
+    setRobx(0);
   }, []);
 
-  // Silently restore a previously approved connection, then follow account
-  // switches inside Phantom / Solflare.
+  // follow account & network switches in MetaMask / Rabby
   useEffect(() => {
-    const provider = getProvider();
-    if (!provider) return;
-
-    provider
-      .connect({ onlyIfTrusted: true })
-      .then(({ publicKey }) => {
-        const address = publicKey?.toString();
-        if (address) void adopt(address);
-      })
-      .catch(() => {
-        /* not trusted yet — the user has to click Connect */
-      });
-
-    const onAccountChanged = (payload: unknown) => {
-      const key = payload as { toString(): string } | null;
-      const address = key?.toString();
-      if (address) {
-        void adopt(address);
-      } else {
-        setWallet({ connected: false, address: "" });
-        setTendie(0);
+    const eth = window.ethereum;
+    if (!eth?.on) return;
+    const onAccounts = async (payload: unknown) => {
+      const address = (payload as string[])?.[0];
+      if (!address) {
+        disconnect();
+        return;
       }
+      const chainId = await readChainId(eth);
+      setWallet((w) => ({ ...w, connected: true, address, chainId }));
+      setRobx(await fetchRobxBalance(eth, address));
     };
-    provider.on?.("accountChanged", onAccountChanged);
+    const onChain = (payload: unknown) => {
+      const chainId = parseInt(payload as string, 16);
+      setWallet((w) => ({ ...w, chainId }));
+    };
+    eth.on("accountsChanged", onAccounts);
+    eth.on("chainChanged", onChain);
     return () => {
-      provider.off?.("accountChanged", onAccountChanged);
-      provider.removeListener?.("accountChanged", onAccountChanged);
+      eth.removeListener?.("accountsChanged", onAccounts);
+      eth.removeListener?.("chainChanged", onChain);
     };
-  }, [adopt]);
+  }, [disconnect, readChainId]);
+
+  const wrongNetwork =
+    wallet.connected && wallet.chainId !== ROBINHOOD_CHAIN.chainId;
 
   // Trade is gated behind FEATURES.tradeLive — these stay inert until launch.
-  const buyToken = useCallback((quote: number) => {
-    if (quote <= 0 || TREASURY.tokenPriceUsd <= 0) return;
-    // The trader loses the whole pool fee; only our slice reaches the treasury.
-    const net = quote * (1 - TREASURY.poolFeeBps / 10_000);
-    const tokens = net / TREASURY.tokenPriceUsd;
-    setWalletQuote((b) => Math.max(0, b - quote));
-    setTendie((b) => b + tokens);
-    setClaim((c) => c + quote * (TREASURY.treasuryFeeBps / 10_000));
+  const buyToken = useCallback((usdc: number) => {
+    if (usdc <= 0 || TREASURY.tokenPriceUsd <= 0) return;
+    const taxed = usdc * (1 - TREASURY.taxRateBps / 10_000);
+    const tokens = taxed / TREASURY.tokenPriceUsd;
+    setWalletUsdc((b) => Math.max(0, b - usdc));
+    setRobx((b) => b + tokens);
+    setClaim((c) => c + usdc * (TREASURY.taxRateBps / 10_000) * 0.4);
   }, []);
 
-  const sellToken = useCallback((tendie: number) => {
-    if (tendie <= 0 || TREASURY.tokenPriceUsd <= 0) return;
-    const gross = tendie * TREASURY.tokenPriceUsd;
-    const net = gross * (1 - TREASURY.poolFeeBps / 10_000);
-    setTendie((b) => Math.max(0, b - tendie));
-    setWalletQuote((b) => b + net);
+  const sellToken = useCallback((robx: number) => {
+    if (robx <= 0 || TREASURY.tokenPriceUsd <= 0) return;
+    const gross = robx * TREASURY.tokenPriceUsd;
+    const taxed = gross * (1 - TREASURY.taxRateBps / 10_000);
+    setRobx((b) => Math.max(0, b - robx));
+    setWalletUsdc((b) => b + taxed);
   }, []);
 
-  // Both go through the wallet's signMessage - free, not a transaction - and
-  // the keeper answers with the position as it now stands. The accrued
-  // balance moved too, so resync rather than guess at it.
   const openPosition = useCallback(
-    async (p: { market: string; direction: Direction; leverage: number; marginUsd: number }) => {
-      const provider = getProvider();
-      if (!provider?.signMessage || !wallet.address) {
-        return { ok: false, error: "Connect a wallet that can sign messages" };
-      }
-      const result = await openPerp(
-        wallet.address,
-        { market: p.market, side: p.direction, leverage: p.leverage, marginUsd: p.marginUsd },
-        provider.signMessage.bind(provider),
-      );
-      if (result.ok) void syncKeeper(wallet.address);
-      return result;
+    (p: {
+      direction: Direction;
+      leverage: number;
+      marginUsdc: number;
+      entryPrice: number;
+    }) => {
+      const sizeUsd = p.marginUsdc * p.leverage;
+      const entry = p.entryPrice; // live oracle price from the caller
+      // liquidation when loss ≈ margin: move of (1/leverage) against you
+      const move = entry / p.leverage;
+      const liq =
+        p.direction === "long" ? entry - move * 0.95 : entry + move * 0.95;
+      setClaim((c) => Math.max(0, c - p.marginUsdc));
+      setPositions((list) => [
+        {
+          id: nextId(),
+          direction: p.direction,
+          leverage: p.leverage,
+          marginUsdc: p.marginUsdc,
+          entryPrice: entry,
+          sizeUsd,
+          liqPrice: Math.round(liq * 10) / 10,
+          openedAt: new Date().toISOString(),
+        },
+        ...list,
+      ]);
     },
-    [wallet.address, syncKeeper],
+    [],
   );
 
   const closePosition = useCallback(
-    async (id: string) => {
-      const provider = getProvider();
-      if (!provider?.signMessage || !wallet.address) {
-        return { ok: false, error: "Connect a wallet that can sign messages" };
-      }
-      const result = await closePerp(wallet.address, id, provider.signMessage.bind(provider));
-      if (result.ok) void syncKeeper(wallet.address);
-      return result;
+    (id: string) => {
+      setPositions((list) => {
+        const pos = list.find((p) => p.id === id);
+        if (pos) {
+          // real settlement price comes from the oracle at launch; the
+          // preview settles flat (entry == exit) so no fabricated PnL
+          const mark = pos.entryPrice;
+          const dir = pos.direction === "long" ? 1 : -1;
+          const pnl =
+            ((mark - pos.entryPrice) / pos.entryPrice) * pos.sizeUsd * dir;
+          setClaim((c) => c + pos.marginUsdc + pnl);
+          setHistory((h) => [
+            {
+              id: pos.id,
+              direction: pos.direction,
+              leverage: pos.leverage,
+              marginUsdc: pos.marginUsdc,
+              entryPrice: pos.entryPrice,
+              exitPrice: mark,
+              pnlUsd: pnl,
+              settledAt: new Date().toISOString(),
+            },
+            ...h,
+          ]);
+        }
+        return list.filter((p) => p.id !== id);
+      });
     },
-    [wallet.address, syncKeeper],
+    [],
   );
 
   const value = useMemo<Store>(
     () => ({
       wallet,
-      walletMissing,
-      tendieBalance,
-      claimUsd,
-      walletQuote,
+      wrongNetwork,
+      robxBalance,
+      claimUsdc,
+      payoutChoice,
+      txPending,
+      refresh,
+      setPayoutChoice,
+      claim,
+      walletUsdc,
       shareBps,
       positions,
       history,
-      perps,
-      payoutChoice,
-      accruedUsd,
-      minPayoutUsd,
-      totalPaid,
-      streak,
-      payouts,
       connect,
+      switchNetwork,
       disconnect,
-      setPayoutChoice,
       buyToken,
       sellToken,
       openPosition,
@@ -364,23 +435,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       wallet,
-      walletMissing,
-      tendieBalance,
-      claimUsd,
-      walletQuote,
+      wrongNetwork,
+      robxBalance,
+      claimUsdc,
+      payoutChoice,
+      txPending,
+      refresh,
+      setPayoutChoice,
+      claim,
+      payoutChoice,
+      txPending,
+      refresh,
+      setPayoutChoice,
+      claim,
+      walletUsdc,
       shareBps,
       positions,
       history,
-      perps,
-      payoutChoice,
-      accruedUsd,
-      minPayoutUsd,
-      totalPaid,
-      streak,
-      payouts,
       connect,
+      switchNetwork,
       disconnect,
-      setPayoutChoice,
       buyToken,
       sellToken,
       openPosition,

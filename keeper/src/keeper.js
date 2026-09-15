@@ -1,245 +1,121 @@
-// The keeper's epoch loop.
-//
-// Every epoch does two separate things:
-//   1. ACCRUE — credit the fee that arrived since last time to holders, by
-//      share. Everyone accrues every epoch, however small their stake.
-//   2. PAY — swap and send only to holders whose accrued balance clears the
-//      dollar floor. The rest keeps accruing, so the treasury never burns
-//      account rent to deliver a few cents.
+// The keeper: triggers distribute() every epoch and heals share desyncs.
 
+import { ethers } from "ethers";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { snapshotHolders, solBalance, treasury } from "./solana.js";
-import { duePayouts, payGroup } from "./payout.js";
-import {
-  feeBalance,
-  feeUnitsPerDollar,
-  swapFeeInto,
-  NoRouteError,
-  UnpricedFeeError,
-} from "./swap.js";
-import {
-  addAccrual,
-  adjustReserve,
-  reserveOf,
-  finishEpoch,
-  getLastEpochAt,
-  markPresent,
-  getState,
-  setLastEpochAt,
-  recordPayout,
-  saveState,
-  startEpoch,
-  totalAccrued,
-} from "./store.js";
+import { distributor, chain, provider, wallet, gasBalanceEth } from "./chain.js";
 
-// Последний снимок холдеров, чтобы /account не гонял getProgramAccounts на
-// каждый запрос: доля обновляется раз в эпоху, чаще она и не меняется осмысленно.
-const snapshot = { at: null, holders: new Map(), supplyHeld: 0 };
-
-export function holderInfo(owner) {
-  const held = snapshot.holders.get(owner) ?? 0;
-  return {
-    balance: held,
-    share: snapshot.supplyHeld > 0 ? held / snapshot.supplyHeld : 0,
-    holders: snapshot.holders.size,
-    snapshotAt: snapshot.at,
-  };
-}
-
+// live status, exposed via the HTTP /status endpoint
 export const state = {
   bootedAt: new Date().toISOString(),
-  cluster: config.rpcUrl,
-  mint: config.mint || null,
-  treasury: treasury?.publicKey.toBase58() ?? null,
-  dryRun: config.dryRun,
+  keeper: wallet.address,
+  distributor: config.distributor,
+  chainId: null,
   lastCheck: null,
-  // Delegated to the ledger file so the schedule survives a redeploy. Everything
-  // that reads or writes state.lastEpochAt keeps working unchanged.
-  get lastEpochAt() {
-    return getLastEpochAt();
-  },
-  set lastEpochAt(iso) {
-    setLastEpochAt(iso);
-  },
+  lastDistributionTx: null,
   lastError: null,
-  holders: 0,
+  distributionsSent: 0,
+  syncsSent: 0,
 };
 
-let running = false;
+let distributing = false;
 
-function epochDue() {
-  if (!state.lastEpochAt) return true;
-  return Date.now() - new Date(state.lastEpochAt).getTime() >= config.epochMinutes * 60_000;
+async function withRetry(fn, label, tries = 3) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = e.shortMessage || e.message;
+      if (i === tries - 1) throw e;
+      log.warn(`${label} failed (try ${i + 1}/${tries}): ${msg} — retrying`);
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
 }
 
-export async function tickEpoch() {
-  if (running) return;
-  running = true;
+export async function tickDistribute() {
+  if (distributing) return;
+  distributing = true;
   state.lastCheck = new Date().toISOString();
-  let epoch = null;
-
   try {
-    if (!epochDue()) {
-      const left =
-        config.epochMinutes * 60_000 - (Date.now() - new Date(state.lastEpochAt).getTime());
-      log.info(`not due · next epoch in ~${Math.ceil(left / 60_000)}m`);
-      return;
-    }
-
-    const holders = await snapshotHolders();
-    state.holders = holders.length;
-    snapshot.at = new Date().toISOString();
-    snapshot.holders = new Map(holders.map((h) => [h.owner, h.balance]));
-    snapshot.supplyHeld = holders.reduce((sum, h) => sum + h.balance, 0);
-    if (!holders.length) {
-      log.info("no holders yet — nothing to accrue");
-      state.lastEpochAt = new Date().toISOString();
-      return;
-    }
-
-    epoch = startEpoch();
-
-    // streaks are measured from presence in the snapshot, not from payouts —
-    // a small holder still shows up every epoch while their balance accrues
-    markPresent(holders.map((h) => h.owner), epoch.id);
-
-    // ── 1. accrue ────────────────────────────────────────────────────────
-    // Everything in the treasury beyond what is already owed - to holders
-    // (ledger + locked margin) and to the perps reserve - is new fee. Perps
-    // only move value between those two, so this difference is genuinely new.
-    const balance = await feeBalance();
-    const owed = totalAccrued();
-    const reserve = reserveOf();
-    const spoken = owed + reserve;
-    const newFee = balance > spoken ? balance - spoken : 0n;
-
-    if (newFee > 0n) {
-      const { held, toHolders } = splitNewFee(newFee, balance, reserve);
-      if (held > 0n) adjustReserve(held);
-
-      let handed = 0n;
-      for (const h of holders) {
-        // share is a float 0..1; scale through BigInt to keep the cents honest
-        const cut = (toHolders * BigInt(Math.round(h.share * 1e9))) / 1_000_000_000n;
-        addAccrual(h.owner, cut);
-        handed += cut;
-      }
-      saveState();
-      log.info(
-        `accrued ${toHolders} raw across ${holders.length} holders (${toHolders - handed} left as dust)` +
-          (held > 0n ? ` · ${held} raw to the perps reserve (now ${reserveOf()})` : ""),
+    const ready = await distributor.canDistribute();
+    if (!ready) {
+      const [last, interval] = await Promise.all([
+        distributor.lastDistribution(),
+        distributor.epochInterval(),
+      ]);
+      const left = Math.max(
+        0,
+        Number(last) + Number(interval) - Math.floor(Date.now() / 1000),
       );
-    } else {
-      log.info("no new fee since last epoch — nothing to accrue");
-    }
-
-    // ── 2. pay whoever cleared the floor ─────────────────────────────────
-    let unitsPerDollar;
-    try {
-      unitsPerDollar = await feeUnitsPerDollar();
-    } catch (e) {
-      if (!(e instanceof UnpricedFeeError)) throw e;
-      // Accrual already happened, so nobody loses their share — it just waits
-      // for an epoch where the floor can be computed honestly.
-      log.warn(`${e.message} — no payouts this epoch, every balance carries`);
-      finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
-      state.lastEpochAt = new Date().toISOString();
-      state.lastError = null; // carrying balances is a normal outcome, not a fault
+      log.info(`not ready · next epoch in ~${Math.ceil(left / 60)}m`);
       return;
     }
 
-    const groups = duePayouts(unitsPerDollar);
-    if (!groups.length) {
-      log.info(`nobody over the $${config.minPayoutUsd} floor yet — all balances carried`);
-      finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
-      state.lastEpochAt = new Date().toISOString();
-      state.lastError = null;
-      return;
-    }
-
-    // Check before spending, not after: a treasury that runs out mid-epoch
-    // pays some holders and not others, and the rest wait for the next round.
-    if (!config.dryRun) {
-      const solBefore = await solBalance();
-      const recipients = groups.reduce((n, g) => n + g.owners.length, 0);
-      const worstCase = recipients * 0.00204 + (recipients / config.transfersPerTx) * 0.00002;
-      if (solBefore < worstCase) {
-        log.warn(
-          `treasury has ${solBefore.toFixed(3)} SOL but this epoch could need up to ` +
-            `${worstCase.toFixed(3)} for ${recipients} recipients - top it up, ` +
-            `whoever isn't reached stays owed and gets paid next epoch`,
-        );
-      }
-    }
-
-    for (const group of groups) {
-      log.info(
-        `${group.symbol}: ${group.owners.length} holders due, ${group.total} raw fee`,
-      );
-      try {
-        const swap = await swapFeeInto(group.mint, group.total);
-        // null means no swap happened — dry-run, or the payout token is the fee
-        // token already — so the units carry over untouched.
-        const stockRaw = swap ? swap.outAmount : group.total;
-        await payGroup(group, stockRaw, epoch, recordPayout);
-      } catch (e) {
-        if (!(e instanceof NoRouteError)) throw e;
-        // Thin liquidity shouldn't cost a holder their epoch: pay the group in
-        // the fee token they already own instead of skipping the round.
-        log.warn(
-          `${group.symbol}: no route after ${config.swapAttempts} tries - paying this group in the fee token instead`,
-        );
-        await payGroup(
-          { ...group, symbol: `${group.symbol}→fee`, mint: config.feeMint },
-          group.total,
-          epoch,
-          recordPayout,
-        );
-      }
-    }
-
-    finishEpoch(epoch, { newFeeRaw: newFee.toString(), holders: holders.length });
-    state.lastEpochAt = new Date().toISOString();
+    log.info("epoch ready → distribute()");
+    const tx = await withRetry(() => distributor.distribute(), "distribute");
+    log.info(`  sent ${tx.hash}`);
+    const rcpt = await tx.wait();
+    const epoch = await distributor.epochCount();
+    state.lastDistributionTx = tx.hash;
+    state.distributionsSent += 1;
     state.lastError = null;
-    log.info(`epoch #${epoch.id} done · ${groups.length} payout groups`);
+    log.info(`  confirmed in block ${rcpt.blockNumber} · epoch #${epoch}`);
 
-    const sol = await solBalance();
-    if (treasury && sol < config.minSolWarn) {
-      log.warn(`treasury SOL low: ${sol} — tops up fees and account rent`);
+    const gas = await gasBalanceEth();
+    if (gas < config.minGasWarn) {
+      log.warn(`keeper gas low: ${gas} ETH — top it up`);
     }
   } catch (e) {
-    state.lastError = e.message;
-    if (epoch) finishEpoch(epoch, { error: e.message });
-    log.error("epoch error:", e.message);
+    state.lastError = e.shortMessage || e.message;
+    log.error("distribute error:", state.lastError);
   } finally {
-    running = false;
+    distributing = false;
   }
 }
 
-// House cut first: a slice of the new fee tops the reserve up until it
-// reaches its cap. Below the cap the house grows, above it holders get
-// everything. Pure, so the split can be tested without a cluster.
-export function splitNewFee(newFee, balance, reserve) {
-  let held = 0n;
-  if (config.perps.enabled && newFee > 0n) {
-    const cap = (balance * BigInt(config.perps.reserveCapPct)) / 100n;
-    const room = cap > reserve ? cap - reserve : 0n;
-    const slice = (newFee * BigInt(config.perps.reserveBps)) / 10_000n;
-    held = slice < room ? slice : room;
-  }
-  return { held, toHolders: newFee - held };
+// ── share-sync sweep (AUDIT M-1) ─────────────────────────────────────────
+// Watch ROBX transfers; any account whose ledger share drifts from its true
+// balance gets healed. Cheap insurance against a gas-starved share hook.
+const dirty = new Set();
+
+export function watchTransfers() {
+  if (!chain.robx) return;
+  chain.robx.on("Transfer", (from, to) => {
+    if (from && from !== ethers.ZeroAddress) dirty.add(from);
+    if (to && to !== ethers.ZeroAddress) dirty.add(to);
+  });
+  log.info("watching ROBX transfers for share desyncs");
 }
 
-export function ledgerSummary() {
-  const { ledger, totals, epochs } = getState();
-  const entries = Object.values(ledger);
-  return {
-    owedAccounts: entries.length,
-    owedRaw: totalAccrued().toString(),
-    reserveRaw: reserveOf().toString(),
-    paidOutRaw: totals.paidOutRaw,
-    epochsRun: totals.epochsRun,
-    lastEpoch: epochs[0] ?? null,
-  };
+export async function sweepSyncs() {
+  if (!chain.robx || dirty.size === 0) return;
+  const accounts = [...dirty];
+  dirty.clear();
+  for (const a of accounts) {
+    try {
+      const [share, bal] = await Promise.all([
+        distributor.shares(a),
+        chain.robx.balanceOf(a),
+      ]);
+      if (share !== bal) {
+        log.info(`desync ${a} (${share} ≠ ${bal}) → syncShare()`);
+        const tx = await distributor.syncShare(a);
+        await tx.wait();
+        state.syncsSent += 1;
+        log.info(`  healed ${tx.hash}`);
+      }
+    } catch (e) {
+      log.warn(`sync ${a}: ${e.shortMessage || e.message}`);
+    }
+  }
+}
+
+export async function refreshChainId() {
+  try {
+    const net = await provider.getNetwork();
+    state.chainId = Number(net.chainId);
+  } catch {
+    /* ignore */
+  }
 }

@@ -1,21 +1,17 @@
 {
-  "name": "tendies-keeper",
+  "name": "robinx-keeper",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Tendies keeper: every 30 minutes it snapshots TENDIE holders on Solana, swaps the accrued treasury fee into xStocks, pays holders pro-rata, and exposes health/status over HTTP.",
+  "description": "RobinX server: triggers RewardDistributor.distribute() every 30 minutes, heals share desyncs, and exposes health/status over HTTP.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "node test/ledger.test.js && node test/perps.test.js"
+    "start": "node index.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.4.9",
-    "@solana/web3.js": "^1.98.0",
-    "bs58": "^6.0.0",
-    "tweetnacl": "^1.0.3"
+    "ethers": "^6.13.0"
   }
 }

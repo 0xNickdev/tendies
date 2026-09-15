@@ -1,70 +1,74 @@
-// Tendies keeper — Railway entry point.
-// Boots the HTTP server (health/status) and the 30-minute epoch loop that
-// pays TENDIE holders out in xStocks on Solana.
-//
-// The treasury keypair is the only privileged key here: it signs swaps and
-// transfers out of the treasury and nothing else. It is NOT a mint authority
-// — TENDIE is minted by the stonkfun launchpad.
+// RobinX keeper — Railway entry point.
+// Boots the chain wiring, HTTP server (health/status), the 30-minute
+// distribute loop, and the share-sync sweep. Zero privileges: the keeper
+// wallet only pays gas to call public functions.
 
 import { config } from "./src/config.js";
 import { log } from "./src/log.js";
-import { logIdentity, solBalance, treasury } from "./src/solana.js";
-import { state, tickEpoch } from "./src/keeper.js";
-import { loadState } from "./src/store.js";
+import { initChain, gasBalanceEth } from "./src/chain.js";
+import {
+  state,
+  tickDistribute,
+  sweepSyncs,
+  watchTransfers,
+  refreshChainId,
+} from "./src/keeper.js";
 import { startServer } from "./src/server.js";
-import { refreshMarks } from "./src/oracle.js";
-import { tickPositions } from "./src/perps.js";
+
+// Bring the chain wiring up, retrying forever so a bad RPC/config never
+// crash-loops the container (health stays green while we retry).
+async function initChainWithRetry() {
+  let attempt = 0;
+  for (;;) {
+    try {
+      const { robxAddr, usdgAddr } = await initChain();
+      await refreshChainId();
+      log.info(`keeper      ${state.keeper}`);
+      log.info(`distributor ${config.distributor}`);
+      log.info(`ROBX        ${robxAddr}`);
+      log.info(`USDG        ${usdgAddr}`);
+      log.info(`chainId     ${state.chainId}`);
+      const gas = await gasBalanceEth();
+      log.info(`gas balance ${gas} ETH`);
+      if (gas <= 0) log.warn("keeper wallet has no gas — fund it (~0.01 ETH)");
+      return;
+    } catch (e) {
+      attempt += 1;
+      const wait = Math.min(60_000, 5_000 * attempt);
+      state.lastError = `init: ${e.shortMessage || e.message}`;
+      log.warn(
+        `chain init failed (attempt ${attempt}): ${state.lastError} — retry in ${wait / 1000}s`,
+      );
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+}
 
 async function main() {
-  log.info("Tendies keeper starting…");
-  loadState();
+  log.info("RobinX keeper starting…");
+
+  // 1) HTTP up first so Railway's /health passes immediately.
   startServer();
-  logIdentity();
 
-  if (config.dryRun) {
-    log.warn(
-      "DRY-RUN: set TENDIE_MINT, TREASURY_SECRET_KEY and PAYOUT_MINTS to go live.",
-    );
-  } else {
-    const sol = await solBalance();
-    log.info(`treasury SOL ${sol}`);
-    if (sol <= 0) log.warn("treasury has no SOL — fund it (~0.1 SOL)");
-  }
+  // 2) Chain wiring (retries in the background, never exits).
+  await initChainWithRetry();
 
-  await tickEpoch();
-  const timer = setInterval(tickEpoch, config.checkIntervalMs);
-
-  // Marks run on their own clock, independent of the epoch: positions are
-  // funded and checked for liquidation every few minutes, not every half hour.
-  let marking = false;
-  const tickMarks = async () => {
-    if (marking) return;
-    marking = true;
-    try {
-      const marks = await refreshMarks();
-      if (marks.length) log.info(`marks · ${marks.map((m) => `${m.symbol} ${m.price}`).join(" · ")}`);
-      await tickPositions();
-    } catch (e) {
-      log.error("mark tick error:", e.message);
-    } finally {
-      marking = false;
-    }
-  };
-  await tickMarks();
-  const markTimer = setInterval(tickMarks, config.perps.markIntervalMs);
+  // 3) Keeper loops.
+  watchTransfers();
+  await tickDistribute();
+  const distTimer = setInterval(tickDistribute, config.checkIntervalMs);
+  const sweepTimer = setInterval(sweepSyncs, config.sweepIntervalMs);
 
   const shutdown = (sig) => {
     log.info(`${sig} received — shutting down`);
-    clearInterval(timer);
-    clearInterval(markTimer);
+    clearInterval(distTimer);
+    clearInterval(sweepTimer);
     process.exit(0);
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
 
-  log.info(`keeper running · epoch every ${config.epochMinutes}m`);
-  if (treasury) log.info(`signer ${treasury.publicKey.toBase58()}`);
-  void state;
+  log.info("keeper running.");
 }
 
 main().catch((e) => {
