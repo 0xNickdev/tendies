@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { HandLoop, Star, Sparkle, ArrowDoodle } from "@/components/Doodles";
 import { HeroStats } from "./HeroStats";
+import { ArcherFigure, ShotLink } from "./BowShot";
 
 export function Hero() {
   return (
@@ -9,11 +9,9 @@ export function Hero() {
           mix-blend-screen drops the image's black so the page grid shows through */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute right-[2%] top-[38%] hidden h-[440px] w-[440px] -translate-y-1/2 rounded-full bg-robin/10 blur-[130px] md:block" />
-        <img
-          src="/hero-archer.png"
-          alt=""
-          className="absolute top-[38%] hidden h-[min(62vh,540px)] w-auto -translate-y-1/2 mix-blend-screen md:right-[-16rem] md:block lg:right-[-8rem] xl:right-0"
-        />
+        <div className="absolute top-[38%] hidden h-[min(62vh,540px)] -translate-y-1/2 mix-blend-screen md:right-[-16rem] md:block lg:right-[-8rem] xl:right-0">
+          <ArcherFigure className="h-full" />
+        </div>
         <img
           src="/hero-archer.png"
           alt=""
@@ -60,12 +58,12 @@ export function Hero() {
             className="animate-fade-up mt-9 flex flex-wrap items-center gap-4"
             style={{ animationDelay: "200ms" }}
           >
-            <Link href="/terminal" className="btn-robin !px-7 !py-4 text-base">
+            <ShotLink href="/terminal" className="btn-robin !px-7 !py-4 text-base">
               Enter Terminal
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6">
                 <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </Link>
+            </ShotLink>
             <a href="#mechanics" className="btn-ghost !px-7 !py-4 text-base">
               How it works
             </a>

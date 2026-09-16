@@ -1,4 +1,6 @@
 import { Header } from "@/components/landing/Header";
+import { ArrowRail } from "@/components/landing/ArrowRail";
+import { Magnetic } from "@/components/landing/Magnetic";
 import { Roadmap } from "@/components/landing/Roadmap";
 import { LiveTicker } from "@/components/landing/LiveTicker";
 import { Hero } from "@/components/landing/Hero";
@@ -15,6 +17,8 @@ import {
 export default function LandingPage() {
   return (
     <main className="relative">
+      <ArrowRail />
+      <Magnetic />
       <Header />
       <Hero />
       <LiveTicker />

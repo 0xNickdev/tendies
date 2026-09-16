@@ -128,7 +128,7 @@ export function Roadmap() {
           <div className="flex justify-center">
             <span className="chip mb-5">// 04 · Roadmap</span>
           </div>
-          <h2 className="display text-balance text-4xl text-white sm:text-5xl">
+          <h2 data-mark className="display text-balance text-4xl text-white sm:text-5xl">
             Three arrows,{" "}
             <span className="relative inline-block">
               <span className="hand normal-case text-robin [text-transform:none]">

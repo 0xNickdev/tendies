@@ -115,3 +115,41 @@ body {
     font-feature-settings: "tnum";
   }
 }
+
+/* ── motion: the arrow, the shot, the marks ─────────────────────────────── */
+@keyframes tremble {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-0.3px, 0.25px); }
+  100% { transform: translate(0.2px, -0.25px); }
+}
+@keyframes shot {
+  to { transform: translate(60vw, -60vh) rotate(-28deg) scale(0.6); opacity: 0; }
+}
+@keyframes flash {
+  0% { opacity: 0; }
+  20% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+/* a section title the arrow just hit: a lime underline draws in and the
+   text kicks once, like a target taking an arrow */
+[data-mark] { position: relative; display: inline-block; }
+[data-mark]::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 100%; bottom: -0.18em;
+  height: 3px;
+  background: #D4FA09;
+  box-shadow: 0 0 10px rgba(212, 250, 9, 0.6);
+  transition: right 520ms cubic-bezier(.2,.8,.2,1);
+}
+.mark-hit::after { right: 0; }
+.mark-hit { animation: hit 380ms cubic-bezier(.2,.8,.2,1); }
+@keyframes hit {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(6px) skewX(-3deg); }
+  100% { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-hit { animation: none; }
+  [data-mark]::after { transition: none; right: 0; }
+}

@@ -18,7 +18,7 @@ export function About() {
       <div className="grid items-start gap-12 lg:grid-cols-2">
         <div>
           <SectionTag n="01">About</SectionTag>
-          <h2 className="display text-balance text-4xl text-white sm:text-5xl">
+          <h2 data-mark className="display text-balance text-4xl text-white sm:text-5xl">
             Get paid in{" "}
             <span className="relative inline-block">
               <span className="hand normal-case text-robin [text-transform:none]">
@@ -103,7 +103,7 @@ export function Mission() {
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
         <div className="max-w-2xl">
           <SectionTag n="02">Mission</SectionTag>
-          <h2 className="display text-balance text-4xl text-white sm:text-5xl">
+          <h2 data-mark className="display text-balance text-4xl text-white sm:text-5xl">
             Make stock upside as{" "}
             <span className="hand normal-case text-robin [text-transform:none]">
               liquid as a swap.
@@ -144,7 +144,7 @@ export function Mechanics() {
         <div className="flex justify-center">
           <SectionTag n="03">How it works</SectionTag>
         </div>
-        <h2 className="display text-balance text-4xl text-white sm:text-5xl">
+        <h2 data-mark className="display text-balance text-4xl text-white sm:text-5xl">
           Two connected{" "}
           <span className="relative inline-block">
             <span className="hand normal-case text-robin [text-transform:none]">
@@ -305,7 +305,7 @@ export function FAQ() {
         <div className="flex justify-center">
           <SectionTag n="04">FAQ</SectionTag>
         </div>
-        <h2 className="display text-balance text-4xl text-white sm:text-5xl">
+        <h2 data-mark className="display text-balance text-4xl text-white sm:text-5xl">
           Questions,{" "}
           <span className="hand normal-case text-robin [text-transform:none]">
             answered.
@@ -346,7 +346,7 @@ export function FooterCTA() {
         <Star className="absolute bottom-12 right-[18%] h-4 w-4 opacity-70" />
         <div className="relative">
           <span className="chip mb-5">// Ready?</span>
-          <h2 className="display text-balance text-4xl text-white sm:text-6xl">
+          <h2 data-mark className="display text-balance text-4xl text-white sm:text-6xl">
             Trade the{" "}
             <span className="relative inline-block">
               <span className="hand normal-case text-robin [text-transform:none]">
