@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePointerParallax, useReducedMotion } from "@/lib/motion";
+import { useReducedMotion } from "@/lib/motion";
 
 // The hero's archer follows the cursor: the further the pointer sits from
 // the centre, the more the bow is drawn - the figure leans back, the string
@@ -10,95 +10,103 @@ import { usePointerParallax, useReducedMotion } from "@/lib/motion";
 // arrow streaks across the screen, the page flashes lime for a beat, then
 // we navigate. Everything is transform/opacity and off under reduced motion.
 
-export function useBowTension() {
-  const reduced = useReducedMotion();
-  const offset = usePointerParallax(1);
-  // 0..1 - how far the string is drawn
-  const draw = reduced ? 0 : Math.min(1, Math.hypot(offset.x, offset.y));
-  return { offset, draw, reduced };
-}
-
-// Three cut-outs of one scene (public/archer-*.webp, keyed from the
-// generated layers): the body is static, the bow sits in the forward hand,
-// and the string + arrow are drawn live so they can actually be pulled.
-// Geometry is in percent of the body box so it scales with the hero.
+// Body, bow, string and arrow are driven straight from a requestAnimationFrame
+// loop through refs - no React state, so the page does not re-render on
+// pointer move. Glow is a separate blurred element whose opacity changes
+// (cheap) instead of an animated drop-shadow filter (repaints the layers).
 const BOW = { left: 2.3, top: -4, height: 93.5 };
 const TIP_TOP = { x: 13.6, y: -3.7 };
 const TIP_BOTTOM = { x: 13.6, y: 89.1 };
 const NOCK = { restX: 13.6, fullX: 63.3, y: 41 };
 const ARROW = { length: 61, height: 7.5 };
 
-export function ArcherFigure({ className = "", fired = false }: { className?: string; fired?: boolean }) {
-  const { offset, draw } = useBowTension();
-  const nockX = NOCK.restX + (NOCK.fullX - NOCK.restX) * draw;
+export function ArcherFigure({ className = "" }: { className?: string }) {
+  const reduced = useReducedMotion();
+  const root = useRef<HTMLDivElement>(null);
+  const bow = useRef<HTMLImageElement>(null);
+  const string = useRef<SVGPolylineElement>(null);
+  const halo = useRef<SVGPolylineElement>(null);
+  const arrow = useRef<HTMLImageElement>(null);
+  const glow = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reduced || window.matchMedia("(pointer: coarse)").matches) return;
+    const target = { x: 0, y: 0 };
+    const cur = { x: 0, y: 0 };
+    let frame = 0;
+    let idle = true;
+    const onMove = (e: PointerEvent) => {
+      target.x = (e.clientX / window.innerWidth - 0.5) * 2;
+      target.y = (e.clientY / window.innerHeight - 0.5) * 2;
+      if (idle) {
+        idle = false;
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    const tick = () => {
+      cur.x += (target.x - cur.x) * 0.1;
+      cur.y += (target.y - cur.y) * 0.1;
+      const draw = Math.min(1, Math.hypot(cur.x, cur.y));
+      const nockX = NOCK.restX + (NOCK.fullX - NOCK.restX) * draw;
+      const pts = `${TIP_TOP.x},${TIP_TOP.y} ${nockX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`;
+      if (root.current)
+        root.current.style.transform = `translate3d(${cur.x * -16}px, ${cur.y * -10}px, 0) rotate(${cur.x * -2}deg) scale(${1 + draw * 0.03})`;
+      if (bow.current) bow.current.style.transform = `scaleX(${1 - draw * 0.08})`;
+      string.current?.setAttribute("points", pts);
+      halo.current?.setAttribute("points", pts);
+      if (arrow.current) {
+        const a = arrow.current.style;
+        a.left = `${nockX - ARROW.length}%`;
+        a.opacity = String(Math.min(1, draw * 1.6));
+        a.clipPath = `inset(0 0 0 ${Math.max(0, ((ARROW.length - nockX) / ARROW.length) * 100)}%)`;
+        a.animation = draw > 0.8 ? "tremble 90ms linear infinite" : "none";
+      }
+      if (glow.current) glow.current.style.opacity = String(0.25 + draw * 0.55);
+      // settle: stop the loop once the figure has caught up with the pointer
+      if (Math.abs(target.x - cur.x) + Math.abs(target.y - cur.y) > 0.002) frame = requestAnimationFrame(tick);
+      else idle = true;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      cancelAnimationFrame(frame);
+    };
+  }, [reduced]);
+
   return (
-    <div
-      // The blend that drops nothing here - layers are already transparent.
-      // The figure leans back and glows brighter as the bow draws.
-      className={`relative ${className}`}
-      style={{
-        aspectRatio: "2091 / 1390",
-        transform: `translate3d(${offset.x * -16}px, ${offset.y * -10}px, 0) rotate(${offset.x * -2}deg) scale(${1 + draw * 0.03})`,
-        transition: "transform 80ms linear",
-        filter: `drop-shadow(0 0 ${8 + draw * 26}px rgba(212,250,9,${0.15 + draw * 0.45}))`,
-      }}
-    >
+    <div ref={root} className={`relative will-change-transform ${className}`} style={{ aspectRatio: "2091 / 1390" }}>
+      <div
+        ref={glow}
+        className="absolute left-[10%] top-[10%] h-[70%] w-[70%] rounded-full bg-robin/40 blur-[90px]"
+        style={{ opacity: 0.25 }}
+        aria-hidden
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/archer-body.webp" alt="" className="absolute inset-0 h-full w-full" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={bow}
         src="/archer-bow.webp"
         alt=""
         className="absolute"
-        style={{
-          left: `${BOW.left}%`,
-          top: `${BOW.top}%`,
-          height: `${BOW.height}%`,
-          // the limbs flex back a touch at full draw
-          transform: `scaleX(${1 - draw * 0.08})`,
-          transformOrigin: "left center",
-        }}
+        style={{ left: `${BOW.left}%`, top: `${BOW.top}%`, height: `${BOW.height}%`, transformOrigin: "left center" }}
       />
-      {/* the string: two lines from the limb tips to the nock */}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
-        {/* dark halo first so the string reads over the lime body */}
-        <polyline
-          points={`${TIP_TOP.x},${TIP_TOP.y} ${nockX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`}
-          fill="none"
-          stroke="#0A0B05"
-          strokeWidth="5"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-          opacity="0.9"
-        />
-        <polyline
-          points={`${TIP_TOP.x},${TIP_TOP.y} ${nockX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`}
-          fill="none"
-          stroke="#D4FA09"
-          strokeWidth="1.5"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-        />
+        <polyline ref={halo} points={`${TIP_TOP.x},${TIP_TOP.y} ${NOCK.restX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`} fill="none" stroke="#0A0B05" strokeWidth="5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" opacity="0.9" />
+        <polyline ref={string} points={`${TIP_TOP.x},${TIP_TOP.y} ${NOCK.restX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`} fill="none" stroke="#D4FA09" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       </svg>
-      {/* the arrow: nock on the string, fades in as it is drawn, flies on fire */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={arrow}
         src="/archer-arrow.webp"
         alt=""
         className="absolute"
         style={{
-          left: `${nockX - ARROW.length}%`,
+          left: `${NOCK.restX - ARROW.length}%`,
           top: `${NOCK.y - ARROW.height / 2}%`,
           width: `${ARROW.length}%`,
-          opacity: fired ? 0 : Math.min(1, draw * 1.6),
-          // whatever sticks out left of the bow stays hidden - otherwise the
-          // shaft would lie across the headline at half draw
-          clipPath: `inset(0 0 0 ${Math.max(0, ((ARROW.length - nockX) / ARROW.length) * 100)}%)`,
-          // a dark edge so the lime arrow reads across the lime arm
-          filter: "drop-shadow(0 0 1.5px #0A0B05) drop-shadow(0 0 1.5px #0A0B05)",
-          transform: fired ? "translateX(-140vw)" : undefined,
-          transition: fired ? "transform 420ms cubic-bezier(.2,.8,.2,1), opacity 300ms ease-out 200ms" : "opacity 120ms linear",
-          animation: !fired && draw > 0.8 ? "tremble 90ms linear infinite" : "none",
+          opacity: 0,
+          filter: "drop-shadow(0 0 1.5px #0A0B05)",
         }}
       />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useReducedMotion } from "@/lib/motion";
 
 // The one image that runs the whole page: a thin lime flight path down the
@@ -10,9 +10,8 @@ import { useReducedMotion } from "@/lib/motion";
 // sit under the copy, and there is no cursor to draw the bow with anyway.
 export function ArrowRail() {
   const reduced = useReducedMotion();
-  const [t, setT] = useState(0); // 0..1 scroll progress
   const railRef = useRef<SVGPathElement>(null);
-  const [pos, setPos] = useState({ x: 24, y: 0, angle: 90 });
+  const arrowRef = useRef<SVGGElement>(null);
   const hit = useRef(new Set<Element>());
 
   useEffect(() => {
@@ -20,16 +19,17 @@ export function ArrowRail() {
     const update = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight;
       const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-      setT(p);
 
-      // arrow tip in viewport coordinates
+      // draw the path up to the arrow and move the arrow - straight on the
+      // DOM, no state, so scrolling never re-renders the page
       const path = railRef.current;
       if (path) {
+        path.setAttribute("stroke-dasharray", `${p} 1`);
         const len = path.getTotalLength();
         const at = path.getPointAtLength(len * p);
         const ahead = path.getPointAtLength(Math.min(len, len * p + 2));
         const angle = (Math.atan2(ahead.y - at.y, ahead.x - at.x) * 180) / Math.PI;
-        setPos({ x: at.x, y: at.y, angle });
+        arrowRef.current?.setAttribute("transform", `translate(${at.x} ${at.y}) rotate(${angle})`);
       }
 
       // hit marks whose top has crossed the arrow's vertical position
@@ -79,11 +79,11 @@ export function ArrowRail() {
           stroke="#D4FA09"
           strokeWidth="1.5"
           pathLength={1}
-          strokeDasharray={`${t} 1`}
+          strokeDasharray="0 1"
           style={{ filter: "drop-shadow(0 0 6px rgba(212,250,9,0.55))" }}
         />
         {/* the arrow, nose pointing along the path */}
-        <g transform={`translate(${pos.x} ${pos.y}) rotate(${pos.angle})`}>
+        <g ref={arrowRef} transform="translate(28 0) rotate(90)">
           <line x1="-22" y1="0" x2="0" y2="0" stroke="#D4FA09" strokeWidth="2" strokeLinecap="round" />
           <path d="M 0 0 L -7 -4 L -7 4 Z" fill="#D4FA09" />
           <path d="M -22 0 L -27 -4 M -22 0 L -27 4 M -19 0 L -24 -4 M -19 0 L -24 4" stroke="#D4FA09" strokeWidth="1.5" strokeLinecap="round" />
