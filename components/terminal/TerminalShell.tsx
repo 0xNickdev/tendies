@@ -30,7 +30,7 @@ const NAV: { view: View; label: string; soon?: boolean; Icon: (p: IconProps) => 
 
 export function TerminalShell() {
   const [view, setView] = useState<View>("dashboard");
-  const { wallet, wrongNetwork, connect, switchNetwork, disconnect } = useStore();
+  const { wallet, wrongNetwork, connecting, connect, switchNetwork, disconnect } = useStore();
 
   return (
     <div className="min-h-[100svh] lg:flex">
@@ -112,6 +112,7 @@ export function TerminalShell() {
               connected={wallet.connected}
               address={wallet.address}
               onConnect={connect}
+              connecting={connecting}
               onDisconnect={disconnect}
             />
           </div>
@@ -157,19 +158,26 @@ function WalletButton({
   address,
   onConnect,
   onDisconnect,
+  connecting = false,
 }: {
   connected: boolean;
   address: string;
   onConnect: () => void;
   onDisconnect: () => void;
+  connecting?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   if (!connected) {
     return (
-      <button onClick={onConnect} className="btn-robin !px-4 !py-2">
+      <button
+        onClick={onConnect}
+        disabled={connecting}
+        className="btn-robin !px-4 !py-2 disabled:opacity-70"
+        title={connecting ? "Check your wallet - the request is waiting there" : undefined}
+      >
         <IconWallet className="h-4 w-4" />
-        Connect
+        {connecting ? "Opening wallet…" : "Connect"}
       </button>
     );
   }

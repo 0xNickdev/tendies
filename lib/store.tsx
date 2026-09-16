@@ -43,6 +43,7 @@ type Store = {
   wallet: WalletState;
   wrongNetwork: boolean; // connected but not on Robinhood Chain
   robxBalance: number;
+  connecting: boolean; // a wallet request is open (popup, or a paused/locked extension)
   claimUsdc: number; // pendingUsdc(owner) on the RewardDistributor, in dollars
   payoutChoice: StockSym | null; // rewardChoice(owner) mapped to a symbol; null = default
   txPending: boolean;
@@ -177,6 +178,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
   const [robxBalance, setRobx] = useState(0);
   const [claimUsdc, setClaim] = useState(0);
+  const [connecting, setConnecting] = useState(false);
   const [payoutChoice, setChoice] = useState<StockSym | null>(null);
   const [txPending, setTxPending] = useState(false);
   const [walletUsdc, setWalletUsdc] = useState(0);
@@ -196,11 +198,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     const eth = window.ethereum;
     if (!eth) {
-      window.alert(
-        "No EVM wallet detected. Install MetaMask or Rabby, then try again.",
-      );
+      window.open("https://metamask.io/download/", "_blank", "noopener");
       return;
     }
+    setConnecting(true);
+    // A paused or locked extension never answers; give up after a while so
+    // the button does not sit on "Opening wallet…" forever.
+    const giveUp = setTimeout(() => setConnecting(false), 25_000);
     try {
       const accounts = (await eth.request({
         method: "eth_requestAccounts",
@@ -225,6 +229,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setChoice(await fetchChoice(eth, address));
     } catch {
       /* user rejected the request */
+    } finally {
+      clearTimeout(giveUp);
+      setConnecting(false);
     }
   }, [readChainId]);
 
@@ -416,6 +423,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wrongNetwork,
       robxBalance,
       claimUsdc,
+      connecting,
       payoutChoice,
       txPending,
       refresh,
@@ -438,6 +446,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wrongNetwork,
       robxBalance,
       claimUsdc,
+      connecting,
       payoutChoice,
       txPending,
       refresh,
