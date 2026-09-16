@@ -18,25 +18,88 @@ export function useBowTension() {
   return { offset, draw, reduced };
 }
 
-export function ArcherFigure({ className = "" }: { className?: string }) {
+// Three cut-outs of one scene (public/archer-*.webp, keyed from the
+// generated layers): the body is static, the bow sits in the forward hand,
+// and the string + arrow are drawn live so they can actually be pulled.
+// Geometry is in percent of the body box so it scales with the hero.
+const BOW = { left: 2.3, top: -4, height: 93.5 };
+const TIP_TOP = { x: 13.6, y: -3.7 };
+const TIP_BOTTOM = { x: 13.6, y: 89.1 };
+const NOCK = { restX: 13.6, fullX: 63.3, y: 41 };
+const ARROW = { length: 61, height: 7.5 };
+
+export function ArcherFigure({ className = "", fired = false }: { className?: string; fired?: boolean }) {
   const { offset, draw } = useBowTension();
+  const nockX = NOCK.restX + (NOCK.fullX - NOCK.restX) * draw;
   return (
     <div
-      // The blend that drops the image's black plate lives on the OUTER
-      // positioned wrapper in Hero.tsx: any transformed ancestor isolates a
-      // blend below it. The figure leans back and glows brighter as the bow draws.
+      // The blend that drops nothing here - layers are already transparent.
+      // The figure leans back and glows brighter as the bow draws.
       className={`relative ${className}`}
       style={{
+        aspectRatio: "2091 / 1390",
         transform: `translate3d(${offset.x * -16}px, ${offset.y * -10}px, 0) rotate(${offset.x * -2}deg) scale(${1 + draw * 0.03})`,
         transition: "transform 80ms linear",
+        filter: `drop-shadow(0 0 ${8 + draw * 26}px rgba(212,250,9,${0.15 + draw * 0.45}))`,
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/archer-body.webp" alt="" className="absolute inset-0 h-full w-full" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/hero-archer.png"
+        src="/archer-bow.webp"
         alt=""
-        className="h-full w-auto"
-        style={{ filter: `drop-shadow(0 0 ${8 + draw * 26}px rgba(212,250,9,${0.15 + draw * 0.45}))` }}
+        className="absolute"
+        style={{
+          left: `${BOW.left}%`,
+          top: `${BOW.top}%`,
+          height: `${BOW.height}%`,
+          // the limbs flex back a touch at full draw
+          transform: `scaleX(${1 - draw * 0.08})`,
+          transformOrigin: "left center",
+        }}
+      />
+      {/* the string: two lines from the limb tips to the nock */}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+        {/* dark halo first so the string reads over the lime body */}
+        <polyline
+          points={`${TIP_TOP.x},${TIP_TOP.y} ${nockX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`}
+          fill="none"
+          stroke="#0A0B05"
+          strokeWidth="5"
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+          opacity="0.9"
+        />
+        <polyline
+          points={`${TIP_TOP.x},${TIP_TOP.y} ${nockX},${NOCK.y} ${TIP_BOTTOM.x},${TIP_BOTTOM.y}`}
+          fill="none"
+          stroke="#D4FA09"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {/* the arrow: nock on the string, fades in as it is drawn, flies on fire */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/archer-arrow.webp"
+        alt=""
+        className="absolute"
+        style={{
+          left: `${nockX - ARROW.length}%`,
+          top: `${NOCK.y - ARROW.height / 2}%`,
+          width: `${ARROW.length}%`,
+          opacity: fired ? 0 : Math.min(1, draw * 1.6),
+          // whatever sticks out left of the bow stays hidden - otherwise the
+          // shaft would lie across the headline at half draw
+          clipPath: `inset(0 0 0 ${Math.max(0, ((ARROW.length - nockX) / ARROW.length) * 100)}%)`,
+          // a dark edge so the lime arrow reads across the lime arm
+          filter: "drop-shadow(0 0 1.5px #0A0B05) drop-shadow(0 0 1.5px #0A0B05)",
+          transform: fired ? "translateX(-140vw)" : undefined,
+          transition: fired ? "transform 420ms cubic-bezier(.2,.8,.2,1), opacity 300ms ease-out 200ms" : "opacity 120ms linear",
+          animation: !fired && draw > 0.8 ? "tremble 90ms linear infinite" : "none",
+        }}
       />
     </div>
   );

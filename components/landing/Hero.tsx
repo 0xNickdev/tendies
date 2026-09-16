@@ -9,7 +9,7 @@ export function Hero() {
           mix-blend-screen drops the image's black so the page grid shows through */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute right-[2%] top-[38%] hidden h-[440px] w-[440px] -translate-y-1/2 rounded-full bg-robin/10 blur-[130px] md:block" />
-        <div className="absolute top-[38%] hidden h-[min(62vh,540px)] -translate-y-1/2 mix-blend-screen md:right-[-16rem] md:block lg:right-[-8rem] xl:right-0">
+        <div className="absolute top-[38%] hidden h-[min(62vh,540px)] -translate-y-1/2 md:right-[-16rem] md:block lg:right-[-8rem] xl:right-0">
           <ArcherFigure className="h-full" />
         </div>
         <img
