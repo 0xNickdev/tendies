@@ -1,12 +1,13 @@
 {
   "name": "robinx-keeper",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "RobinX server: triggers RewardDistributor.distribute() every 30 minutes, heals share desyncs, and exposes health/status over HTTP.",
+  "description": "RobinX keeper: every 30 minutes it collects the Pons creator fee, snapshots ROBX holders on Robinhood Chain, swaps the accrued WETH into tokenized stocks, pays holders pro-rata, and exposes health/status over HTTP.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node test/ledger.test.js && node test/perps.test.js"
   },
   "engines": {
     "node": ">=20"
