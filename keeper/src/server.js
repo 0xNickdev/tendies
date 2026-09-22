@@ -4,7 +4,7 @@
 import http from "node:http";
 import { config } from "./config.js";
 import { log } from "./log.js";
-import { ethBalance, rpcHost } from "./chain.js";
+import { ethBalance, rpcHost, escrowPending } from "./chain.js";
 import { feeBalance, feeDecimals, buybackReserve, feeUnitsPerDollar } from "./swap.js";
 import { state, ledgerSummary, holderInfo } from "./keeper.js";
 import { applyChoice, canonicalOwner } from "./choice.js";
@@ -56,12 +56,13 @@ async function buildStatus() {
   // Holders come from the last epoch snapshot: a fresh one means a log scan
   // and a getCode per new account, far too much for a polled endpoint.
   const holders = holderInfo("").holders;
-  const [fee, eth, decimals, reserve, perDollar] = await Promise.all([
+  const [fee, eth, decimals, reserve, perDollar, pendingClaim] = await Promise.all([
     feeBalance().catch(() => 0n),
     ethBalance().catch(() => 0),
     feeDecimals().catch(() => 6),
     buybackReserve().catch(() => 0n),
     feeUnitsPerDollar().catch(() => null),
+    escrowPending().catch(() => 0n),
   ]);
 
   const ledger = ledgerSummary();
@@ -89,6 +90,10 @@ async function buildStatus() {
       feeToken: config.feeToken,
       pendingFee: toUnits(fee.toString()),
       pendingFeeUsd: toUsd(fee.toString()),
+      // Creator fee Pons is holding for the treasury but that has not been
+      // claimed yet - real money owed, just not countable as fee until the
+      // next epoch pulls it in.
+      unclaimedFee: Number(pendingClaim) / 1e18,
       payoutStocks: config.payoutTokens.map((p) => p.symbol),
       holders,
       // The ROBX side of the creator fee. Never distributed — it accumulates

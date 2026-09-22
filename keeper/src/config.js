@@ -11,9 +11,14 @@ export const ADDR = {
   ROUTER: "0xCaf681a66D020601342297493863E78C959E5cb2", // SwapRouter02
   QUOTER: "0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7", // QuoterV2
   V3_FACTORY: "0x1f7d7550b1b028f7571e69a784071f0205fd2efa", // router.factory()
-  // Pons: the locker holds the v3 LP position; collectFees(token) sends the
-  // creator's 70% of the pool fee (WETH + token) to the payout wallet.
+  // Pons v1: the locker holds the v3 LP position; collectFees(token) sends the
+  // creator's share of the pool fee (WETH + token) to the payout wallet.
   PONS_LOCKER: "0x736D76699C26D0d966744cAe304C000d471f7F35",
+  // Pons v2 (what ROBX launched on): a bonding curve first, a Uniswap v4 pool
+  // after graduation. The creator's share does not land in the wallet at all -
+  // it accrues inside a fee escrow, in NATIVE ETH, and is pulled with claim().
+  PONS_V2_FACTORY: "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+  PONS_V2_FEE_ESCROW: "0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e",
 };
 
 // Tokenized stocks with real v3 depth against USDG (verified 2026-09-15).
@@ -54,9 +59,17 @@ export const config = {
   // Pool fee tier of the WETH/USDG leg every swap starts with (0.01%).
   wethUsdgFee: Number(process.env.WETH_USDG_FEE || 100),
 
-  // Pons locker to pull the creator fee from before each epoch. Blank turns
-  // the collect step off (e.g. if Pons automation already forwards it).
+  // Pons v1 locker. Blank turns that path off; it is only used for a token
+  // that was launched through the v1 factory.
   locker: process.env.PONS_LOCKER ?? ADDR.PONS_LOCKER,
+  // Pons v2 fee escrow - the path ROBX actually uses. Blank turns it off.
+  feeEscrow: process.env.PONS_FEE_ESCROW ?? ADDR.PONS_V2_FEE_ESCROW,
+  // Native ETH kept back when wrapping the claimed fee, so the treasury can
+  // always pay gas. Claimed ETH above this is wrapped into WETH and becomes
+  // the fee the epoch distributes.
+  gasReserveEth: Number(process.env.GAS_RESERVE_ETH || 0.01),
+  // Below this there is nothing worth a claim transaction.
+  minClaimEth: Number(process.env.MIN_CLAIM_ETH || 0.0005),
 
   // Accounts that must never receive rewards beyond what the keeper already
   // skips on its own (contracts, the pool, the treasury). Comma-separated.

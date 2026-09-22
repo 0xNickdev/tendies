@@ -34,6 +34,20 @@ const LOCKER_ABI = [
   "event FeesClaimed(address indexed token,address caller,address token0,address token1,uint256 recipientAmount0,uint256 recipientAmount1,uint256 protocolAmount0,uint256 protocolAmount1)",
 ];
 
+// Pons v2: the creator share never reaches the wallet on its own. It accrues
+// inside the escrow, in NATIVE ETH, and is pulled with claim().
+const ESCROW_ABI = [
+  "function balanceOf(address recipient) view returns (uint256)",
+  "function balanceOfToken(address recipient, address token) view returns (uint256)",
+  "function claim() returns (uint256)",
+  "function claimToken(address token) returns (uint256)",
+];
+
+const WETH_ABI = [
+  "function deposit() payable",
+  "function balanceOf(address) view returns (uint256)",
+];
+
 const V3_FACTORY_ABI = [
   "function getPool(address a, address b, uint24 fee) view returns (address)",
 ];
@@ -57,6 +71,10 @@ export const token = config.token ? erc20(config.token) : null;
 
 const locker = config.locker
   ? new ethers.Contract(config.locker, LOCKER_ABI, treasury ?? provider)
+  : null;
+
+const escrow = config.feeEscrow
+  ? new ethers.Contract(config.feeEscrow, ESCROW_ABI, treasury ?? provider)
   : null;
 
 const decimalsCache = new Map();
@@ -90,13 +108,92 @@ export async function gasPriceWei() {
 }
 
 // ── Pons fee collect ──────────────────────────────────────────────────────
-// The locker only pays fees out when someone calls collectFees(token); the
-// deployer, the payout wallet and Pons' own automation may. Calling it
-// ourselves before every epoch means the fee is in the treasury when the
-// accrual step looks, not whenever Pons gets round to it. NoFeesToCollect
-// is the normal outcome on a quiet half hour, not an error.
+//
+// Two launch generations, two ways the creator share moves:
+//
+//   v2 (what ROBX uses) - the share accrues inside PonsV2FeeEscrow in NATIVE
+//     ETH. claim() moves it to the wallet, where it is indistinguishable from
+//     gas money, so the exact amount claimed is wrapped into WETH straight
+//     after. From there the epoch loop sees it as fee like any other.
+//   v1 - the share sits in the locked v3 position until collectFees(token)
+//     pays it out as WETH + token.
+//
+// Both are best-effort: a quiet half hour with nothing to claim is the normal
+// case, not an error, and a failure here must never stop the epoch.
+
+const toWei = (eth) => BigInt(Math.round(eth * 1e9)) * 10n ** 9n;
+
 export async function collectPonsFees() {
-  if (!locker || !treasury || !config.token) return null;
+  if (!treasury || !config.token) return null;
+  const fromEscrow = await claimFromEscrow();
+  const fromLocker = fromEscrow ? null : await collectFromLocker();
+  return fromEscrow ?? fromLocker;
+}
+
+// Pons v2. Returns what was claimed, or null when there was nothing to do.
+async function claimFromEscrow() {
+  if (!escrow) return null;
+  let owed;
+  try {
+    owed = await escrow.balanceOf(treasury.address);
+  } catch (e) {
+    log.warn(`  pons: escrow unreadable (${e.shortMessage || e.message}) - skipping`);
+    return null;
+  }
+  if (owed < toWei(config.minClaimEth)) {
+    if (owed > 0n) log.info(`  pons: ${ethers.formatEther(owed)} ETH in escrow, under the claim floor`);
+    return null;
+  }
+
+  const before = await provider.getBalance(treasury.address);
+  let tx;
+  try {
+    tx = await escrow.claim();
+    await tx.wait();
+  } catch (e) {
+    log.warn(`  pons: claim failed (${e.shortMessage || e.message})`);
+    return null;
+  }
+  const after = await provider.getBalance(treasury.address);
+  log.info(`  pons: claimed ${ethers.formatEther(owed)} ETH from the escrow (${tx.hash})`);
+
+  // Wrap what was claimed, never the gas float. `owed` is what the escrow
+  // said it would pay; the balance is what is actually there after gas. Wrap
+  // the smaller of the two, and only above the reserve.
+  const reserve = toWei(config.gasReserveEth);
+  const spendable = after > reserve ? after - reserve : 0n;
+  const amount = owed < spendable ? owed : spendable;
+  if (amount <= 0n) {
+    log.warn(
+      `  pons: claimed, but the balance (${ethers.formatEther(after)} ETH) is at or under the ` +
+        `${config.gasReserveEth} ETH gas reserve - leaving it as gas, it will be wrapped next epoch`,
+    );
+    return { hash: tx.hash, claimed: owed, wrapped: 0n };
+  }
+  void before;
+  const wrapped = await wrapEth(amount);
+  return { hash: tx.hash, claimed: owed, wrapped };
+}
+
+// Native ETH -> WETH, so the fee is countable and swappable like any ERC-20.
+async function wrapEth(amount) {
+  try {
+    const weth = new ethers.Contract(config.weth, WETH_ABI, treasury);
+    const tx = await weth.deposit({ value: amount });
+    await tx.wait();
+    log.info(`  pons: wrapped ${ethers.formatEther(amount)} ETH -> WETH (${tx.hash})`);
+    return amount;
+  } catch (e) {
+    // The ETH is on the wallet either way; it just is not countable as fee
+    // yet. Next epoch tries again.
+    log.warn(`  pons: wrap failed (${e.shortMessage || e.message}) - the ETH stays on the wallet`);
+    return 0n;
+  }
+}
+
+// Pons v1. Only does anything for a token the v1 locker knows about.
+async function collectFromLocker() {
+  if (!locker) return null;
   try {
     await locker.collectFees.staticCall(config.token);
   } catch (e) {
@@ -105,39 +202,32 @@ export async function collectPonsFees() {
       log.info("  pons: no fees to collect yet");
       return null;
     }
+    if (/TokenNotFound/.test(why)) return null; // launched on v2, not this locker
     if (/NotAuthorized/.test(why)) {
       log.warn(
-        `  pons: ${treasury.address} may not collect fees for ${config.token} — ` +
+        `  pons: ${treasury.address} may not collect fees for ${config.token} - ` +
           "it must be the deployer or the payout wallet (setFeeRedirect)",
       );
       return null;
     }
-    log.warn(`  pons: collect check failed (${why}) — skipping this epoch`);
+    log.warn(`  pons: collect check failed (${why}) - skipping this epoch`);
     return null;
   }
   const tx = await locker.collectFees(config.token);
-  const rcpt = await tx.wait();
-  let claimed = null;
-  for (const l of rcpt.logs) {
-    try {
-      const parsed = locker.interface.parseLog(l);
-      if (parsed?.name === "FeesClaimed") {
-        claimed = {
-          token0: parsed.args.token0,
-          token1: parsed.args.token1,
-          amount0: parsed.args.recipientAmount0,
-          amount1: parsed.args.recipientAmount1,
-        };
-      }
-    } catch {
-      /* not ours */
-    }
+  await tx.wait();
+  log.info(`  pons: collected ${tx.hash}`);
+  return { hash: tx.hash };
+}
+
+// What the escrow still owes the treasury - shown in /status so the pending
+// creator fee is visible before it has been claimed.
+export async function escrowPending() {
+  if (!escrow || !treasury) return 0n;
+  try {
+    return await escrow.balanceOf(treasury.address);
+  } catch {
+    return 0n;
   }
-  log.info(
-    `  pons: collected ${tx.hash}` +
-      (claimed ? ` · ${claimed.amount0} of ${short(claimed.token0)} + ${claimed.amount1} of ${short(claimed.token1)}` : ""),
-  );
-  return { hash: tx.hash, ...claimed };
 }
 
 // ── holder snapshot ───────────────────────────────────────────────────────

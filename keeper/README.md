@@ -74,15 +74,21 @@ container disk is wiped on every redeploy; without a mounted Volume, holders
 lose their unpaid balance on each deploy. The keeper refuses to start on a
 corrupt state file rather than pay wrong numbers.
 
-## Pons specifics
+## Pons v2 specifics
 
-- Fees accrue in the locked v3 position and are only paid out on
-  `collectFees(token)`. The deployer, the payout wallet (`setFeeRedirect`) and
-  Pons' automation may call it. The keeper calls it itself before every
-  epoch; `NoFeesToCollect` on a quiet half hour is normal.
-- The fee arrives as **WETH + ROBX**. WETH is the fee that gets distributed;
-  the ROBX side is kept in the treasury as the buyback reserve and shown in
-  `/status` as `buybackReserve`.
+- ROBX launched on the **v2** factory (`0x7eD5…EC7e`): a bonding curve first,
+  a Uniswap **v4** pool after graduation. There is no v3 LP position to
+  collect from.
+- The creator share never reaches the wallet on its own. It accrues inside
+  **`PonsV2FeeEscrow`** (`0xd3AFEB2a…`) in **native ETH**. Before every epoch
+  the keeper reads `balanceOf(treasury)`, calls `claim()`, and wraps exactly
+  what it claimed into WETH — never touching `GAS_RESERVE_ETH`, so the
+  treasury can always pay for the payouts. From there the rest of the pipeline
+  (WETH → USDG → stock) is unchanged.
+- `/status` shows `treasury.unclaimedFee`: what Pons is holding but the keeper
+  has not pulled in yet.
+- The v1 path (`locker.collectFees`) is still there for a v1-launched token and
+  is skipped silently when the locker does not know the token.
 - The dollar floor is converted with a live QuoterV2 quote (0.01 WETH → USDG).
   If the quote fails and there was never a rate, nobody is paid that epoch and
   every balance carries — never a wrong floor.
