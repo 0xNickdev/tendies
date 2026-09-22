@@ -84,7 +84,7 @@ const PHASES: Phase[] = [
     statusLabel: "Shipped · Live",
     title: "Token & Treasury",
     points: [
-      "ROBX token with a 4% tithe to the treasury",
+      "ROBX on Pons — 70% of the pool's 1% swap fee feeds the treasury",
       "Rewards in real tokenized stocks — tTSLA, tNVDA or tSPCX, your pick",
       "Distribution every 30 minutes + live Nasdaq price feed",
     ],
@@ -98,7 +98,7 @@ const PHASES: Phase[] = [
     title: "Stock Perps",
     points: [
       "Long / short TSLA, NVDA & SPCX oracle marks",
-      "1–10× leverage, treasury claim as margin",
+      "1–10× leverage, your accrued rewards as margin",
       "Mandatory risk gating before every shot",
     ],
     icon: <TargetOpen />,

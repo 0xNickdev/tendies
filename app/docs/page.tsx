@@ -106,9 +106,9 @@ export default function DocsPage() {
             RobinX <span className="text-robin">Docs</span>
           </h1>
           <p className="mt-4 max-w-2xl text-pretty leading-relaxed text-zinc-400">
-            Everything about how RobinX works — the token, the treasury, the
-            30-minute stock rewards, the perps layer, and the on-chain
-            contracts that run it. Built on Robinhood Chain.
+            Everything about how RobinX works — the token on Pons, the treasury,
+            the 30-minute stock rewards, the perps layer, and what actually runs
+            on chain. Built on Robinhood Chain.
           </p>
 
           <div className="mt-10 space-y-10">
@@ -225,17 +225,29 @@ export default function DocsPage() {
               </p>
             </Section>
 
-            <Section id="perps" n="06" title="Perps (Phase 02)">
+            <Section id="perps" n="06" title="Perps">
               <p>
                 A perpetual-futures layer on the reward stocks. You post your
-                accrued treasury claim as margin, go long or short with 1–10×
-                leverage, and settle against the next published oracle mark. A
-                mandatory risk disclosure gates every position.
+                accrued rewards as margin — nothing leaves your wallet, and
+                opening a position costs a signature, not a transaction — then
+                go long or short with 1–10× leverage and settle against the
+                next published oracle mark. A mandatory risk disclosure gates
+                every position.
               </p>
+              <div className="panel p-6">
+                <Row k="Counterparty" v="The treasury — there is no other trader" />
+                <Row k="Margin" v="Your accrued rewards, valued in dollars" />
+                <Row k="Leverage" v="1–10×" />
+                <Row k="Funding" v="0.05% of position size every 8h → treasury" />
+                <Row k="Expiry" v="None — funding is what time costs" />
+                <Row k="Liquidation" v="When losses reach 95% of your margin" />
+              </div>
               <p className="text-sm text-zinc-400">
-                Perps are currently a live preview in the terminal — you can
-                explore the order ticket and charts. Opening real positions
-                unlocks with Phase 02.
+                Wins are paid from a house reserve: 10% of each epoch&apos;s fee is
+                held back, up to 20% of the treasury, and no single position may
+                exceed half of it. That is why nothing can be opened until the
+                reserve has built up — and why a win never comes out of another
+                holder&apos;s rewards.
               </p>
             </Section>
 
@@ -246,7 +258,7 @@ export default function DocsPage() {
                 <Row k="RPC" v={<Addr>https://rpc.mainnet.chain.robinhood.com</Addr>} />
                 <Row k="Explorer" v={<Addr>robinhoodchain.blockscout.com</Addr>} />
                 <Row k="Gas token" v="ETH" />
-                <Row k="Reward stable" v="USDG (internal accounting only)" />
+                <Row k="Fee token" v="WETH (swapped via USDG at payout)" />
               </div>
               <p className="text-sm text-zinc-400">
                 Connect any EVM wallet (MetaMask, Rabby). The terminal will

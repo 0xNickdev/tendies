@@ -27,7 +27,6 @@ export function Perps() {
   const { push } = useToast();
   // Margin is the accrued balance - the keeper is the counterparty, so the
   // stake never leaves the treasury until it is paid out as stock.
-  const claimUsd = accruedUsd;
 
   const [market, setMarket] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const [dir, setDir] = useState<Direction>("long");
@@ -44,7 +43,7 @@ export function Perps() {
   const entry = keeperMark?.price ?? quotePrice(quotes, market);
   const numMargin = parseFloat(margin) || 0;
   const size = numMargin * lev;
-  const overBalance = numMargin > claimUsd + 1e-9;
+  const overBalance = numMargin > accruedUsd + 1e-9;
   const minMargin = perps?.minMarginUsd ?? 1;
   const underMin = numMargin > 0 && numMargin < minMargin;
   const liquidationPct = perps?.liquidationPct ?? 95;
@@ -194,10 +193,10 @@ export function Perps() {
             <div className="mb-2 flex items-center justify-between">
               <span className="label">Margin (from accrued)</span>
               <button
-                onClick={() => setMargin(String(Math.floor(claimUsd)))}
+                onClick={() => setMargin(String(Math.floor(accruedUsd)))}
                 className="text-xs text-robin hover:underline"
               >
-                Avail: {fmtUSD(claimUsd)} · Max
+                Avail: {fmtUSD(accruedUsd)} · Max
               </button>
             </div>
             <div
@@ -277,6 +276,15 @@ export function Perps() {
             charged to your margin and kept by the treasury. Positions have no expiry -
             funding is what makes holding leverage cost something.
           </p>
+
+          {maxPosition === 0 && (
+            <p className="mt-3 rounded-xl border border-robin/20 bg-robin/5 p-3 text-xs leading-relaxed text-zinc-400">
+              <b className="text-robin">The house has no reserve yet.</b> Wins are
+              paid from a bankroll built out of 10% of each epoch&apos;s fee, so
+              nothing can be opened until trading volume has filled it. Your
+              rewards keep accruing in the meantime.
+            </p>
+          )}
 
           {/* acknowledgement */}
           <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-zinc-400">

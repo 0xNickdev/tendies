@@ -1,8 +1,8 @@
 # 🏹 RobinX — Hold the token. Get paid in stocks.
 
-**One-liner:** RobinX is a DeFi protocol on **Robinhood Chain** that turns a
-4% trade tax into **real tokenized stocks** — TSLA, NVDA or SPCX, your pick —
-paid out to holders **every 30 minutes**.
+**One-liner:** RobinX is a DeFi protocol on **Robinhood Chain** that turns the
+ROBX pool's swap fee into **real tokenized stocks** — TSLA, NVDA or SPCX, your
+pick — pushed to holders' wallets **every 30 minutes**.
 
 > Draw the bow. Hit the mark.
 
@@ -23,23 +23,26 @@ the crowd — every 30 minutes.
 ## ⚙️ Mechanics (30 seconds)
 
 ```
-   BUY / SELL $ROBX
-        │  4% tax
+   SWAP $ROBX (Uniswap v3 pool, 1% fee)
+        │  70% of the fee = 0.7% of volume
         ▼
     🏦 TREASURY ──── every 30 min ────▶  📈 STOCK REWARDS
         │                                tTSLA · tNVDA · tSPCX
         ▼                                (holder picks the stock)
-    ⚔️ PERPS LAYER (Phase 02)
-    margin = your accrued claim
+    ⚔️ PERPS LAYER
+    margin = your accrued rewards
 ```
 
-1. **Trade tax → treasury.** Every buy and sell of ROBX pays 4% into a shared
-   treasury.
+1. **Pool fee → treasury.** ROBX trades in a Uniswap v3 pool launched on
+   **Pons** with a 1% swap fee. 70% of it — 0.7% of every trade — is the
+   creator share, and that share *is* the treasury. The token itself has no
+   tax: wallet-to-wallet transfers are free.
 2. **Treasury → stocks.** Every **30 minutes** the treasury distributes
    rewards pro-rata to holders — **in tokenized stocks, not farm tokens**.
-   Each holder chooses their payout asset in the app.
-3. **Stocks → leverage (Phase 02).** Your accrued claim doubles as margin for
-   perps on TSLA / NVDA / SPCX oracle marks — long or short, 1–10×.
+   Each holder chooses their payout asset in the app. Nothing to claim:
+   payouts are pushed once a balance passes a $1 floor.
+3. **Stocks → leverage.** Your accrued rewards double as margin for perps on
+   TSLA / NVDA / SPCX oracle marks — long or short, 1–10×.
 
 ## 💸 Reward distribution
 
@@ -49,11 +52,13 @@ the crowd — every 30 minutes.
 | Backing          | 1:1-backed stock tokens on Robinhood Chain   |
 | Payout frequency | **Every 30 minutes**, automatic              |
 | Eligibility      | Pro-rata to every ROBX holder                |
-| Custody          | Straight to your own wallet                  |
-| Trade tax        | 4% on buys and sells → treasury              |
-| Total supply     | 100,000,000 ROBX                             |
+| Custody          | Pushed to your own wallet — nothing to claim |
+| Treasury fee     | 0.7% of volume (70% of the 1% pool fee)      |
+| Transfer tax     | None — plain ERC-20                          |
+| Total supply     | 1,000,000,000 ROBX (fixed, minted by Pons)   |
 
-No emissions. No inflation. Rewards are funded purely by trading volume.
+No emissions. No inflation. Rewards are funded purely by trading volume — if
+nobody trades, there is simply nothing to distribute that epoch.
 
 ## 📊 The stocks — and why these three
 
@@ -72,8 +77,8 @@ mainnet (verified on-chain).
 
 | Phase | Status | What |
 | ----- | ------ | ---- |
-| **01 · Token & Treasury** | 🟢 Shipped | ROBX + 4% tithe, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
-| **02 · Stock Perps** | 🏹 In flight | Long/short TSLA, NVDA & SPCX oracle marks, 1–10× leverage, claim-as-margin, risk gating. Preview already live in the terminal |
+| **01 · Token & Treasury** | 🟢 Shipped | ROBX on Pons, 0.7% of volume to the treasury, stock rewards (your pick), 30-min distribution, live Nasdaq feed, full terminal |
+| **02 · Stock Perps** | 🏹 In flight | Long/short TSLA, NVDA & SPCX oracle marks, 1–10× leverage, rewards-as-margin, funding instead of expiry, risk gating. Live in the terminal once the treasury has a house reserve |
 | **03 · Auto-Trading** | 🎒 In the quiver | Strategy vaults (auto-DCA the marks), copy-trade the top archers, signal bots on oracle prints |
 
 ## 🧭 Why now
@@ -93,7 +98,8 @@ mainnet (verified on-chain).
 | Terminal | `/terminal` — live now (Nasdaq feed, perps preview) |
 | X / Twitter | https://x.com/robinxtech |
 | Contract (CA) | *TBA at launch* |
-| Buy | *DEX link TBA at launch* |
+| Buy | *Pons token page — TBA at launch* |
+| Launchpad | https://www.ponsfamily.com/launchpad |
 | Chain | Robinhood Chain |
 
 ---

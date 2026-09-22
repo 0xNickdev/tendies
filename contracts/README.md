@@ -1,5 +1,11 @@
 # RobinX contracts — Phase 01 (Token & Treasury)
 
+> ⚠️ **НЕ ИСПОЛЬЗУЕТСЯ.** RobinX запускается на [Pons](https://www.ponsfamily.com/launchpad):
+> токен там выпускает сам лончпад (обычный ERC-20, без налога), а казна — это
+> сервис `keeper/`, а не контракт. Эти контракты писались под самостоятельный
+> запуск и оставлены для истории. Актуальное: [../LAUNCH_GUIDE.md](../LAUNCH_GUIDE.md),
+> [../keeper/README.md](../keeper/README.md).
+
 Two contracts implement the whole phase:
 
 | Contract | What it does |

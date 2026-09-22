@@ -108,7 +108,8 @@ export function Dashboard({ go }: { go: (v: View) => void }) {
 
           <p className="mt-3 text-xs text-zinc-500">
             {marketStock.name} — one of the tokenized stocks the treasury pays
-            out. Preview candles; live feed and perps arrive with Phase 02.
+            out, and a perps market. Candles are Nasdaq OHLC, delayed ~15 min;
+            perps settle against the keeper&apos;s oracle mark.
           </p>
         </div>
 

@@ -91,7 +91,7 @@ export function Mission() {
     },
     {
       title: "Conviction, expressed",
-      body: "Think the next mark prints higher? Put your treasury claim to work with leveraged perps on the price itself.",
+      body: "Think the next mark prints higher? Put your accrued rewards to work with leveraged perps on the price itself.",
     },
   ];
   return (
@@ -214,7 +214,7 @@ export function Mechanics() {
           </div>
           <ul className="divide-y-2 divide-robin/10">
             {[
-              ["Margin source", "Your treasury claim"],
+              ["Margin source", "Your accrued rewards"],
               ["Markets", "TSLA · NVDA · SPCX"],
               ["Direction", "Long (up) / Short (down)"],
               ["Outcome", "Win grows · lose shrinks"],
@@ -293,7 +293,7 @@ export function FAQ() {
     },
     {
       q: "What are the perps?",
-      a: "A perpetual-futures market on the reward stocks (TSLA, NVDA, SPCX). You post your treasury claim as margin, pick long or short with leverage, and settle against the next published oracle mark. Liquidation applies if the mark moves far enough against you.",
+      a: "A perpetual-futures market on the reward stocks (TSLA, NVDA, SPCX). You post your accrued rewards as margin — nothing leaves your wallet — pick long or short with leverage, and settle against the next published oracle mark. Liquidation applies if the mark moves far enough against you.",
     },
     {
       q: "What chain is this on?",
@@ -357,7 +357,7 @@ export function FooterCTA() {
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-pretty text-zinc-400">
-            Connect your wallet, hold the token, and put your treasury claim to
+            Connect your wallet, hold the token, and put your accrued rewards to
             work.
           </p>
           <Link href="/terminal" className="btn-robin mt-8 !px-8 !py-4 text-base">
