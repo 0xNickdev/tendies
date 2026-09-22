@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { FEATURES } from "@/lib/mock";
-import { PAYOUT_STOCKS, type StockSym } from "@/lib/stocks";
+import { PAYOUT_STOCKS, DEFAULT_STOCK, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
-import { fmtUSD, fmtNum, fmtPct } from "@/lib/format";
+import { fmtUSD, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { Segmented, ViewHeader, EmptyState } from "../ui";
 import { CandleChart } from "@/components/CandleChart";
 import { IconPerps } from "../icons";
@@ -18,14 +18,18 @@ export function Perps() {
   const {
     wallet,
     connect,
-    claimUsdc,
+    accruedUsd,
     positions,
+    perps,
     openPosition,
     closePosition,
   } = useStore();
   const { push } = useToast();
+  // Margin is the accrued balance - the keeper is the counterparty, so the
+  // stake never leaves the treasury until it is paid out as stock.
+  const claimUsd = accruedUsd;
 
-  const [market, setMarket] = useState<StockSym>("TSLA");
+  const [market, setMarket] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const [dir, setDir] = useState<Direction>("long");
   const [lev, setLev] = useState(3);
   const [margin, setMargin] = useState("");
@@ -34,22 +38,47 @@ export function Perps() {
   const [pending, setPending] = useState(false);
 
   const quotes = useQuotes();
-  const entry = quotePrice(quotes, market);
+  // Positions open and settle on the keeper's mark, not the site quote; the
+  // quote is only the preview while no keeper is wired up.
+  const keeperMark = perps?.marks?.[market];
+  const entry = keeperMark?.price ?? quotePrice(quotes, market);
   const numMargin = parseFloat(margin) || 0;
   const size = numMargin * lev;
-  const overBalance = numMargin > claimUsdc + 1e-9;
+  const overBalance = numMargin > claimUsd + 1e-9;
+  const minMargin = perps?.minMarginUsd ?? 1;
+  const underMin = numMargin > 0 && numMargin < minMargin;
+  const liquidationPct = perps?.liquidationPct ?? 95;
+  const fundingBps = perps?.fundingRateBps ?? 5;
+  const fundingHours = perps?.fundingIntervalHours ?? 8;
+  const fundingUsd = (size * fundingBps) / 10_000;
+  const maxPosition = perps?.maxPositionUsd ?? null;
+  const overMax = maxPosition != null && size > maxPosition + 1e-9;
 
+  // Same formula as liquidationPrice() in keeper/src/perps.js.
   const liq = useMemo(() => {
-    const move = entry / lev;
-    return dir === "long" ? entry - move * 0.95 : entry + move * 0.95;
-  }, [entry, lev, dir]);
+    const move = (liquidationPct / 100) / lev;
+    return dir === "long" ? entry * (1 - move) : entry * (1 + move);
+  }, [entry, lev, dir, liquidationPct]);
 
   const liqPct = ((liq - entry) / entry) * 100;
 
+  const closeOne = async (p: (typeof positions)[number]) => {
+    setPending(true);
+    push("Sign in your wallet to close…", "pending");
+    const r = await closePosition(p.id);
+    setPending(false);
+    if (r.ok && r.position) {
+      const pnl = r.position.pnlUsd;
+      push(`Closed ${p.symbol} · ${pnl >= 0 ? "+" : ""}${fmtUSD(pnl)} · ${fmtUSD(r.position.returnedUsd)} back to accrued`, pnl >= 0 ? "success" : "error");
+    } else {
+      push(r.error ?? "Could not close", "error");
+    }
+  };
+
   const requestOpen = () => {
-    if (!FEATURES.perpsLive) return; // preview only — trading unlocks in Phase 02
+    if (!FEATURES.perpsLive) return; // preview only - trading unlocks with the keeper
     if (!wallet.connected) return connect();
-    if (numMargin <= 0 || overBalance) return;
+    if (numMargin <= 0 || overBalance || underMin || overMax) return;
     if (!ack) {
       setShowRisk(true);
       return;
@@ -57,26 +86,33 @@ export function Perps() {
     doOpen();
   };
 
-  const doOpen = () => {
+  const doOpen = async () => {
     setShowRisk(false);
     setPending(true);
-    push("Confirm position in wallet…", "pending");
-    setTimeout(() => {
-      openPosition({ direction: dir, leverage: lev, marginUsdc: numMargin, entryPrice: entry });
-      push(`Opened ${lev}× ${dir.toUpperCase()} · ${fmtUSD(size)}`, "success");
+    push("Sign the position in your wallet…", "pending");
+    const r = await openPosition({ market, direction: dir, leverage: lev, marginUsd: numMargin });
+    setPending(false);
+    if (r.ok && r.position) {
+      push(`Opened ${lev}× ${dir.toUpperCase()} ${market} · ${fmtUSD(r.position.sizeUsd)} @ ${fmtUSD(r.position.entry)}`, "success");
       setMargin("");
-      setPending(false);
-    }, 1100);
+    } else {
+      push(r.error ?? "Could not open", "error");
+    }
   };
 
   return (
     <div>
       <ViewHeader
         title="Perps"
-        subtitle="Pick a market, then speculate on its next oracle mark using your treasury claim as margin."
+        subtitle="Pick a market, then speculate on its next oracle mark using your accrued rewards as margin."
         right={
           <span className="flex items-center gap-2">
-            <span className="chip">Mark: {fmtUSD(entry)}</span>
+            <span className="chip" title={keeperMark?.at ? `Keeper mark · ${fmtDate(keeperMark.at)}` : "Site quote - keeper mark once live"}>
+              Mark: {fmtUSD(entry)}
+            </span>
+            {FEATURES.perpsLive && perps && !perps.enabled && (
+              <span className="chip !border-warn/50 !text-warn">Paused</span>
+            )}
             {!FEATURES.perpsLive && (
               <span className="chip !border-robin !bg-robin !text-ink-950">
                 <span className="relative flex h-1.5 w-1.5">
@@ -94,11 +130,12 @@ export function Perps() {
         <div className="panel mb-6 flex flex-col items-start justify-between gap-3 border-robin/30 bg-robin/5 p-5 sm:flex-row sm:items-center">
           <div>
             <div className="font-bold text-robin">
-              Perps are next on the roadmap — Phase 02
+              Perps go live with the token
             </div>
             <div className="mt-1 text-sm text-zinc-400">
               The ticket below is a live preview: play with direction, leverage
-              and liquidation math. Opening positions unlocks at launch.
+              and liquidation math. Opening positions unlocks the moment the
+              keeper is wired up at launch.
             </div>
           </div>
           <a href="/#roadmap" className="chip shrink-0 hover:bg-robin/15">
@@ -107,7 +144,7 @@ export function Perps() {
         </div>
       )}
 
-      {/* market selector — pick what you trade */}
+      {/* market selector - pick what you trade */}
       <div className="mb-5 flex flex-wrap gap-2">
         {PAYOUT_STOCKS.map((st) => {
           const price = quotePrice(quotes, st.symbol);
@@ -117,7 +154,7 @@ export function Perps() {
             <button
               key={st.symbol}
               onClick={() => setMarket(st.symbol)}
-              className={`flex items-center gap-3 rounded-md border-2 px-4 py-2.5 font-mono transition-all ${
+              className={`flex items-center gap-3 rounded-md border px-4 py-2.5 font-mono transition-all ${
                 active
                   ? "border-robin/60 bg-robin/10"
                   : "border-robin/15 bg-ink-900/60 hover:border-robin/35"
@@ -155,12 +192,12 @@ export function Perps() {
 
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between">
-              <span className="label">Margin (from claim)</span>
+              <span className="label">Margin (from accrued)</span>
               <button
-                onClick={() => setMargin(String(Math.floor(claimUsdc)))}
+                onClick={() => setMargin(String(Math.floor(claimUsd)))}
                 className="text-xs text-robin hover:underline"
               >
-                Avail: {fmtUSD(claimUsdc)} · Max
+                Avail: {fmtUSD(claimUsd)} · Max
               </button>
             </div>
             <div
@@ -176,11 +213,23 @@ export function Perps() {
                 className="num w-full bg-transparent text-2xl font-semibold text-white outline-none placeholder:text-zinc-600"
               />
               <span className="shrink-0 rounded-lg bg-robin/10 px-3 py-1.5 text-sm font-semibold text-robin">
-                USDC
+                USD value
               </span>
             </div>
+            <p className="mt-2 font-mono text-[11px] text-zinc-600">
+              margin comes out of your accrued rewards · held in dollars while open ·
+              what is left goes back to your balance at close
+            </p>
             {overBalance && (
-              <p className="mt-2 text-xs text-short">Exceeds available claim.</p>
+              <p className="mt-2 text-xs text-short">Exceeds your accrued balance.</p>
+            )}
+            {underMin && (
+              <p className="mt-2 text-xs text-short">Minimum margin is {fmtUSD(minMargin)}.</p>
+            )}
+            {overMax && (
+              <p className="mt-2 text-xs text-short">
+                Max position right now is {fmtUSD(maxPosition ?? 0)} - the house reserve caps size.
+              </p>
             )}
           </div>
 
@@ -197,7 +246,7 @@ export function Perps() {
                   className={`num flex-1 rounded-lg border py-2 text-sm font-semibold transition-all ${
                     lev === l
                       ? "border-robin/40 bg-robin/15 text-robin"
-                      : "border-robin/10 bg-ink-900/60 text-zinc-400 hover:text-zinc-200"
+                      : "border-robin/10 bg-ink-900/60 text-zinc-400 hover:text-white"
                   }`}
                 >
                   {l}×
@@ -215,7 +264,19 @@ export function Perps() {
               value={`${fmtUSD(liq)} (${fmtPct(liqPct, 1)})`}
               accent="short"
             />
+            <Row
+              label={`Funding / ${fundingHours}h`}
+              value={`${fmtUSD(fundingUsd)} (${(fundingBps / 100).toFixed(2)}%)`}
+            />
+            {maxPosition != null && (
+              <Row label="Max position now" value={`${fmtUSD(maxPosition)} · reserve ${fmtUSD(perps?.reserveUsd ?? 0)}`} />
+            )}
           </div>
+          <p className="mt-2 text-xs text-zinc-600">
+            Funding is a flat {(fundingBps / 100).toFixed(2)}% of position size every {fundingHours}h,
+            charged to your margin and kept by the treasury. Positions have no expiry -
+            funding is what makes holding leverage cost something.
+          </p>
 
           {/* acknowledgement */}
           <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-zinc-400">
@@ -223,7 +284,7 @@ export function Perps() {
               type="checkbox"
               checked={ack}
               onChange={(e) => setAck(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#D9FF4D]"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#69AAC1]"
             />
             <span>
               I understand perps are high-risk, leveraged, and can be fully
@@ -236,18 +297,19 @@ export function Perps() {
             disabled={
               !FEATURES.perpsLive ||
               pending ||
-              (wallet.connected && (numMargin <= 0 || overBalance))
+              (perps ? !perps.enabled : false) ||
+              (wallet.connected && (numMargin <= 0 || overBalance || underMin || overMax))
             }
             className={`mt-4 w-full rounded-xl py-4 text-base font-semibold transition-all active:scale-[0.98] disabled:opacity-40 ${
               !FEATURES.perpsLive
-                ? "border-2 border-dashed border-robin/50 bg-robin/10 !opacity-100 text-robin"
+                ? "border border-dashed border-robin/50 bg-robin/10 !opacity-100 text-robin"
                 : dir === "long"
                   ? "bg-long text-ink-950 hover:brightness-110"
                   : "bg-short text-ink-950 hover:brightness-110"
             }`}
           >
             {!FEATURES.perpsLive
-              ? "Coming Soon — Phase 02"
+              ? "Live at launch"
               : !wallet.connected
                 ? "Connect Wallet"
                 : pending
@@ -275,20 +337,17 @@ export function Perps() {
               title="No open positions"
               body={
                 FEATURES.perpsLive
-                  ? "Set your direction, margin, and leverage on the left to open your first position on the next mark."
-                  : "Perps are in preview — positions unlock when trading goes live in Phase 02. Meanwhile, rehearse your setup on the left."
+                  ? "Set your direction, margin, and leverage on the left to open your first position on the current mark."
+                  : "Perps are in preview - positions unlock when trading goes live. Meanwhile, rehearse your setup on the left."
               }
             />
           ) : (
             <div className="space-y-3">
               {positions.map((p) => {
-                const dirUp = p.direction === "long";
-                // unrealized PnL at current mark (entry == mark at open ⇒ ~0)
-                const pnl =
-                  ((entry - p.entryPrice) / p.entryPrice) *
-                  p.sizeUsd *
-                  (dirUp ? 1 : -1);
-                const pnlPct = (pnl / p.marginUsdc) * 100;
+                const dirUp = p.side === "long";
+                // Marked by the keeper against its last published mark.
+                const pnl = p.pnlUsd;
+                const pnlPct = (pnl / p.marginUsd) * 100;
                 return (
                   <div key={p.id} className="panel p-5">
                     <div className="flex items-center justify-between">
@@ -298,7 +357,7 @@ export function Perps() {
                             dirUp ? "bg-long/15 text-long" : "bg-short/15 text-short"
                           }`}
                         >
-                          {dirUp ? "LONG" : "SHORT"} {p.leverage}×
+                          {dirUp ? "LONG" : "SHORT"} {p.leverage}× {p.symbol}
                         </span>
                         <span className="text-xs text-zinc-500">#{p.id}</span>
                       </div>
@@ -309,19 +368,21 @@ export function Perps() {
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                      <Cell label="Margin" value={fmtUSD(p.marginUsdc)} />
+                      <Cell label="Margin" value={fmtUSD(p.marginUsd)} />
                       <Cell label="Size" value={fmtUSD(p.sizeUsd)} />
-                      <Cell label="Entry" value={fmtUSD(p.entryPrice)} />
+                      <Cell label="Entry → Mark" value={`${fmtUSD(p.entry)} → ${fmtUSD(p.mark)}`} />
                       <Cell label="Liq." value={fmtUSD(p.liqPrice)} accent="short" />
                     </div>
+                    <div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-[11px] text-zinc-600">
+                      <span>Equity {fmtUSD(p.equityUsd)} · funding paid {fmtUSD(p.fundingPaidUsd)}</span>
+                      <span>Next funding {fmtDate(p.nextFundingAt)}</span>
+                    </div>
                     <button
-                      onClick={() => {
-                        closePosition(p.id);
-                        push(`Closed #${p.id} · ${pnl >= 0 ? "+" : ""}${fmtUSD(pnl)}`, pnl >= 0 ? "success" : "error");
-                      }}
-                      className="btn-ghost mt-4 w-full"
+                      onClick={() => void closeOne(p)}
+                      disabled={pending}
+                      className="btn-ghost mt-4 w-full disabled:opacity-40"
                     >
-                      Close position
+                      Close at mark {fmtUSD(p.mark)}
                     </button>
                   </div>
                 );
@@ -369,8 +430,10 @@ function RiskModal({
           {[
             "Leverage amplifies both gains and losses.",
             "Your position can be fully liquidated, losing 100% of margin.",
-            "Oracle marks print on a schedule and can gap sharply.",
-            "This is synthetic exposure — not direct share ownership.",
+            "Marks print every few minutes and can gap sharply between them.",
+            "Funding is charged on position size every 8 hours while it stays open.",
+            "The treasury is the counterparty - your margin is your accrued rewards.",
+            "This is synthetic exposure - not direct share ownership.",
           ].map((t) => (
             <li key={t} className="flex gap-2.5">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warn" />
@@ -400,7 +463,7 @@ function Row({
   value: string;
   accent?: "long" | "short";
 }) {
-  const c = accent === "long" ? "text-long" : accent === "short" ? "text-short" : "text-zinc-200";
+  const c = accent === "long" ? "text-long" : accent === "short" ? "text-short" : "text-white";
   return (
     <div className="flex items-center justify-between">
       <span className="text-zinc-400">{label}</span>
@@ -421,7 +484,7 @@ function Cell({
   return (
     <div>
       <div className="label">{label}</div>
-      <div className={`num mt-0.5 font-medium ${accent === "short" ? "text-short" : "text-zinc-100"}`}>
+      <div className={`num mt-0.5 font-medium ${accent === "short" ? "text-short" : "text-white"}`}>
         {value}
       </div>
     </div>

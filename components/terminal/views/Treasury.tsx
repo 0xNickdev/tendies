@@ -2,21 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
-import { TREASURY } from "@/lib/mock";
-import { PAYOUT_STOCKS, DISTRIBUTION_MINUTES, type StockSym } from "@/lib/stocks";
+import { PAYOUT_STOCKS, DEFAULT_STOCK, DISTRIBUTION_MINUTES, feedLabel, type StockSym } from "@/lib/stocks";
 import { useQuotes, quotePrice } from "@/lib/useQuotes";
-import { fmtUSD, fmtNum, fmtUSDCompact } from "@/lib/format";
+import { useKeeperStatus } from "@/lib/useKeeperStatus";
+import { payoutTx } from "@/lib/keeper";
+import { fmtUSD, fmtNum } from "@/lib/format";
 import { CandleChart } from "@/components/CandleChart";
 import { Stat, ViewHeader, LiveFeedChip } from "../ui";
 import { useToast } from "../Toast";
 
 // live countdown to the next 30-minute distribution epoch
-function useNextPayout() {
+// Counts down to the keeper's actual next epoch. Without the keeper there is
+// no honest number to show, so it stays blank rather than ticking a wall clock
+// that has nothing to do with when payouts happen.
+function useNextPayout(secondsUntilNext?: number) {
   const [left, setLeft] = useState("--:--");
   useEffect(() => {
+    if (secondsUntilNext == null) {
+      setLeft("--:--");
+      return;
+    }
+    const target = Date.now() + secondsUntilNext * 1000;
     const tick = () => {
-      const ms = DISTRIBUTION_MINUTES * 60_000;
-      const d = Math.max(0, Math.ceil(Date.now() / ms) * ms - Date.now());
+      const d = Math.max(0, target - Date.now());
       const m = Math.floor(d / 60_000);
       const sec = Math.floor((d % 60_000) / 1000);
       setLeft(`${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`);
@@ -24,67 +32,79 @@ function useNextPayout() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [secondsUntilNext]);
   return left;
 }
 
 export function Treasury() {
-  const { wallet, connect, claimUsdc, shareBps, payoutChoice, txPending, setPayoutChoice, claim: claimTx, refresh } = useStore();
+  const {
+    wallet,
+    connect,
+    shareBps,
+    payoutChoice,
+    accruedUsd,
+    minPayoutUsd,
+    setPayoutChoice,
+    totalPaid,
+    streak,
+    payouts,
+  } = useStore();
   const { push } = useToast();
-  const [local, setLocal] = useState<StockSym>("TSLA");
-  // What the contract says you get, or what you are about to pick.
+  const [saving, setSaving] = useState(false);
+  // the keeper is the source of truth; local state is only the optimistic view
+  const [local, setLocal] = useState<StockSym>(DEFAULT_STOCK.symbol);
   const payout = payoutChoice ?? local;
-  const pending = txPending;
-  // Picking a stock is one transaction on the RewardDistributor
-  // (setRewardChoice); the choice then sticks across every claim.
+
+  // Persisting the pick costs a wallet signature, not a transaction.
   const choose = async (symbol: StockSym) => {
-    if (symbol === payoutChoice) return;
+    setLocal(symbol);
     if (!wallet.connected) {
-      setLocal(symbol);
+      push("Connect a wallet to save your payout stock", "pending");
       return;
     }
-    push("Confirm the pick in your wallet…", "pending");
-    const r = await setPayoutChoice(symbol);
-    if (r.ok) push(`Payouts set to ${PAYOUT_STOCKS.find((s) => s.symbol === symbol)?.token}`, "success");
-    else {
-      setLocal(symbol);
-      push(r.error ?? "Could not set payout stock", "error");
-    }
+    setSaving(true);
+    const result = await setPayoutChoice(symbol);
+    setSaving(false);
+    push(
+      result.ok
+        ? `Payouts set to ${PAYOUT_STOCKS.find((s) => s.symbol === symbol)?.token}`
+        : result.error ?? "Could not save your choice",
+      result.ok ? "success" : "error",
+    );
   };
   const quotes = useQuotes();
-  const nextPayout = useNextPayout();
+  const keeper = useKeeperStatus();
+  const nextPayout = useNextPayout(keeper?.epoch.secondsUntilNext);
 
   const payoutStock = PAYOUT_STOCKS.find((st) => st.symbol === payout)!;
   const payoutPrice = quotePrice(quotes, payout);
-  const payoutAmount = claimUsdc / payoutPrice;
-
-  const claim = async () => {
-    if (!wallet.connected) return connect();
-    push("Confirm claim in wallet…", "pending");
-    const r = await claimTx();
-    if (r.ok) {
-      push(`Claim sent - ≈${fmtNum(payoutAmount, 4)} ${payoutStock.token} on the way`, "success");
-      setTimeout(() => void refresh(), 8000);
-    } else push(r.error ?? "Claim failed", "error");
-  };
 
   return (
     <div>
       <ViewHeader
         title="Treasury"
-        subtitle={`Your share of the treasury — paid out in tokenized stocks every ${DISTRIBUTION_MINUTES} minutes.`}
+        subtitle={`Your share of the treasury - paid out in tokenized stocks every ${DISTRIBUTION_MINUTES} minutes.`}
         right={<LiveFeedChip label="Payouts every 30 min" />}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Total Treasury" value={TREASURY.totalUsdc > 0 ? fmtUSDCompact(TREASURY.totalUsdc) : "TBA"} sub="Pays out in tokenized stocks" />
+        <Stat
+          label="In the treasury"
+          value={keeper?.treasury.pendingFeeUsd != null ? fmtUSD(keeper.treasury.pendingFeeUsd) : "TBA"}
+          sub={keeper ? `${keeper.treasury.holders} holders accruing` : "Pays out in tokenized stocks"}
+        />
         <Stat
           label="Your Share"
-          value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "—"}
-          sub={fmtUSD(claimUsdc)}
+          value={shareBps > 0 ? `${(shareBps / 100).toFixed(2)}%` : "-"}
+          sub={`${fmtUSD(accruedUsd)} accrued`}
           accent="robin"
         />
-        <Stat label="Realized APR" value={TREASURY.apr > 0 ? `${TREASURY.apr}%` : "TBA"} sub="From trade taxes" accent="long" />
+        <Stat
+          label="Paid out so far"
+          value={keeper?.ledger.paidOutUsd != null ? fmtUSD(keeper.ledger.paidOutUsd) : "TBA"}
+          sub={keeper ? `${keeper.ledger.epochsRun} distributions` : "From trade fees"}
+          accent="long"
+        />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -95,8 +115,8 @@ export function Treasury() {
               return (
                 <button
                   key={st.symbol}
-                  onClick={() => void choose(st.symbol)}
-                  className={`flex items-center gap-2 rounded-md border-2 px-3 py-2 font-mono transition-all ${
+                  onClick={() => choose(st.symbol)}
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2 font-mono transition-all ${
                     active
                       ? "border-robin/60 bg-robin/10"
                       : "border-robin/15 bg-ink-900/60 hover:border-robin/35"
@@ -112,38 +132,36 @@ export function Treasury() {
               );
             })}
             <span className="ml-auto hidden sm:block">
-              <LiveFeedChip label={quotes[payout]?.live ? "Live · Nasdaq feed" : "On-chain priced"} />
+              <LiveFeedChip label={quotes[payout]?.live ? feedLabel(payout) : "On-chain priced"} />
             </span>
           </div>
           <CandleChart symbol={payout} basePrice={payoutPrice} height={300} />
           <p className="mt-3 text-xs text-zinc-500">
-            {payoutStock.name} — the stock you&apos;ve chosen to receive. Preview
-            candles; live feed arrives with Phase 02.
+            {payoutStock.name} - the stock you&apos;ve chosen to receive.
           </p>
         </div>
 
         <div className="panel flex flex-col p-6">
-          <span className="label">Claimable now</span>
+          <span className="label">Accrued for you</span>
           <div className="num mt-2 text-4xl font-semibold text-robin">
-            {fmtUSD(claimUsdc)}
+            {fmtUSD(accruedUsd)}
           </div>
           <p className="mt-2 text-sm text-zinc-500">
-            Withdraw as a tokenized stock of your choice, or keep it as perps
-            margin.
+            Accruing in {payoutStock.token}. Sent to your wallet automatically -
+            there is nothing to withdraw.
           </p>
 
           <div className="mt-5">
             <span className="label">Receive rewards as</span>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {PAYOUT_STOCKS.map((st) => {
                 const price = quotePrice(quotes, st.symbol);
                 const active = payout === st.symbol;
                 return (
                   <button
                     key={st.symbol}
-                    onClick={() => void choose(st.symbol)}
-                    disabled={pending}
-                    className={`rounded-lg border-2 px-2 py-2.5 text-center transition-all ${
+                    onClick={() => choose(st.symbol)}
+                    className={`rounded-lg border px-2 py-2.5 text-center transition-all ${
                       active
                         ? "border-robin/60 bg-robin/10"
                         : "border-robin/10 bg-ink-900/60 hover:border-robin/30"
@@ -153,26 +171,74 @@ export function Treasury() {
                       {st.token}
                     </div>
                     <div className="num mt-1 text-[11px] text-zinc-500">
-                      ≈ {fmtNum(claimUsdc / price, 3)}
+                      ≈ {fmtNum(accruedUsd / price, 3)}
                     </div>
                   </button>
                 );
               })}
             </div>
             <p className="mt-2 text-xs text-zinc-600">
-              1:1-backed stock tokens on Robinhood Chain — held in your own
-              wallet.
+              {saving
+                ? "Saving your choice - approve the signature in your wallet…"
+                : minPayoutUsd > 0
+                  ? `1:1-backed stock tokens on Robinhood Chain, held in your own wallet. Rewards accrue every ${DISTRIBUTION_MINUTES} min and are sent once your balance passes $${minPayoutUsd} - small amounts keep accruing instead of being eaten by gas.`
+                  : "1:1-backed stock tokens on Robinhood Chain - held in your own wallet."}
             </p>
           </div>
+
+          {wallet.connected && (
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                <span className="label">Your payouts</span>
+                {streak > 0 && (
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-robin">
+                    {streak} epoch streak
+                  </span>
+                )}
+              </div>
+              {payouts.length ? (
+                <ul className="mt-2 divide-y divide-robin/10 rounded-xl border border-robin/10 bg-ink-900/40">
+                  {payouts.slice(0, 6).map((p) => (
+                    <li key={p.signature + p.epoch} className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
+                      <span className="font-mono text-zinc-500">
+                        {new Date(p.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="font-mono font-bold text-white">{p.symbol}</span>
+                      <span className="num text-zinc-300">{p.valueUsd != null ? fmtUSD(p.valueUsd) : fmtNum(p.value)}</span>
+                      <a
+                        href={payoutTx(p.signature)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] uppercase tracking-wider text-robin hover:underline"
+                      >
+                        tx
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 rounded-xl border border-robin/10 bg-ink-900/40 px-3 py-3 text-xs text-zinc-500">
+                  Nothing sent yet. Payouts appear here with a link to the
+                  transaction, so you can check every one on the explorer.
+                </p>
+              )}
+              {totalPaid > 0 && (
+                <p className="mt-2 text-xs text-zinc-500">
+                  {fmtUSD(totalPaid)} received in total.
+                </p>
+              )}
+
+            </div>
+          )}
 
           <div className="mt-5 space-y-2.5 rounded-xl border border-robin/10 bg-ink-900/40 p-4 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-400">Share of treasury</span>
-              <span className="num text-zinc-200">{(shareBps / 100).toFixed(2)}%</span>
+              <span className="num text-white">{(shareBps / 100).toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-400">Distribution</span>
-              <span className="text-zinc-200">Every {DISTRIBUTION_MINUTES} minutes</span>
+              <span className="text-white">Every {DISTRIBUTION_MINUTES} minutes</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-400">Next payout in</span>
@@ -180,26 +246,28 @@ export function Treasury() {
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-400">Payout asset</span>
-              <span className="text-zinc-200">{payoutStock.token} · {payoutStock.name}</span>
+              <span className="text-white">{payoutStock.token} · {payoutStock.name}</span>
             </div>
           </div>
 
-          <button
-            onClick={claim}
-            disabled={pending || (wallet.connected && claimUsdc <= 0)}
-            className="btn-robin mt-5 w-full py-4"
-          >
-            {!wallet.connected
-              ? "Connect Wallet"
-              : claimUsdc <= 0
-                ? "Nothing to claim yet"
-                : pending
-                  ? "Claiming…"
-                  : `Claim ${payoutStock.token}`}
-          </button>
-          <p className="mt-3 text-center text-xs text-zinc-500">
-            Your USDG rewards are swapped into {payoutStock.token} at claim time, on-chain, and sent straight to your wallet.
-          </p>
+          {!wallet.connected ? (
+            <button onClick={connect} className="btn-robin mt-5 w-full py-4">
+              Connect Wallet
+            </button>
+          ) : (
+            <div className="mt-5 rounded-xl border border-robin/25 bg-robin/5 p-4 text-center">
+              <div className="font-mono text-xs font-bold uppercase tracking-wider text-robin">
+                Nothing to claim - payouts are pushed
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                {accruedUsd >= minPayoutUsd && minPayoutUsd > 0
+                  ? `Your balance is over the $${minPayoutUsd} floor - it goes out as ${payoutStock.token} on the next distribution.`
+                  : minPayoutUsd > 0
+                    ? `Rewards accrue every ${DISTRIBUTION_MINUTES} minutes and are sent automatically once your balance passes $${minPayoutUsd}. Below that they keep accruing, so network fees never cost more than the payout.`
+                    : "Rewards are sent to your wallet automatically - there is no claim step."}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

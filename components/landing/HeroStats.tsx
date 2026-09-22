@@ -6,8 +6,8 @@ export function HeroStats() {
   const stats = [
     { value: "TSLA · NVDA · SPCX", label: "Reward Stocks" },
     { value: "30 min", label: "Payout Cycle" },
-    { value: "4%", label: "Trade Tax" },
-    { value: "100M", label: "Supply" },
+    { value: "0.7%", label: "Treasury Fee" },
+    { value: "1B", label: "Supply" },
     { value: "Robinhood Chain", label: "Network" },
   ];
 

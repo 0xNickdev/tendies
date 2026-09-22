@@ -6,10 +6,10 @@
 // ⟵ PASTE THE TOKEN ADDRESS HERE when deployed (enables wallet balance reads)
 export const ROBX_TOKEN_ADDRESS = "";
 
-// Where "Buy ROBX" sends people (Uniswap on Robinhood Chain).
-// ⟵ PASTE THE REAL SWAP LINK HERE when the pool is live, e.g.
-//    https://app.uniswap.org/swap?chain=robinhood&outputCurrency=<ROBX_TOKEN_ADDRESS>
-export const BUY_ROBX_URL = "https://app.uniswap.org/swap";
+// Where "Buy ROBX" sends people — the Pons token page once it exists, e.g.
+//    https://www.ponsfamily.com/token/<ROBX_TOKEN_ADDRESS>
+// ⟵ PASTE THE REAL LINK HERE when the pool is live.
+export const BUY_ROBX_URL = "https://www.ponsfamily.com/launchpad";
 
 // ─── Robinhood Chain mainnet (verified on-chain) ──────────────────────────
 export const ROBINHOOD_CHAIN = {
@@ -21,12 +21,14 @@ export const ROBINHOOD_CHAIN = {
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
 } as const;
 
-// RewardDistributor contract — where the 4% tax lands and where holders read
-// their accrued rewards, pick a stock and claim. ⟵ PASTE AFTER DEPLOY.
-export const DISTRIBUTOR_ADDRESS = "";
+// Where ROBX launches: the Pons launchpad on Robinhood Chain. Pons mints the
+// token, seeds the v3 pool and locks the LP; 70% of the 1% pool fee goes to
+// the treasury, which the keeper distributes. No contract of ours on chain.
+export const PONS_URL = "https://www.ponsfamily.com/launchpad";
 
-// Treasury numbers the site shows come from the keeper's /status. Blank hides
-// them until the keeper is deployed.
+// The keeper (keeper/) is the treasury: it accrues the Pons creator fee to
+// holders and pays them in stocks. The site reads /status and /account from
+// it; blank hides those numbers and keeps perps in preview.
 export const KEEPER_URL = (() => {
   const raw = (process.env.NEXT_PUBLIC_KEEPER_URL ?? "").trim();
   if (!raw) return "";

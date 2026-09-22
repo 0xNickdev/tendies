@@ -35,9 +35,10 @@ export function About() {
             or SpaceX every 30 minutes, straight to your wallet.
           </p>
           <p className="mt-4 text-pretty leading-relaxed text-zinc-400">
-            The token itself grants no equity. A 4% trade tax feeds the treasury,
-            which distributes real tokenized stocks pro-rata to holders — no
-            emissions, no inflation — and unlocks a speculative perps layer on top.
+            The token itself grants no equity. 70% of the pool&apos;s 1% swap fee
+            feeds the treasury, which distributes real tokenized stocks pro-rata
+            to holders — no emissions, no inflation, no tax on transfers — and
+            unlocks a speculative perps layer on top.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {["No brokerage account", "24/7 markets", "Self-custody", "Robinhood Chain native"].map(
@@ -86,7 +87,7 @@ export function Mission() {
     },
     {
       title: "A self-sustaining treasury",
-      body: "Every buy and sell pays a small tax into a shared treasury. Every 30 minutes it distributes real tokenized stocks — TSLA, NVDA or SpaceX, your pick — pro-rata to holders.",
+      body: "Every swap in the ROBX pool pays a 1% fee; 70% of it lands in a shared treasury. Every 30 minutes it sends real tokenized stocks — TSLA, NVDA or SpaceX, your pick — pro-rata to holders.",
     },
     {
       title: "Conviction, expressed",
@@ -177,7 +178,7 @@ export function Mechanics() {
           </div>
           <ul className="divide-y-2 divide-robin/10">
             {[
-              ["Buy / sell tax", `${TREASURY.taxRateBps / 100}% → treasury`],
+              ["Treasury fee", `${(TREASURY.poolFeeBps * TREASURY.creatorSharePct) / 10_000}% of every swap`],
               ["Rewards paid in", "Real tokenized stocks"],
               ["Your pick", "tTSLA · tNVDA · tSPCX"],
               ["Distribution", "Every 30 minutes"],
@@ -246,7 +247,7 @@ export function Mechanics() {
 export function Stats() {
   const stats = [
     { label: "Treasury size", value: "TBA" },
-    { label: "Trade tax", value: `${TREASURY.taxRateBps / 100}%` },
+    { label: "Treasury fee", value: `${(TREASURY.poolFeeBps * TREASURY.creatorSharePct) / 10_000}% of volume` },
     { label: "Payout cycle", value: "30 min" },
     { label: "Network", value: NETWORK.name },
   ];
@@ -288,7 +289,7 @@ export function FAQ() {
     },
     {
       q: "How does the treasury make money?",
-      a: "Every buy and sell of the token pays a small tax (currently 4%) into a shared treasury. Every 30 minutes the treasury converts and distributes rewards in the tokenized stock each holder selected.",
+      a: "ROBX trades in a Uniswap v3 pool on Pons with a 1% swap fee. 70% of that fee (0.7% of volume) is the creator share, and it is the treasury. Every 30 minutes the keeper collects it, converts it and sends rewards in the tokenized stock each holder selected. Nothing to claim — payouts are pushed to your wallet once they pass a $1 floor.",
     },
     {
       q: "What are the perps?",

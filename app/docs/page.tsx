@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/Logo";
 export const metadata: Metadata = {
   title: "RobinX Docs — How it works",
   description:
-    "Full documentation for RobinX: the ROBX token, the 4% treasury tax, 30-minute tokenized-stock rewards (TSLA · NVDA · SPCX), perps, the smart contracts, and security.",
+    "Full documentation for RobinX: the ROBX token on Pons, the 0.7% treasury fee, 30-minute tokenized-stock rewards (TSLA · NVDA · SPCX), perps, the keeper, and security.",
 };
 
 const TSLA = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d";
@@ -20,7 +20,7 @@ const NAV = [
   ["stocks", "The stocks"],
   ["perps", "Perps"],
   ["network", "Network"],
-  ["contracts", "Contracts & security"],
+  ["contracts", "On-chain & security"],
   ["faq", "FAQ"],
 ] as const;
 
@@ -124,8 +124,8 @@ export default function DocsPage() {
               </p>
               <p>
                 No brokerage account, no borders, no market hours — 24/7,
-                self-custodied. Rewards are funded purely by a small trade tax,
-                so there are no emissions and no inflation.
+                self-custodied. Rewards are funded purely by the pool&apos;s
+                swap fee, so there are no emissions and no inflation.
               </p>
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
@@ -145,9 +145,9 @@ export default function DocsPage() {
               <p>The whole loop is three steps:</p>
               <ol className="ml-1 space-y-3">
                 {[
-                  ["Trade tax → treasury", "Every buy and sell of ROBX pays a 4% tax into a shared treasury contract."],
-                  ["Treasury → stocks", "Every 30 minutes a keeper converts the collected tax and credits every holder pro-rata. Payouts are in tokenized stocks, not farm tokens."],
-                  ["Claim → your wallet", "You pick your payout stock and claim; the treasury swaps into that stock at claim time and sends it to you. Or let it accrue and use it as perps margin (Phase 02)."],
+                  ["Pool fee → treasury", "ROBX trades in a Uniswap v3 pool on Pons with a 1% swap fee. 70% of it — 0.7% of every trade — is the creator share, and that share is the treasury."],
+                  ["Treasury → holders", "Every 30 minutes the keeper collects the fee and credits every holder pro-rata. Everyone accrues every epoch, however small their stake."],
+                  ["Stocks → your wallet", "Once your balance passes a $1 floor, the treasury swaps it into the stock you picked and sends it — no claim, no gas on your side. Or let it accrue and use it as perps margin."],
                 ].map(([t, b], i) => (
                   <li key={t} className="panel flex gap-4 p-5">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border-2 border-robin/40 bg-robin/5 font-mono text-sm font-black text-robin">
@@ -161,29 +161,29 @@ export default function DocsPage() {
                 ))}
               </ol>
               <p className="rounded-lg border-2 border-robin/20 bg-robin/5 p-4 text-sm text-zinc-300">
-                <b className="text-robin">Under the hood:</b> rewards are
-                accounted internally in USDG (a stablecoin) so your claimable
-                value is stable and the swap into a stock is a single hop. USDG
-                is just the unit of account — you receive stocks, not USDG
-                (a USDG fallback only kicks in if a stock&apos;s pool is ever
-                unavailable).
+                <b className="text-robin">Under the hood:</b> the fee arrives
+                as WETH. Your balance is kept in it and shown in dollars at the
+                live rate; at payout it is swapped WETH → USDG → your stock on
+                Uniswap v3. You receive stocks, not WETH (a WETH fallback only
+                kicks in if a stock&apos;s pool is ever unavailable).
               </p>
             </Section>
 
             <Section id="tokenomics" n="03" title="Tokenomics">
               <div className="panel p-6">
                 <Row k="Token" v="ROBX" />
-                <Row k="Total supply" v="100,000,000 (fixed, no mint)" />
-                <Row k="Buy tax" v="4% → treasury" />
-                <Row k="Sell tax" v="4% → treasury" />
-                <Row k="Max tax (hard cap)" v="5% — owner can never exceed" />
-                <Row k="Wallet ↔ wallet" v="0% (tax-free transfers)" />
+                <Row k="Total supply" v="1,000,000,000 (fixed, minted by Pons)" />
+                <Row k="Launchpad" v="Pons — Uniswap v3 pool, LP locked" />
+                <Row k="Pool fee" v="1% per swap (Uniswap v3 tier)" />
+                <Row k="Treasury share" v="70% of the pool fee → 0.7% of volume" />
+                <Row k="Transfers" v="Plain ERC-20 — no tax, no hooks" />
                 <Row k="Emissions" v="None — rewards come only from volume" />
               </div>
               <p className="text-sm text-zinc-400">
-                The tax rate is adjustable by the owner but capped at 5% in the
-                contract itself, so it can never be raised beyond that — a
-                built-in protection for holders.
+                There is no tax logic in the token: ROBX is the standard ERC-20
+                Pons mints, and the fee is the pool&apos;s own, split at launch
+                and never changed. Nothing about the token can be adjusted after
+                it exists.
               </p>
             </Section>
 
@@ -193,14 +193,15 @@ export default function DocsPage() {
                 <Row k="Backing" v="1:1-backed stock tokens on Robinhood Chain" />
                 <Row k="Frequency" v="Every 30 minutes, automatic" />
                 <Row k="Eligibility" v="Pro-rata to every ROBX holder" />
-                <Row k="Custody" v="Sent to your own wallet on claim" />
+                <Row k="Custody" v="Pushed to your own wallet — nothing to claim" />
                 <Row k="Default payout" v="Tesla (tTSLA) if you never pick" />
               </div>
               <p>
-                Distribution accounting is O(1) — it scales to any number of
-                holders with no loops, using a standard accumulator. A keeper
-                bot triggers the 30-minute epoch; if it ever stops, anyone can
-                trigger a distribution, and nothing is lost in the meantime.
+                The keeper takes a holder snapshot every epoch, credits each
+                wallet&apos;s share to a durable ledger, and pays out only the
+                balances over the $1 floor — small amounts keep accruing instead
+                of being eaten by gas. Every payout is an on-chain transfer you
+                can check on the explorer from the Treasury tab.
               </p>
             </Section>
 
@@ -253,17 +254,22 @@ export default function DocsPage() {
               </p>
             </Section>
 
-            <Section id="contracts" n="08" title="Contracts & security">
-              <p>Two contracts run the whole thing:</p>
+            <Section id="contracts" n="08" title="On-chain & security">
+              <p>Nothing custom runs on chain:</p>
               <ul className="space-y-2 text-sm">
                 <li className="panel p-4">
-                  <b className="text-white">ROBX</b> — the token. Fixed supply,
-                  4% DEX tax (5% hard cap), no mint function after deploy.
+                  <b className="text-white">ROBX</b> — a standard ERC-20 minted
+                  by Pons. Fixed 1B supply, no owner, no tax, no mint.
                 </li>
                 <li className="panel p-4">
-                  <b className="text-white">RewardDistributor</b> — the
-                  treasury. Converts tax and pays holders in stocks every 30
-                  minutes with O(1) accounting.
+                  <b className="text-white">Pons locker</b> — holds the v3 LP
+                  position. The creator share of the pool fee can only go to
+                  the treasury wallet; the split is fixed at launch.
+                </li>
+                <li className="panel p-4">
+                  <b className="text-white">The keeper</b> — the treasury wallet
+                  plus the service that accrues and pays. It can only spend what
+                  the pool fee brings in; it never touches your ROBX.
                 </li>
               </ul>
               <p className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Reward stock tokens (verified on-chain)</p>
@@ -279,10 +285,10 @@ export default function DocsPage() {
             <Section id="faq" n="09" title="FAQ">
               {[
                 ["Do I own real shares?", "No. Rewards are tokenized stocks (1:1-backed) held in your wallet; ROBX itself is a utility token with no equity or shareholder rights. Not affiliated with the underlying companies."],
-                ["Where do rewards come from?", "Purely from the 4% trade tax. No emissions, no inflation — if there's no trading, there are simply no rewards that epoch."],
+                ["Where do rewards come from?", "Purely from the pool's swap fee — 0.7% of every trade. No emissions, no inflation — if there's no trading, there are simply no rewards that epoch."],
                 ["What if I never pick a stock?", "You receive the default (tTSLA). You can change your payout stock any time in the Treasury tab."],
-                ["Can the team rug the tax?", "The tax is hard-capped at 5% in the contract and can't be exceeded. There is no mint function. Ownership goes to a multisig before liquidity."],
-                ["Is this live?", "The token & treasury (Phase 01) are built and tested; perps are a preview. Trading unlocks at token launch — the contract address will appear here and on the dashboard."],
+                ["Can the team change the fee?", "No. The pool fee tier and the creator split are set by Pons at launch and never change; ROBX has no owner and no tax logic. Liquidity is locked in the Pons locker."],
+                ["Is this live?", "The token launches on Pons; the treasury keeper is built and tested against Robinhood Chain. Trading unlocks at launch — the token address will appear here and on the dashboard."],
               ].map(([q, a]) => (
                 <details key={q} className="panel group px-5 py-1 [&_summary]:list-none">
                   <summary className="flex cursor-pointer items-center justify-between py-4 font-bold text-zinc-100">

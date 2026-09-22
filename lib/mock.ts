@@ -2,53 +2,31 @@
 // No mock market data — live prices come from /api/prices, balances from the
 // connected wallet, and positions from the chain once perps go live.
 
+import { KEEPER_URL, ROBX_TOKEN_ADDRESS } from "./config";
+
 // Feature flags — what's live vs. on the roadmap (see landing Roadmap section)
 export const FEATURES = {
-  tradeLive: false, // unlocks with the ROBX token launch (see lib/config.ts)
-  perpsLive: false, // Phase 02 — preview until the perps engine is ported to Robinhood Chain
+  tradeLive: Boolean(ROBX_TOKEN_ADDRESS), // unlocks with the ROBX token launch (see lib/config.ts)
+  // Perps live in the keeper; pointing the site at it is the launch switch.
+  perpsLive: Boolean(KEEPER_URL),
   autoTradingLive: false, // Phase 03 — strategy vaults / auto-trading
 };
 
 // Token economics (design constants). Live figures (treasury size, APR, spot
-// price) stay 0 → the UI shows "TBA" until the token launches and real data
-// is wired in.
+// price) come from the keeper's /status; the UI shows "TBA" until it is wired.
 export const TREASURY = {
   totalUsdc: 0,
-  taxRateBps: 400, // 4% buy/sell tax → treasury
+  // Pons pool fee is 1% of every swap; 70% of it is the creator share that
+  // becomes the treasury — 0.7% of volume, taken by the pool, not a tax.
+  poolFeeBps: 100,
+  creatorSharePct: 70,
   tokenPriceUsd: 0,
   tokenSymbol: "ROBX",
-  totalSupply: 100_000_000,
+  totalSupply: 1_000_000_000, // Pons mints a fixed 1B
   apr: 0,
 };
 
 export type Direction = "long" | "short";
-
-export type Position = {
-  id: string;
-  direction: Direction;
-  leverage: number;
-  marginUsdc: number;
-  entryPrice: number;
-  sizeUsd: number;
-  liqPrice: number;
-  openedAt: string;
-};
-
-// Positions come from the chain once perps are live (Phase 02).
-export const OPEN_POSITIONS: Position[] = [];
-
-export type ClosedPosition = {
-  id: string;
-  direction: Direction;
-  leverage: number;
-  marginUsdc: number;
-  entryPrice: number;
-  exitPrice: number;
-  pnlUsd: number;
-  settledAt: string;
-};
-
-export const CLOSED_POSITIONS: ClosedPosition[] = [];
 
 // Robinhood Chain mainnet (verified on-chain).
 export const NETWORK = {
